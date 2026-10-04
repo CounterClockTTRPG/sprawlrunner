@@ -20,6 +20,8 @@ Godot and `dotnet.exe` driven from WSL. Design and every number:
     bash scripts/assets.sh      generate missing portraits/banners/voices via ../assetgen
                                 (and the intro clip in assets/video); --list, --force NAME;
                                 needs its Replicate token
+    bash scripts/export.sh [DIR]    Windows build (exe + data + assets) to DIR (default C:/temp/Sprawlrunner),
+                                then the self-check against the exported exe
     bash scripts/agent-career.sh [DAYS]   a scripted N-day career through the real UI (agent mode)
     ./play.sh --agent           remote control for an agent playtester; drive it with
                                 scripts/agent.sh "state; drive fixer; key E; ui" ('help' lists
