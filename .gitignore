@@ -1,0 +1,13 @@
+# Godot's build and import cache, regenerated on every build.
+.godot/
+bin/
+obj/
+*.user
+# Generated locally: walkthrough screenshots, agent playtest logs.
+shots/
+agent/
+agent-game.log
+# Local machine settings.
+.env
+.claude/
+overhead/

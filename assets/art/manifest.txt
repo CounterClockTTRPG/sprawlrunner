@@ -1,0 +1,86 @@
+# SPRAWLRUNNER -- the pictures, and how to ask for them.
+#
+# One line per picture, read by scripts/assets.sh, which drives ../assetgen
+# (project `sprawlrunner`) and writes assets/art/<name>.webp at the size the
+# game draws it. The game loads them by name through `Assets.Picture` and
+# draws its own procedural art for any that are missing, so nothing here is
+# needed to build, run or check the game.
+#
+# Format, pipe-separated:
+#
+#   name | aspect | prompt
+#
+#   name    the file written, and what the game asks for. Stable: the self-check
+#           ties these to the tables (contact-<id>, hire-<id>, boss-<faction>,
+#           site-<style>), so renaming one here without the table breaks it.
+#   aspect  passed to the image model. Portraits are 1:1 and drawn cropped to
+#           their panel; banners are 16:9 (the largest flux-1.1-pro offers) and drawn
+#           cropped to a strip across the top of the briefing; the title
+#           art is 16:9 and fills the screen.
+#   prompt  what the picture is. The project's image style (noir, neon rim
+#           light, no text) is appended by assetgen, so this never says how it
+#           should look -- except the contact's accent colour, which matches the
+#           colour the interface already uses for them.
+
+# ---- the title screen: full screen behind the menu, which sits on the left --------------
+
+title-key | 16:9 | a lone shadowrunner in a long coat seen from behind on a rain-soaked rooftop ledge at night, looking out over a vast dense neon megacity and a dark bay, the figure in the right third of the frame, the left third of the frame dark empty sky and haze, flying traffic lights in the distance, steam rising
+
+# ---- places: the safehouse panel ---------------------------------------------------------
+
+place-home  | 1:1 | a cramped one-room safehouse at night, view from inside towards a rain-streaked window over a dense neon city, a battered terminal glowing green on a cluttered desk, mattress on the floor, weapons case, green accent light
+place-loft  | 1:1 | a sleek penthouse loft high in a corporate arcology at night, floor-to-ceiling glass over a glittering city far below, minimal furniture, a holographic terminal, cool green accent light
+# The safehouse by lifestyle (low is place-home): the same kind of view, a different life.
+place-home-squatter | 1:1 | a squat in a gutted tenement room at night, view from inside towards a broken boarded-up window over a dense neon city, a bare mattress on a concrete floor, a camping stove, a battered terminal glowing green on an upturned crate, graffiti on peeling walls, a padlocked door, green accent light
+place-home-middle   | 1:1 | a clean modest apartment at night, view from inside towards a large window over a dense neon city, a made bed, a tidy desk with a terminal glowing green, a bookshelf, a sofa, warm lamp light with a green accent light
+place-home-high     | 1:1 | a stylish high-rise apartment at night, view from inside towards tall windows over a glittering neon city, designer furniture, a kitchen island, art on the walls, a sleek terminal glowing green, a weapons cabinet behind glass, green accent light
+place-home-luxury   | 1:1 | a vast luxury penthouse at night, view from inside towards a wall of glass high above a glittering neon city and the dark bay, marble floors, a private bar, a holographic terminal glowing green, an armed security drone hovering by the door, green accent light
+
+# ---- the contacts: Tables.Contacts, by id -------------------------------------------------
+
+contact-fixer       | 1:1 | head-and-shoulders portrait of Juno Vance, a hard-faced woman in her late forties with crow's feet and a scar on the cheek, fixer and job broker, short asymmetric magenta-dyed hair, her left eye a glowing chrome cybernetic implant, buttoned high-collared dark coat, seated in a smoky dive bar booth, a drink at her hand, knowing half-smile, hot pink neon accent light
+contact-doc         | 1:1 | head-and-shoulders portrait of Doc Ichikawa, a gaunt Japanese man in his sixties, former corporate surgeon turned back-alley street doctor, surgical loupe magnifier over one eye, stained scrubs, steady unimpressed stare, a cramped clinic with surgical lamps and cyberware on trays behind him, mint green accent light
+contact-arms        | 1:1 | head-and-shoulders portrait of Big Sal, a huge heavyset man in his fifties, arms dealer, shaved head, thick beard, cigar, olive military surplus vest, broad salesman's grin, racks of rifles and ammunition crates behind him, warm amber accent light
+contact-rigger      | 1:1 | head-and-shoulders portrait of Torque, a wiry rigger mechanic with a datajack in the temple and grease-smeared face, welding goggles pushed up on a buzzcut, oil-stained coveralls, in a chop shop with a half-stripped muscle car behind, cold electric blue accent light
+contact-decker      | 1:1 | head-and-shoulders portrait of Null, a pale androgynous young hacker, decker, cables running from a jack behind the ear, hood up, face lit from below by screens of scrolling code, distant bored expression, violet accent light
+contact-talismonger | 1:1 | head-and-shoulders portrait of Madame Sabine, an elegant older woman, talismonger and street mystic, silver-streaked hair piled high, layered beads and bone charms, kohl-lined eyes, a dim occult shop of candles, herbs and crystals behind her, purple accent light
+contact-fence       | 1:1 | head-and-shoulders portrait of Old Wen, a wrinkled elderly Chinese pawnbroker and fence, wire-rimmed glasses, cardigan, jeweller's loupe in hand, behind a cluttered pawn shop counter piled with stolen electronics, shrewd smile, pale yellow accent light
+contact-cop         | 1:1 | head-and-shoulders portrait of Sgt. Dace, a heavyset tired police sergeant in his fifties, a corrupt city cop, grey stubble, loosened tie over a rumpled navy uniform shirt with a dull badge, in the booth of a dim cop bar with a half-finished beer, wary sideways glance, cold blue accent light
+contact-press       | 1:1 | head-and-shoulders portrait of Mara Quill, a sharp-eyed journalist woman in her thirties, freelance news stringer, short dark bob, oversized rain-spotted trench coat, a press camera on a strap, in a cluttered late-night newsroom full of glowing screens, wry curious half-smile, pale gold accent light
+
+# ---- runners for hire: Tables.Hires, by id ------------------------------------------------
+
+hire-ox    | 1:1 | head-and-shoulders portrait of Ox, an enormous troll street samurai with small curling horns, tusks, scarred grey skin, heavy armoured jacket, a combat shotgun over the shoulder, calm protective expression
+hire-wisp  | 1:1 | head-and-shoulders portrait of Wisp, a slender elf sniper with pointed ears and close-cropped silver hair, a long rifle scope pushed up, dark hooded cloak, cool distant gaze
+hire-patch | 1:1 | head-and-shoulders portrait of Patch, a tired combat medic in a battered armoured vest with a red cross patch, trauma kit on the chest, a submachine gun slung, kind weary eyes
+hire-ade   | 1:1 | head-and-shoulders portrait of Ade, a West African woman in her late forties with grey at the temples, a street clinic night nurse turned runner medic, close-cropped hair, plain unmarked scrubs under a plain dark padded vest, a medical bag strap across the chest, calm tired determined gaze, in a dim clinic corridor
+hire-byte  | 1:1 | head-and-shoulders portrait of Byte, a scrawny teenage hacker, a cheap cyberdeck strapped to the forearm, a cable running from a datajack behind the ear, oversized hoodie, cocky grin, face lit from below by a holographic screen
+
+# ---- faction bosses: Tables.BossOf, by Faction ---------------------------------------------
+
+boss-vipers  | 1:1 | head-and-shoulders portrait of Big Mamba, the menacing leader of a street gang, snake scale tattoos up the neck, gold teeth, spiked leather jacket, sawn-off shotgun, toxic green accent light
+boss-halcyon | 1:1 | head-and-shoulders portrait of Iron Saint, a corporate security chief in heavy full-body cyberware, half the face replaced by polished steel plating, glowing red optic, black tactical armour with a corporate halo emblem, cold white accent light
+boss-lotus   | 1:1 | head-and-shoulders portrait of The Jade Widow, a poised syndicate matriarch and blood mage, black qipao embroidered with red lotus flowers, jade hairpins, faint fire curling around her fingers, red accent light
+
+# ---- job sites: SiteStyle, by name -------------------------------------------------------
+
+site-warehouse | 16:9 | wide establishing shot of a dockside warehouse at night, corrugated steel walls, stacked unmarked rusty shipping containers, sodium floodlights in the rain, a chain-link fence, a crane silhouette over black water
+site-office    | 16:9 | wide establishing shot of a gleaming corporate office tower lobby at night seen from the street, glass and steel, security drones, abstract holographic light sculptures, rain on the plaza
+site-den       | 16:9 | wide establishing shot of a gang den in a derelict tenement block at night, abstract spray-paint murals, burning barrel, boarded windows, motorbikes outside, rusted fire escapes
+site-lab       | 16:9 | wide establishing shot of a fenced research laboratory complex in an industrial zone at night, chemical tanks, pipework, hazard lights, steam venting, security cameras on poles
+site-club      | 16:9 | wide establishing shot of a crowd queuing behind velvet ropes outside a glowing doorway on a packed entertainment strip at night, a huge troll doorman, the facade wrapped in abstract curving pink and cyan light tubes, steam, wet street reflections
+
+# The intro: full-screen backdrops (title size), one shared run of cards and one per background.
+intro-city     | 16:9 | a vast rain-soaked cyberpunk megacity on a polluted bay at night seen from high above, corporate arcology towers with glowing logos dominating the skyline, a dense sprawl of neon slums below, dark oily water, flying traffic, haze and searchlights
+intro-street   | 16:9 | a gang of ragged street kids running across slum rooftops at dusk in a cyberpunk city, laundry lines, satellite dishes, rusted water tanks, one kid looking back at the camera, neon signs glowing below
+intro-corp     | 16:9 | a lone office worker in a crisp suit walking out of the glass lobby of a towering corporate arcology at night into the rain, holding a small box of belongings, cold blue light, security drones overhead
+intro-cop      | 16:9 | a tired police officer in riot armour standing in a rain-soaked cyberpunk precinct garage, badge in hand, armoured patrol cars with red and blue light bars behind, harsh fluorescent light
+intro-shaman   | 16:9 | a robed wanderer with a carved staff walking down a misty hillside road at dawn towards a distant glowing cyberpunk city, a faint ghostly animal spirit walking beside them, wild grass, cold light
+intro-barrens  | 16:9 | a battered muscle car parked in a burnt-out cyberpunk slum at night, graffiti-covered tenements, an oil drum fire, a young driver leaning on the hood, green toxic glow in the puddles
+intro-juno     | 16:9 | close-up of a woman's hand with a heavy silver ring sliding a glowing datachip across a scratched bar table towards the viewer, a glass of whiskey and a cigarette in an ashtray beside it, her dark coat sleeve, her face out of frame, smoky cyberpunk dive bar at night, hot pink neon bokeh, no text
+intro-tonight  | 16:9 | a shabby one-room safehouse at night, rain on the window, a terminal glowing green on a cluttered desk showing a job listing, a mattress on the floor, a jacket and a pistol on a chair, neon city outside
+
+# Faces on a call: story people who call you and have no contact portrait (CallView; anyone else calls without video).
+caller-pryce | 1:1 | head-and-shoulders portrait of Dr. Amon Pryce, a gaunt nervous scientist in his fifties with thinning grey hair and wire-rim glasses, stubble, a rumpled lab coat over a dark jumper, haunted guilty eyes, a dim safehouse behind him, cold blue monitor light
+caller-ilse  | 1:1 | head-and-shoulders portrait of Ilse Pryce, a tired woman in her forties with her brother's sharp grey eyes, hair pulled back, a worn raincoat, worried and determined, a clinic waiting room behind her, soft mint green light
+caller-kade  | 1:1 | head-and-shoulders portrait of Kade Marrow, a handsome scarred veteran shadowrunner in his fifties turned gang boss, close-cropped grey hair, a chrome jaw implant, a Viper snake tattoo on his neck, an amused confident smile, an expensive leather jacket, acid green neon light

@@ -1,0 +1,13 @@
+# SPRAWLRUNNER -- the moving pictures, read by scripts/assets.sh.
+#
+# Format, pipe-separated:
+#
+#   name | first frame | prompt
+#
+#   name         assets/video/<name>.ogv (Ogg Theora, 1280x720, silent): Godot
+#                plays Theora without an importer.
+#   first frame  an assets/art picture the clip starts from (image-to-video),
+#                so the clip and the still the intro falls back to match.
+#   prompt       the motion. Kept slow: it sits under narration.
+
+intro-city-move | intro-city | slow cinematic push in over the megacity at night, rain falling, flying cars drifting between the towers, searchlights sweeping, neon signs flickering, light mist moving over the dark water

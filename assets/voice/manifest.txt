@@ -1,0 +1,89 @@
+# SPRAWLRUNNER -- the spoken lines, and who speaks them.
+#
+# One line per recording, read by scripts/assets.sh, which drives ../assetgen
+# (project `sprawlrunner`) and writes assets/voice/<name>.ogg. Each voice is an
+# assetgen character holding the model, voice, emotion and pace, so every line
+# a contact says sounds like the same person:
+#
+#   assetgen project voice list        (with ASSETGEN_PROJECT=sprawlrunner)
+#
+# Format, pipe-separated:
+#
+#   name | voice | text
+#
+#   name    greet-<contact id>-<index into ContactDef.Greetings>. PlaceScreen
+#           plays the one it shows.
+#   voice   the assetgen character.
+#   text    exactly the line in Tables.Contacts. The self-check compares them,
+#           so editing a greeting there without here (and regenerating) fails.
+
+
+greet-fixer-0 | fixer | Sit. Drink. Then we talk business.
+greet-fixer-1 | fixer | You look alive. That's good for both of us.
+greet-fixer-2 | fixer | Word on the street is you deliver. Keep it that way.
+
+greet-doc-0 | doc | Lie down. Don't touch anything.
+greet-doc-1 | doc | Your essence is your business. Your bill is mine.
+greet-doc-2 | doc | Back in one piece? Let's see how many.
+
+greet-arms-0 | arms | Everything's legal if you don't ask.
+greet-arms-1 | arms | Got a new crate in. Don't ask from where.
+greet-arms-2 | arms | Cash first, then we're friends.
+
+greet-rigger-0 | rigger | What did you do to my baby?
+greet-rigger-1 | rigger | Engines don't lie. People do.
+greet-rigger-2 | rigger | Got something with real torque out back.
+
+greet-decker-0 | decker | Your commlink is a sieve. Want better?
+greet-decker-1 | decker | I don't do small talk. I do packets.
+greet-decker-2 | decker | The corps changed their ICE. I didn't.
+
+greet-talismonger-0 | talismonger | The spirits said you'd come. They say a lot of things.
+greet-talismonger-1 | talismonger | Chrome dulls the gift, darling. Remember that.
+greet-talismonger-2 | talismonger | Touch nothing that hums.
+
+greet-fence-0 | fence | Show me what you found.
+greet-fence-1 | fence | Hot goods cool down fast in here.
+greet-fence-2 | fence | Ah. My favourite supplier.
+
+greet-cop-0 | cop | Sit where the cameras can't see you.
+greet-cop-1 | cop | Your file's getting thick. Thick costs extra.
+greet-cop-2 | cop | I never met you. Talk fast.
+
+greet-press-0 | press | Off the record? Everything's off the record.
+greet-press-1 | press | Tell me something true. It's been a long week.
+greet-press-2 | press | You're the story. You know that, right?
+
+# Story beats: line-<storylet id>, the quoted speech in that storylet's text,
+# played when its call or mail opens. The self-check holds them to the text.
+line-story-1 | fixer | The chip you brought back has a serial number burned into the casing. Somebody made a batch of these. Null could trace it -- if Null feels like talking to you.
+line-story-trace | decker | Halcyon-Matsuda, Industrial lab four. A thousand of these, ordered by somebody with no name and a lot of money. I can get you the lab. It costs.
+line-story-mid | fixer | Your download was the buyer list. Iron Saint is a chip that makes people do what they're told, and every name on that list has ordered one for their own security. Half the city's powerful people. What we do with this decides what happens next. You choose.
+line-story-2 | doc | A woman came in asking about a Dr. Amon Pryce. Says she's his sister. Says you're the only one who can find him. I told her to wait. She's still waiting.
+line-story-3 | pryce | I owe you my life, and I know the Spire -- I built the systems on the top floor. Meet me at the Rusty Halo. Bring a pen.
+line-story-pryce | pryce | Cores here, here and here. The test subject runs security -- he won't feel pain, he won't stop. Don't let him get close.
+line-story-end | fixer | It's over. You did the thing nobody does -- you won. You can disappear tonight, a legend, and never work again. Or you can stay. The city will still need runners tomorrow.
+line-tide-open | talismonger | Darling, I need someone who has seen the worst of this city and walked away. Something under the Docks is waking, and people are drinking it. Come and see me when you are ready. Bring a strong stomach.
+line-cut-open | fixer | Somebody bought every file on every job you ever did. Paid in cash, through three fences. The Vipers have a new boss -- an old runner called Kade Marrow. I think he's learning you. Come and see me.
+line-cut-mid | kade | Kade Marrow. I've read everything you've ever done -- you're good. So am I. Kessler Bay could be ours. Come and run with me, and nobody ever sends you after anyone again.
+line-cut-end | fixer | Marrow's done. The Vipers are fighting over his chair, and none of them is half the runner he was. You know what that makes you? The one who studied the man who studied you. Nobody will try that again.
+line-wyrm-open | decker | After the Spire I went looking for who signs Halcyon-Matsuda's cheques. I found a shell company, then another, then a trust that has existed, on paper, for four hundred years. Come by. Bring your nerve.
+line-wyrm-mid | decker | The ledger is real. Halcyon is owned by a dragon. Its name is Veyrasz, and it has owned this city's best property since before there was a city. I have never been so frightened, and I have never wanted to finish a job so much.
+line-wyrm-end | veyrasz | You left my ledger on my desk. Very few beings have surprised me in the last century. You may name a price for your silence. Or you may tell the world, and see how long the world remembers. Or sell it to my rivals -- they are children. Choose.
+line-past-street-open | fence | Tam came in yesterday. Tam from your roof crew. He was asking which pawn shop you sell to now. I said I'd never heard of you. Come and see me.
+line-past-corp-open | press | A Halcyon internal memo crossed my desk with your old employee number on it. They want you back -- not as staff. Come by the night desk.
+line-past-cop-open | cop | Remember Kettle Street? The case Rook closed the week you handed in your badge? Somebody just reopened it. Not us. Drop by the Lamp.
+line-past-shaman-open | talismonger | I dreamed of your totem last night, darling. It was hungry, and it was frightened. Totems are never frightened. Come and see me.
+line-past-barrens-open | rigger | A kid tried to sell me a fuel tank with your brother's tag on it. I asked where he got it. He ran. Come by the shop.
+
+line-lamp-open | lamplighter | You do good work and you ask few questions. I have work. I pay before it is done. Call me the Lamplighter.
+line-lamp-mid | decker | I traced your patron. There is nobody at the end of the line. No meat, no persona, no deck. The money comes from ten thousand accounts, a yen from each. You're working for an AI -- a real one. The kind the Registry burns. And there's a Registrar sitting in my waiting room who would very much like to talk to you.
+# The intro, narrated by Juno: say-<card picture>, the card's words in src/Sim/Intro.cs.
+say-intro-city | fixer | Kessler Bay. Nine million people on a bay that died before you were born. Halcyon-Matsuda owns the skyline, the Red Lotus own the night, and the Ash Vipers own whatever's left. Lone Star keeps the peace, for whoever pays.
+say-intro-street | fixer | You grew up on the roofs of the Barrens with a crew of kids who stole anything that wasn't welded down. Old Wen bought most of it. The crew's gone now. You're not.
+say-intro-corp | fixer | Eleven years a wage slave in a Halcyon-Matsuda tower. Then you opened a file you weren't cleared for, and saw what the company does with people. You walked out with your severance and a head full of secrets.
+say-intro-cop | fixer | You wore a Lone Star badge until you watched your partner sell a case to the highest bidder. You handed in the badge. He got promoted. Sergeant Dace still takes your calls.
+say-intro-shaman | fixer | You came down from the hills following a voice only you could hear. Your totem led you here, to the dirtiest city on the coast, and went quiet. Madame Sabine says it's waiting for something.
+say-intro-barrens | fixer | Born in a Viper squat, out before you were ten. The Vipers killed your brother over a debt that wasn't his. Torque taught you to drive. You never stopped driving.
+say-intro-juno | fixer | Now you're a shadowrunner. No SIN, no record, no questions. Somebody with money wants something done that their own people can't be seen doing. I find the job. You do it, and walk away clean. That's the deal.
+say-intro-tonight | fixer | You've got a mattress in a safehouse on the wrong side of the Barrens, rent due on Sunday, and one friend in the city: me. There's a briefcase in a warehouse by the docks. Come and see me at the Rusty Halo. Let's see what you can do.
