@@ -448,7 +448,7 @@ public partial class CityScreen : Control
             foreach (Lot l in sim.Destinations())
             {
                 bool job = j != null && l.Index == j.Lot;
-                DrawCircle(mo + Art.G(l.Door.Centre) * ms, job ? 5 : 3.5f, job ? UITheme.Magenta : Art.C(l.Sign == 0 ? 0x40ffb0ffu : l.Sign));
+                Pin(mo + Art.G(l.Door.Centre) * ms, l, job, job ? 5 : 3.5f);
             }
             Vector2 cp = mo + Art.G(sim.Player.Pos) * ms;
             Vector2 cf = new(MathF.Cos(sim.Player.Heading), MathF.Sin(sim.Player.Heading));
@@ -569,9 +569,9 @@ public partial class CityScreen : Control
             foreach (Lot l in sim.Destinations().Distinct().OrderBy(l => l == hover ? 1 : 0))
             {
                 bool job = j != null && l.Index == j.Lot;
-                Color lc = job ? UITheme.Magenta : Art.C(l.Sign == 0 ? 0x40ffb0ffu : l.Sign);
+                Color lc = PinColour(l, job);
                 Vector2 p = mo + Art.G(l.Door.Centre) * ms;
-                DrawCircle(p, job ? 6 : 4.5f, lc);
+                Pin(p, l, job, job ? 6 : 4.5f);
                 if (l == S._routeTo) DrawArc(p, 9, 0, MathF.Tau, 16, UITheme.Cyan, 2);
                 // People: who has something to say, whose shutters are down.
                 if ((S._overlay & 4) != 0 && l.Place != null && Tables.Contacts.Any(k => k.Id == l.Place))
@@ -599,6 +599,18 @@ public partial class CityScreen : Control
             string On(int bit) => (S._overlay & bit) != 0 ? "on" : "off";
             UITheme.Write(this, new Vector2(0, size.Y - 54), $"Click a place: make it your target{(S._routeTo != null ? $" (now {S.LotName(S._routeTo)}: click it again or right-click to clear)" : " (otherwise the job is)")}   ·   [1] turf {On(1)}   [2] police {On(2)}   [3] people {On(4)}   ·   M: close", 15, UITheme.Dim, HorizontalAlignment.Center, size.X);
             if (hover != null) UITheme.Write(this, new Vector2(0, size.Y - 30), $"{(hover.Place == null ? "Job site" : City.PlaceName(hover.Place) + (City.PlaceWho(hover.Place) is string who && who.Length > 0 ? " -- " + who : ""))}  ·  {Tables.District(hover.District).Name}  ·  {V2.Distance(hover.Door.Centre, sim.Player.Pos) * 4:0} m", 15, UITheme.Text, HorizontalAlignment.Center, size.X);
+        }
+
+        private static Color PinColour(Lot l, bool job) => job ? UITheme.Magenta : Art.C(l.Sign == 0 ? 0x40ffb0ffu : l.Sign);
+
+        /// <summary>A place on a map: a dot, or for the safehouse a white-edged square in its own colour.</summary>
+        private void Pin(Vector2 p, Lot l, bool job, float r)
+        {
+            Color c = PinColour(l, job);
+            if (!City.IsSafehouse(l.Place)) { DrawCircle(p, r, c); return; }
+            float h = r + 1;
+            DrawRect(new Rect2(p - new Vector2(h + 1, h + 1), new Vector2(h + 1, h + 1) * 2), Colors.White);
+            DrawRect(new Rect2(p - new Vector2(h, h), new Vector2(h, h) * 2), c);
         }
 
         private void Star(Vector2 c, float r, Color col)
