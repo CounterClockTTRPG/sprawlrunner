@@ -368,6 +368,7 @@ public sealed partial class Career
         j.Target = r.Pick(names.Count > 0 ? names : Tables.TargetNames.ToList());
         j.Item = type == JobType.Plant ? r.Pick(Tables.Plants) : r.Pick(Tables.Items);
         j.Count = type == JobType.Destroy ? 2 + (threat + 1) / 2 : 0;
+        bool squeezed = false;
         if (type is not (JobType.Courier or JobType.Race))
         {
             int n = r.Chance(0.5f) ? (r.Chance(0.3f) ? 2 : 1) : 0;
@@ -383,6 +384,13 @@ public sealed partial class Career
             // Bad company: every point of notoriety makes a set-up likelier (the draw stays, so boards stay as they were).
             j.DoubleCross = j.Johnson && r.Chance(0.15f + 0.02f * Notoriety);
             if (j.Johnson) PickJohnson(j);
+            // A Johnson you squeezed last time opens lower.
+            if (j.Johnson && j.JohnsonId != null && Flag("haggled:" + j.JohnsonId) > 0)
+            {
+                Set("haggled:" + j.JohnsonId, 0);
+                j.Pay = (int)(MathF.Round(j.Pay * 0.9f / 50) * 50);
+                squeezed = true;
+            }
             // The tell: a set-up pays a little over the odds.
             if (j.DoubleCross) j.Pay = (int)(MathF.Round(j.Pay * 1.15f / 50) * 50);
             // Old enemies: a faction with a long memory fields its best.
@@ -428,6 +436,7 @@ public sealed partial class Career
         PickClient(j);
         Voice(j);
         TowerBrief(j);
+        if (squeezed) j.Brief += " This Johnson remembers you haggled last time: the opening offer is 10 % lower.";
         foreach (RunMod m in j.Mods)
         {
             var (_, name, desc, _) = Tables.RunMods.First(x => x.mod == m);
@@ -530,7 +539,9 @@ public sealed partial class Career
         if (!j.Johnson || j.Haggled) return "No more haggling on this one.";
         j.Haggled = true;
         JohnsonDef jd = JohnsonById(j.JohnsonId);
-        float chance = 0.3f + 0.1f * A(Attr.Charisma) + 0.05f * Loyalty.GetValueOrDefault("fixer") + (Talks("Corporate") ? 0.1f : 0) + (jd?.Haggle ?? 0);
+        float chance = MathF.Min(Tables.HaggleMax, 0.3f + 0.1f * A(Attr.Charisma) + 0.05f * Loyalty.GetValueOrDefault("fixer") + (Talks("Corporate") ? 0.1f : 0) + (jd?.Haggle ?? 0));
+        // Win or lose, they remember being pushed (a set-up's Johnson doesn't care).
+        if (jd != null && !j.DoubleCross) Set("haggled:" + jd.Id);
         // A Johnson who means to sell you out agrees to anything. Too quickly.
         if (j.DoubleCross)
         {

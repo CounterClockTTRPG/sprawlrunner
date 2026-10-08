@@ -372,7 +372,8 @@ cameras), club (a big dance floor, a VIP room upstairs-equivalent at the back).
 - **The Matrix** (datasteal): a 9x5 node grid; move node to node, grab three
   datastores, avoid ICE (black ICE on threat 4+). Caught: alarm and
   dumpshock (10/25). Your body stays exposed; a hit pulls you out.
-- **Mr. Johnson** jobs (30 %) are negotiated: deal, haggle once (Charisma),
+- **Mr. Johnson** jobs (30 %) are negotiated: deal, haggle once (Charisma; never
+  better than 85 %, and that Johnson opens 10 % lower next time),
   or walk. 15 % are set-ups: a squad arrives by the exit when the job is
   done. Loyal fixers warn you.
 - **Grudges**: +1 per job against a faction (none if the run raised no alarm

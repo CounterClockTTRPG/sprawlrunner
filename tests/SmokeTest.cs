@@ -998,6 +998,26 @@ public partial class SmokeTest : Node
         string said = c.Haggle(j);
         Check(said != null && (j.Pay != pay || !c.Board.Contains(j)), "haggling changes the deal");
         Check(c.Haggle(j).StartsWith("No more"), "only once");
+        if (!j.DoubleCross)
+        {
+            Check(c.Flag("haggled:" + j.JohnsonId) > 0, "and the Johnson remembers it");
+            Job again = Enumerable.Range(0, 400).Select(_ => c.MakeJob(city)).FirstOrDefault(x => x != null && x.JohnsonId == j.JohnsonId);
+            Check(again != null && again.Brief.Contains("remembers you haggled") && c.Flag("haggled:" + j.JohnsonId) == 0, "their next offer opens 10 % lower, once");
+        }
+        // Nobody wins every haggle.
+        int sure = 0;
+        for (int k = 0; k < 200; k++)
+        {
+            Career h = TestCareer();
+            h.Rng = new Rng((ulong)k + 501);
+            h.Attrs[(int)Attr.Charisma] = 10;
+            h.Loyalty["fixer"] = 5;
+            var hj = new Job { Id = 1, Johnson = true, Pay = 1000, Title = "x" };
+            h.Board.Add(hj);
+            h.Haggle(hj);
+            if (hj.Pay > 1000) sure++;
+        }
+        Check(sure < 195 && sure > 140, $"the best talker still loses one in seven or so ({sure}/200)");
         // Haggling well: high Charisma wins more often.
         int wins = 0;
         for (int k = 0; k < 40; k++)
