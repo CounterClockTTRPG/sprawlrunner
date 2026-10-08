@@ -279,13 +279,13 @@ public sealed partial class Career
         "loyal" => "loyal", "cheap" => "old friend", "wind" => "second wind", "apds" => "AP rounds", "kits" => "more kit", "vest" => "trauma vest", _ => perk,
     };
 
-    /// <summary>Damage per second on paper: what players actually choose by, with noise.</summary>
-    public static float Dps(WeaponDef w) => w.Damage * Math.Max(1, w.Pellets) * w.Rate;
+    /// <summary>Damage per second in your hands (strength, skill, chrome, ammo): what players actually choose by, with noise.</summary>
+    public float Dps(WeaponDef w) => DamageOf(w) * Math.Max(1, w.Pellets) * w.Rate;
 
-    public static string WeaponLine(WeaponDef w)
+    public string WeaponLine(WeaponDef w)
     {
-        if (w.Melee) return $"Melee {w.Damage:0}, {w.Rate:0.#}/s (DPS {Dps(w):0}), reach {w.Reach:0.#}. {w.Desc}";
-        string dmg = w.Pellets > 1 ? $"{w.Pellets}x{w.Damage:0}" : $"{w.Damage:0}";
+        if (w.Melee) return $"Melee {DamageOf(w):0}, {w.Rate:0.#}/s (DPS {Dps(w):0}), reach {w.Reach:0.#}. {w.Desc}";
+        string dmg = w.Pellets > 1 ? $"{w.Pellets}x{DamageOf(w):0}" : $"{DamageOf(w):0}";
         return $"DPS {Dps(w):0}  ·  dmg {dmg}, {w.Rate:0.#}/s, mag {w.Mag}, noise {w.Noise:0}{(w.ArmorMul < 1 ? $", armour x{w.ArmorMul:0.#}" : "")}. {w.Desc}";
     }
 
@@ -294,7 +294,7 @@ public sealed partial class Career
     {
         string mine = w.Melee ? Melee : Primary ?? Secondary;
         if (mine == null || mine == w.Id) return "";
-        WeaponDef m = Tables.Weapon(mine);
+        WeaponDef m = Wield(mine);
         float d = Dps(w) - Dps(m);
         return $"  [vs your {m.Name}: DPS {(d >= 0 ? "+" : "")}{d:0}, noise {(w.Noise - m.Noise >= 0 ? "+" : "")}{w.Noise - m.Noise:0}]";
     }

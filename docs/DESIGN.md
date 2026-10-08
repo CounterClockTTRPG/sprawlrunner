@@ -246,7 +246,7 @@ Essence starts at 6.0; each implant costs some, and cannot take you below
 | Wired reflexes | 2.0 | ability **Overclock**: bullet-time 4 s | 25,000 |
 | Cyberdeck | 0.5 | ability **Hack**: turn a turret/drone, open a door at range | 15,000 |
 | Ruthenium skin | 1.0 | ability **Cloak**: unseen 5 s | 22,000 |
-| Spur blades | 0.3 | melee uses spurs (65 dmg) | 5,000 |
+| Spur blades | 0.3 | replace the knife (and become your melee): 65 dmg, 1.6/s | 5,000 |
 
 Abilities go in slots Q and F. Everyone also has **Dash**.
 

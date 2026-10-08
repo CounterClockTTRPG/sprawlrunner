@@ -709,6 +709,16 @@ public partial class SmokeTest : Node
         Actor t = rs.AddEnemy(EnemyKind.Heavy, new V2(10.5f, 2.2f), MathF.PI);
         rs.Step(new RunInput { Slot = 0, Fire = true, Aim = new V2(10.5f, 1.2f) });
         Check(rs.Shots.Any(x => x.Homing), "a smartlinked Hornet fires homing rounds");
+        // Spur blades take the knife's place, at their own pace.
+        Career sp = TestCareer();
+        sp.Weapons.Add("katana");
+        sp.Melee = "katana";
+        sp.Install("spurs");
+        Check(sp.Melee == "knife" && sp.Wield("knife").Name == "Spur blades" && sp.Wield("knife").Rate == Tables.SpurRate, "spurs become your melee, at 1.6 a second");
+        Run rsp = Make(p, JobType.Datasteal, sp);
+        Check(rsp.MeleeDef.Name == "Spur blades" && rsp.MeleeDef.Rate == Tables.SpurRate, "and that's what you swing on a run");
+        Check(MathF.Abs(sp.Dps(sp.Wield("knife")) - sp.DamageOf(sp.Wield("knife")) * Tables.SpurRate) < 0.01f && sp.DamageOf(sp.Wield("knife")) > Tables.SpurDamage - 0.01f, "the shop's DPS is what you really do");
+        Check(sp.Offers("arms").First(o => o.Id == "monowhip").Desc.Contains("vs your Spur blades"), "and compares against the spurs");
     }
 
     private void Shields()

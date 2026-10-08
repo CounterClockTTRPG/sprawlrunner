@@ -137,7 +137,7 @@ public sealed partial class Run
     {
         if (C.Primary != null) Guns[0] = MakeGun(C.Primary);
         if (C.Secondary != null) Guns[1] = MakeGun(C.Secondary);
-        MeleeDef = Tables.Weapon(C.Melee ?? "knife");
+        MeleeDef = C.Wield(C.Melee ?? "knife");
         Slot = Guns[0] != null ? 0 : Guns[1] != null ? 1 : 2;
         Nades = C.RunGrenades();
         NadeSel = Tables.Grenades.Select(g => g.Id).FirstOrDefault(id => Nades.GetValueOrDefault(id) > 0) ?? "frag";

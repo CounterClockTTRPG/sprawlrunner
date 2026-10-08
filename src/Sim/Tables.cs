@@ -192,6 +192,8 @@ public static class Tables
     /// <summary>Faction standing (0-10): safe passage, their own jobs on the board (paying this much more), the faction item.</summary>
     public const int StandingSafe = 3, StandingJobs = 4, StandingItem = 5;
     public const float FavourPay = 1.25f;
+    /// <summary>Spur blades: they take the combat knife's place, heavier and slower.</summary>
+    public const float SpurDamage = 65, SpurRate = 1.6f;
     /// <summary>The high-end hostiles, and the threat each first appears at.</summary>
     public static int FirstThreat(EnemyKind k) => k switch
     {
@@ -312,7 +314,7 @@ public static class Tables
         new() { Id = "muscle", Name = "Muscle replacement", Essence = 1.0f, Cost = 12000, Loyalty = 2, Desc = "Strength +2." },
         new() { Id = "bone", Name = "Bone lacing", Essence = 0.8f, Cost = 14000, Loyalty = 2, Desc = "Max HP +40, melee +30 %." },
         new() { Id = "synth", Name = "Synthacardium", Essence = 0.3f, Cost = 7000, Loyalty = 1, Desc = "Dash cooldown -40 %." },
-        new() { Id = "spurs", Name = "Spur blades", Essence = 0.3f, Cost = 5000, Desc = "Forearm blades: melee hits for 65." },
+        new() { Id = "spurs", Name = "Spur blades", Essence = 0.3f, Cost = 5000, Desc = "Forearm blades that replace your combat knife: melee 65 a hit, 1.6 a second." },
         new() { Id = "wired", Name = "Wired reflexes", Essence = 2.0f, Cost = 25000, Loyalty = 3, Grants = Ability.Overclock, Desc = "Ability Overclock: the world slows to a third for 4 s." },
         new() { Id = "deck", Name = "Cyberdeck implant", Essence = 0.5f, Cost = 15000, Loyalty = 1, Grants = Ability.Hack, Desc = "Ability Hack: turn a turret or drone, kill a camera, open a door at range." },
         new() { Id = "booster", Name = "Ichikawa reflex booster", Essence = 0.4f, Cost = 0, Loyalty = 9, Desc = "Reaction +2. Doc Ichikawa's own design; not for sale." },

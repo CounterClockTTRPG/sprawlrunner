@@ -236,11 +236,23 @@ public sealed partial class Career
     /// <summary>The ammo a gun is loaded with: standard, gel, apds or explosive.</summary>
     public string Ammo(WeaponDef w) => !w.Melee && w.Blast <= 0 && !w.NonLethal && AmmoFor.TryGetValue(w.Id, out string a) && AmmoOwned.Contains(a) ? a : "standard";
 
+    /// <summary>A weapon as you would carry it: with spur blades in, the knife is the spurs.</summary>
+    public WeaponDef Wield(string id)
+    {
+        WeaponDef w = Tables.Weapon(id);
+        if (id != "knife" || !Has("spurs")) return w;
+        w = w.Copy();
+        w.Name = "Spur blades";
+        w.Damage = Tables.SpurDamage;
+        w.Rate = Tables.SpurRate;
+        return w;
+    }
+
     public float DamageOf(WeaponDef w)
     {
         if (w.Melee)
         {
-            float baseDmg = Has("spurs") && w.Id == "knife" ? 65 : w.Damage;
+            float baseDmg = Has("spurs") && w.Id == "knife" ? Tables.SpurDamage : w.Damage;
             return baseDmg * (1 + 0.12f * Strength) * (1 + 0.12f * S(Skill.Blades)) * (Has("bone") ? 1.3f : 1f);
         }
         return w.Damage * (HasMod(w.Id, "silencer") ? 0.95f : 1f) * Ammo(w) switch { "gel" => 0.7f, "explosive" => 1.2f, _ => 1f };
@@ -294,6 +306,12 @@ public sealed partial class Career
         if (d.Requires != null && !Has(d.Requires)) return $"Needs {Tables.CyberById(d.Requires).Name} first.";
         if (Essence - d.Essence * Tables.Grades.First(g => g.id == CyberGrade.GetValueOrDefault(id, "standard")).essence < 0.1f - 1e-4f) return "Not enough essence left. Any more chrome and there's no you.";
         Cyber.Add(id);
+        // The spurs are your melee from now on: they take the knife's place.
+        if (id == "spurs")
+        {
+            if (!Weapons.Contains("knife")) Weapons.Add("knife");
+            Melee = "knife";
+        }
         if (d.Grants != Ability.None)
         {
             if (SlotQ == Ability.None) SlotQ = d.Grants;
