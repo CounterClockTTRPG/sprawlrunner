@@ -292,7 +292,7 @@ public partial class CityScreen : Control
     private void ShowMorning()
     {
         var m = new Modal($"DAY {C.Day}", 640);
-        m.Add(UITheme.Label($"{C.Weather}.   {M.Money(C.Cash)}   ·   heat {C.Heat:0.0}   ·   rent {M.Money(C.RentDue)} on day {(C.Day / 7 + 1) * 7}", 16, UITheme.Dim));
+        m.Add(UITheme.Label($"{C.Weather}.   {M.Money(C.Cash)}   ·   heat {C.Heat:0.0}   ·   rent {M.Money(C.DailyRent)} a day", 16, UITheme.Dim));
         foreach (string h in C.HappeningLines()) m.Add(UITheme.Label(h.Replace("TODAY: ", ""), 16, UITheme.Yellow));
         var today = C.News.Where(n => n.StartsWith($"Day {C.Day}.")).Select(n => n[$"Day {C.Day}.".Length..].Trim()).Where(n => !n.StartsWith("TODAY")).TakeLast(8).ToList();
         foreach (string n in today) m.Add(UITheme.Label("· " + n, 15, n.StartsWith("KBN") ? UITheme.Cyan : UITheme.Text));

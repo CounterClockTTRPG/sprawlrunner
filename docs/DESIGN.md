@@ -706,8 +706,9 @@ or sleep through it, and the raiders take a third of your cash; hold it and
 Awareness drops by 3.
 
 ### The block
-- **Rent** every 7th day: ¥400 for the safehouse, ¥1,500 for the loft.
-  Behind on rent, Mrs. Halloran waits on the stairs; twice behind, she gives
+- **Rent** every morning, a seventh of the week's (¥400 a week for the safehouse,
+  ¥1,500 for the loft): moving out the day before rent saves nothing.
+  Behind on rent, Mrs. Halloran waits on the stairs; owing at two week-turns, she gives
   your address to Lone Star (+2 heat every morning) until it is paid (which
   happens by itself once you have the money).
 - Neighbours between runs at the safehouse: Mama Oyelaran's noodle stand

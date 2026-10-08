@@ -178,7 +178,7 @@ public partial class PlaceScreen : Control
         var life = Career.Lifestyles[C.LifeTier];
         _lifeHead.Text = $"{life.name.ToUpper()} LIFESTYLE";
         _lifeDesc.Text = life.desc;
-        _lifeRent.Text = C.RentOwed > 0 ? $"Rent owed: {M.Money(C.RentOwed)}." : $"Rent {M.Money(C.RentDue)} a week, next due on day {C.RentDay}. Change it on the Upgrades tab.";
+        _lifeRent.Text = C.RentOwed > 0 ? $"Rent owed: {M.Money(C.RentOwed)}." : $"Rent {M.Money(C.RentDue)} a week, paid {M.Money(C.DailyRent)} every morning. Change it on the Upgrades tab.";
         _lifeRent.LabelSettings.FontColor = C.RentOwed > 0 ? UITheme.Bad : UITheme.Faint;
         string pic = HomePicture();
         if (_portrait != null && _portrait.Picture != pic) { _portrait.Picture = pic; _portrait.QueueRedraw(); }

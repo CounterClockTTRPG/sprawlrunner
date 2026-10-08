@@ -830,7 +830,7 @@ public partial class SmokeTest : Node
         Check(c.Buy(c.Offers("fixer").First(o => o.Kind == ShopKind.Hire && o.Id == "wisp")) == null && job.Hired == "wisp", "hire at the fixer");
         int cash = c.Cash;
         c.Finish(job, new RunResult { Success = true, Alarm = true, Kills = 1, Seconds = 30, GrenadesLeft = c.RunGrenades(), MedkitsLeft = c.RunMedkits() });
-        Eq(c.Cash, cash + job.Pay - (int)(job.Pay * 0.25f), "paid less the hire's cut");
+        Eq(c.Cash, cash + job.Pay - (int)(job.Pay * 0.25f) - c.DailyRent, "paid less the hire's cut");
     }
 
     private void Basements()
@@ -1869,7 +1869,7 @@ public partial class SmokeTest : Node
         Accept(c, j2);
         int cash = c.Cash;
         c.Finish(j2, new RunResult { Success = true, GrenadesLeft = c.RunGrenades(), MedkitsLeft = c.RunMedkits() });
-        Check(c.Cash >= cash + j2.Pay, "a delivered package pays");
+        Check(c.Cash >= cash + j2.Pay - c.DailyRent, "a delivered package pays");
         Career w = TestCareer();
         var skies = Enumerable.Range(1, 40).Select(d => { w.Day = d; return w.Weather; }).ToList();
         Check(skies.Distinct().Count() >= 3, "the weather changes from day to day");
@@ -2065,7 +2065,7 @@ public partial class SmokeTest : Node
         int cash = c.Cash, rep = c.Rep, day = c.Day;
         var res = new RunResult { Success = true, Alarm = false, Cash = 100, GrenadesLeft = c.RunGrenades(), MedkitsLeft = c.RunMedkits() };
         Debrief d = c.Finish(j, res);
-        Eq(c.Cash, cash + j.Pay + j.Pay / 4 + 100, "paid, ghost bonus, cash found");
+        Eq(c.Cash, cash + j.Pay + j.Pay / 4 + 100 - c.DailyRent, "paid, ghost bonus, cash found");
         Check(c.Rep > rep && c.Karma >= j.Karma, "rep and karma");
         Eq(c.Day, day + 1, "a day passes");
         Check(!c.Board.Contains(j) && c.ActiveJob < 0, "the job is closed");

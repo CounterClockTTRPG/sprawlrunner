@@ -215,10 +215,12 @@ public sealed partial class Career
         Tick("lonestar", Awareness >= 4 ? 1 : -1);
         // The week turns.
         if ((Day % 4 == 0 || ArcPath("press") == 1 && Day % 2 == 0) && Awareness > 0) Awareness--;
+        Rent();
         if (Day % 7 == 0)
         {
             DriftTurf();
-            Rent();
+            // Owing when the week turns is a week late, whatever the amount.
+            if (RentOwed > 0) Inc("rentlate");
             Payday();
         }
         // How you live, every morning.
@@ -240,20 +242,21 @@ public sealed partial class Career
 
     public int RentDue => (int)(Lifestyles[LifeTier].week * (HasUpgrade("loft") ? 1.5f : 1f) / 50) * 50;
 
+    /// <summary>A seventh of the week's rent, every morning: you pay for the nights you lived there.</summary>
+    public int DailyRent => (int)MathF.Round(RentDue / 7f);
+
     private void Rent()
     {
-        Explain("rent", "Rent comes out every seventh day. How much depends on how you live (the safehouse's Upgrades tab).");
-        int rent = RentDue;
-        if (Cash >= rent)
+        Explain("rent", "Rent comes out every morning, a seventh of the week's. How much depends on how you live (the safehouse's Upgrades tab).");
+        int rent = DailyRent;
+        if (RentOwed == 0 && Cash >= rent)
         {
             Cash -= rent;
             Count("spent", rent);
-            Say($"Rent paid: {M.Money(rent)}.");
             return;
         }
+        if (RentOwed == 0) Say($"Couldn't make the rent ({M.Money(rent)}). Mrs. Halloran will want a word.");
         RentOwed += rent;
-        Inc("rentlate");
-        Say($"Couldn't make the rent ({M.Money(rent)}). Mrs. Halloran will want a word.");
     }
 
     // ---- after a job --------------------------------------------------------------------

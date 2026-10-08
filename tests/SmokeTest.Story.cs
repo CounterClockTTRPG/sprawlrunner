@@ -356,11 +356,18 @@ public partial class SmokeTest
         r.Day = 6;
         r.Cash = 1000;
         r.NextDay(city);
-        Eq(r.Cash, 600, "rent comes out every 7th day");
+        Eq(r.Cash, 1000 - r.DailyRent, "a seventh of the week's rent comes out every morning");
+        Eq(r.DailyRent, 57, "¥400 a week is ¥57 a day");
+        // No dodging it: live high for six days and move out on the seventh, and you paid for six days of it.
+        r.Cash = 100000;
+        r.Lifestyle = "luxury";
+        for (int k = 0; k < 6; k++) r.NextDay(city);
+        r.Lifestyle = "low";
+        Check(100000 - r.Cash >= 6 * 15000 / 7 - 6, $"living well costs by the night (¥{100000 - r.Cash})");
         r.Cash = 0;
         r.Day = 13;
         r.NextDay(city);
-        Check(r.RentOwed == 400 && r.Flag("rentlate") == 1, "can't pay: you owe it");
+        Check(r.RentOwed == 57 && r.Flag("rentlate") == 1, "can't pay: you owe it, and the week turns on it");
         Check(r.SceneAt("home")?.Story == "block-rent", "and the landlady is waiting on the stairs");
         r.Day = 20;
         r.NextDay(city);
@@ -516,7 +523,7 @@ public partial class SmokeTest
         Check(raid != null && raid.Tag == "raid" && raid.Type == JobType.Defend && raid.Lot == city.Place("home").Index, "it's your active job, at home");
         r.Cash = 9000;
         r.Finish(raid, Lost(r));
-        Eq(r.Cash, 6000, "lose it and they take a third");
+        Eq(r.Cash, 6000 - r.DailyRent, "lose it and they take a third");
         Career h = TestCareer();
         h.CityRef = city;
         h.Awareness = 7;
@@ -529,7 +536,7 @@ public partial class SmokeTest
         x.Cash = 3000;
         x.ActiveJob = x.OfferRaid().Id;
         x.NextDay(city);
-        Eq(x.Cash, 2000, "nobody home: they take it anyway");
+        Eq(x.Cash, 2000 - x.DailyRent, "nobody home: they take it anyway");
     }
 
     private void Campaign()
@@ -1251,7 +1258,7 @@ public partial class SmokeTest
         int rent = l.RentDue;
         var tiers = l.Offers("home").Where(o => o.Kind == ShopKind.Lifestyle).ToList();
         Check(tiers.Count == Career.Lifestyles.Length && tiers.Single(o => o.Owned == "current").Id == l.Lifestyle, "every lifestyle is listed, yours marked");
-        Check(l.LifestyleLine.StartsWith("Low lifestyle") && l.LifestyleLine.Contains($"day {l.RentDay}") && l.RentDay % 7 == 0 && l.RentDay > l.Day, $"and said in one line ({l.LifestyleLine})");
+        Check(l.LifestyleLine.StartsWith("Low lifestyle") && l.LifestyleLine.Contains("every morning"), $"and said in one line ({l.LifestyleLine})");
         l.Buy(l.Offers("home").First(o => o.Kind == ShopKind.Lifestyle && o.Id == "high"));
         Check(l.Offers("home").Single(o => o.Owned == "current").Id == "high", "moving moves the mark");
         Check(l.RentDue > rent * 5, "high living costs");

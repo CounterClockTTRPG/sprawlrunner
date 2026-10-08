@@ -181,11 +181,8 @@ public sealed partial class Career
     public int LifeTier => Math.Max(0, Array.FindIndex(Lifestyles, l => l.id == Lifestyle));
     public string LifestyleName => Lifestyles[LifeTier].name;
 
-    /// <summary>The next day rent comes out (every seventh day).</summary>
-    public int RentDay => (Day / 7 + 1) * 7;
-
-    /// <summary>How you live, in one line: the tier, the rent and when it's due.</summary>
-    public string LifestyleLine => $"{LifestyleName} lifestyle -- {M.Money(RentDue)} a week, next rent on day {RentDay}.";
+    /// <summary>How you live, in one line: the tier and the rent.</summary>
+    public string LifestyleLine => $"{LifestyleName} lifestyle -- {M.Money(RentDue)} a week, {M.Money(DailyRent)} every morning.";
     public int RaidFame => LifeTier >= 4 ? 99 : LifeTier >= 2 ? 6 + (LifeTier - 1) : 6;
 
     public static readonly (string id, string name, string desc, int cost, int week, string district)[] Businesses =
