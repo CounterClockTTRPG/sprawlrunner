@@ -192,6 +192,8 @@ public static class Tables
     /// <summary>Faction standing (0-10): safe passage, their own jobs on the board (paying this much more), the faction item.</summary>
     public const int StandingSafe = 3, StandingJobs = 4, StandingItem = 5;
     public const float FavourPay = 1.25f;
+    /// <summary>The share of a hit that gets through any armour: a quarter, less a fortieth per point of armour, never below 8 %.</summary>
+    public const float ArmorFloor = 0.25f, ArmorFloorFade = 40, ArmorFloorMin = 0.08f;
     /// <summary>A faction's grudge from which their sites field elite security.</summary>
     public const int GrudgeElite = 3;
     /// <summary>A crew retainer costs at least this much a week per threat level you are offered.</summary>

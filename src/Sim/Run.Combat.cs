@@ -189,7 +189,8 @@ public sealed partial class Run
         // Spirits shrug off mundane bullets; magic and fire and blast still bite.
         if (a.Is(EnemyKind.Spirit) && !explosive && !ignoreArmor) raw *= 0.25f;
         if (by != null && by.IsPlayer && Adrenaline) raw *= 1.25f;
-        float dmg = MathF.Max(raw - armor, raw * 0.25f);
+        // Armour stops what it can; what always gets through shrinks with heavier armour, to a last trickle.
+        float dmg = MathF.Max(raw - armor, raw * MathF.Max(Tables.ArmorFloorMin, Tables.ArmorFloor * (1 - armor / Tables.ArmorFloorFade)));
         a.Hp -= dmg;
         a.HitFlash = 0.12f;
         if (a.Is(EnemyKind.Cloaker)) a.RevealT = Tables.CloakReveal;

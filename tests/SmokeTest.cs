@@ -504,6 +504,16 @@ public partial class SmokeTest : Node
         r.Hurt(dead, 9999, r.Player, false);
         Steps(r, 1.5f);
         Check(walker.Alert, "a guard who sees a body raises the alert");
+        // Armour: past it, a share always gets through -- smaller the heavier the armour, never under 8 %.
+        Actor plated = r.AddEnemy(EnemyKind.Guard, new V2(3.5f, 3.5f), 0);
+        plated.MaxHp = plated.Hp = 1000;
+        foreach (var (arm, share) in new[] { (0, 1f), (20, 0.125f), (40, 0.08f) })
+        {
+            plated.Armor = arm;
+            float hp = plated.Hp;
+            r.Hurt(plated, 10, null, false);
+            Check(MathF.Abs(hp - plated.Hp - 10 * share) < 0.01f, $"armour {arm}: {hp - plated.Hp:0.00} of 10 gets through");
+        }
     }
 
     private void EnemyGrenades()

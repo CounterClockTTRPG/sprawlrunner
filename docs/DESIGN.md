@@ -178,7 +178,7 @@ distance field from the player's tile, rebuilt 4x a second.
 
 ### Damage
 
-`damage after armour = max(raw - armour, raw * 0.25)`. Explosions ignore half
+`damage after armour = max(raw - armour, raw * max(0.08, 0.25 * (1 - armour / 40)))`: what always gets through shrinks with heavier armour. Explosions ignore half
 the armour. Headshots don't exist; crits do: 8 % chance for x2 (Firearms
 adds 2 % a point).
 
@@ -993,7 +993,7 @@ Hostiles that answer what the runner has learned to lean on. All numbers in
 |---|---|---|---|
 | Security spider | one at the deepest console of every threat-5+ corporate site | while he's up, every hack runs at 70 % (50 % once he's alert), a Matrix host is one notch harder; alert, every 6 s he takes back a hacked device and every 10 s re-locks a door that started locked | find him (SPIDER tag, the deck's glow) and put him down first |
 | Ghost operative | Halcyon roster, threat 5+ | invisible beyond 4 tiles; shows for 1.5 s after it fires or is hit; your allies can't see it either | thermographic eyes (7 tiles), a mage's astral sight (9) |
-| Bulwark | Halcyon roster, threat 5+ | 360 HP, armour 14: pistols do a quarter; a shoulder slam (35, throws you 1.8 tiles, every 3.5 s); stuns wear off three times as fast | anti-materiel rifle, laser, rail rifle, missiles, explosives |
+| Bulwark | Halcyon roster, threat 5+ | 360 HP, armour 14: pistols do a sixth; a shoulder slam (35, throws you 1.8 tiles, every 3.5 s); stuns wear off three times as fast | anti-materiel rifle, laser, rail rifle, missiles, explosives |
 | Barghest | Viper roster threat 4+, bounty packs threat 3+ | an ash-grey beast with ice-blue eyes (a hellhound is rust-red); a 0.7 s wind-up (a pale blue ring), then a howl that freezes everyone within 5 tiles for 1.1 s and sends every hound within 12 into a frenzy (30 % faster for 5 s) | kill it at range, or step back out of the ring |
 | The Hive | a threat-6 Industrial bounty, 20 % of them (prestige), pay x1.3 | a queen in the deepest room and 6 + threat egg sacs; once roused, each sac hatches a worker after 24 s and the queen lays a new one every 11 s | fire, and speed: burn the sacs before they split |
 
