@@ -6,7 +6,7 @@ using Godot;
 namespace Sprawl;
 
 /// <summary>
-/// The runner's PDA (P in the city): who you know and how far they trust you,
+/// The runner's PDA (P in the city or the safehouse): who you know and how far they trust you,
 /// who holds a grudge, what your career adds up to, achievements, and the
 /// news so far.
 /// </summary>
@@ -19,6 +19,10 @@ public partial class Pda : Control
     private HBoxContainer _tabs;
     private string _tab = "Contacts";
     private string _inboxFilter = "Open";
+    /// <summary>After a cab or the Kite moved you (the safehouse leaves with it).</summary>
+    public Action Travelled;
+    /// <summary>The door you're at (opened from a place): no cab to it.</summary>
+    public Lot Here;
 
     public Pda(Career c, CitySim sim = null) { C = c; _sim = sim; }
 
@@ -172,7 +176,7 @@ public partial class Pda : Control
         list.AddChild(UITheme.Label(heli ? "Your Kite flies you and the car anywhere, free. (No package aboard.)" : "Call a cab: you ride, your car is towed behind. Pay by distance; the day doesn't pass.", 15, UITheme.Dim));
         string block = _sim.TravelBlock(heli);
         if (block != null) list.AddChild(UITheme.Label(block, 15, UITheme.Bad));
-        foreach (Lot l in _sim.Destinations().Distinct())
+        foreach (Lot l in _sim.Destinations().Distinct().Where(l => l != Here))
         {
             Lot ll = l;
             string name = l.Place == null ? $"JOB: {C.Active?.Title}" : City.PlaceName(l.Place) + (l.Place is "home" or "loft" ? "" : $" ({City.PlaceWho(l.Place)})");
@@ -185,10 +189,11 @@ public partial class Pda : Control
                 Sfx.Instance?.Play(Sound.Door);
                 Profile.SaveCareer(C);
                 Close();
+                Travelled?.Invoke();
             }, 140, 32, block ?? "");
             b.Disabled = block != null || !heli && C.Cash < fare;
             // Or drive there yourself: make it the target (the arrow and a route line point at it).
-            if (GetParent() is CityScreen cs)
+            if ((GetParent() as CityScreen ?? GetParent()?.GetParent() as CityScreen) is CityScreen cs)
             {
                 bool on = cs.Target == ll;
                 var t = UITheme.Button(on ? "Target ✓" : "Target", () => { cs.SetRoute(ll); Show("Travel"); }, 110, 32, on ? "Your target. Press again to clear it (the job leads again)." : "Make it your target: the arrow, the minimap and a route line point at it.");
