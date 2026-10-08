@@ -643,9 +643,9 @@ Runner tab. They open storylet choices; Corporate adds 10 % to a haggle.
 | Grid failure | ~1 day in 15, 2 days, one district | every site there is under Blackout |
 | Lone Star strike | ~1 day in 20, 2 days | no police chases; ambushes twice as likely |
 | Lantern festival | every 15th day | the market's stalls at half price |
-| Gang war | Vipers clock | Viper and Lotus jobs +20 %, ambushes after them (60 %); Juno asks you to pick a side |
-| Halcyon expansion | Halcyon clock | Halcyon +10 % in the Docks and Industrial, elite on their new sites |
-| Council in the pocket | Lotus clock | busts cost double; jobs against the Lotus +25 % |
+| Gang war | Vipers clock | Viper and Lotus jobs +10 %; someone follows you home after any job (80 %); Juno asks you to pick a side |
+| Halcyon expansion | Halcyon clock | Halcyon +10 % in the Docks and Industrial, elite on their new sites (+15 % pay, not 30), every rent +25 % |
+| Council in the pocket | Lotus clock | busts cost double, heat cools at half speed; Lotus sites field elites (no pay rise for it); jobs against the Lotus +12 % |
 | Crackdown | Lone Star clock | heat cools at half speed, the informant costs three times as much |
 
 ### Crew

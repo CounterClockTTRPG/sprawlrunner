@@ -189,7 +189,7 @@ public sealed partial class Career
                 foreach (var ls in Lifestyles)
                 {
                     bool here = ls.id == Lifestyle;
-                    int week = (int)(ls.week * (HasUpgrade("loft") ? 1.5f : 1f) / 50) * 50;
+                    int week = RentOf(Array.IndexOf(Lifestyles, ls));
                     string change = here ? "" : week > RentDue ? $" (+{M.Money(week - RentDue)} on what you pay now)" : $" ({M.Money(RentDue - week)} less than now)";
                     list.Add(new Offer
                     {

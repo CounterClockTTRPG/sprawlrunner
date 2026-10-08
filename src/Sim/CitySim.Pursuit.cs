@@ -93,7 +93,7 @@ public sealed partial class CitySim
         // Heat: patrols come while it is up, and it cools while none is near.
         int police = Chasers.Count(c => c.Kind == ChaserKind.Police);
         bool near = Chasers.Any(c => c.Kind == ChaserKind.Police && V2.Distance(c.Car.Pos, Player.Pos) < 25);
-        float cool = (C.On("stadium") ? 2f : 1f) * (C.On("crackdown") ? 0.5f : 1f) * (C.CarHas("plates") ? 1.5f : 1f);
+        float cool = (C.On("stadium") ? 2f : 1f) * (C.On("crackdown") || C.On("council") ? 0.5f : 1f) * (C.CarHas("plates") ? 1.5f : 1f);
         if (!near) C.Heat = MathF.Max(0, C.Heat - dt / 22f * cool);
         _policeT -= dt;
         // On strike: the cars stay in the garage.

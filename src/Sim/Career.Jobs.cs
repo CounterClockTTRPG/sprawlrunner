@@ -386,11 +386,13 @@ public sealed partial class Career
             // The tell: a set-up pays a little over the odds.
             if (j.DoubleCross) j.Pay = (int)(MathF.Round(j.Pay * 1.15f / 50) * 50);
             // Old enemies: a faction with a long memory fields its best.
-            if ((Grudge.GetValueOrDefault(fac) >= Tables.GrudgeElite || fac == Faction.Halcyon && On("expansion")) && !j.Has(RunMod.Elite))
+            // A faction's plan come good: Halcyon's expansion and the Lotus council both bring in their best, for less of a rise.
+            bool grudged = Grudge.GetValueOrDefault(fac) >= Tables.GrudgeElite;
+            if ((grudged || fac == Faction.Halcyon && On("expansion") || fac == Faction.Lotus && On("council")) && !j.Has(RunMod.Elite))
             {
                 j.Mods.Remove(RunMod.Skeleton);
                 j.Mods.Add(RunMod.Elite);
-                j.Pay = (int)(MathF.Round(j.Pay * 1.3f / 50) * 50);
+                j.Pay = (int)(MathF.Round(j.Pay * (grudged ? 1.3f : fac == Faction.Halcyon ? 1.15f : 1f) / 50) * 50);
             }
             // What the city is going through this week.
             if (fac == Faction.Halcyon && On("quarterly"))
@@ -398,8 +400,8 @@ public sealed partial class Career
                 if (!j.Has(RunMod.ShiftChange)) j.Mods.Add(RunMod.ShiftChange);
                 j.Pay = (int)(MathF.Round(j.Pay * 1.25f / 50) * 50);
             }
-            if (fac is Faction.Vipers or Faction.Lotus && On("gangwar")) j.Pay = (int)(MathF.Round(j.Pay * 1.2f / 50) * 50);
-            if (fac == Faction.Lotus && On("council")) j.Pay = (int)(MathF.Round(j.Pay * 1.25f / 50) * 50);
+            if (fac is Faction.Vipers or Faction.Lotus && On("gangwar")) j.Pay = (int)(MathF.Round(j.Pay * 1.1f / 50) * 50);
+            if (fac == Faction.Lotus && On("council")) j.Pay = (int)(MathF.Round(j.Pay * 1.12f / 50) * 50);
         }
         if (type is JobType.Courier or JobType.Race)
         {

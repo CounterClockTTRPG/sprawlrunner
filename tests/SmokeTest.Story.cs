@@ -313,6 +313,15 @@ public partial class SmokeTest
         Check(c.On("gangwar") && c.Clock("vipers") == 2, "a faction plan that fills sets the city on fire");
         Check(c.HappeningLines().Any(l => l.Contains("Gang war")), "the terminal says so");
         Check(c.Eligible(Hook.Morning).Any(s => s.Id == "gangwar-side"), "Juno asks whose side you're on");
+        Check(c.AmbushChance(new Job { Faction = Faction.Halcyon, District = "spire" }) >= 0.8f, "a gang war follows you home from any job");
+        // Every plan has a cost for you too.
+        int rent = c.RentDue;
+        c.Happenings.Add(new Happening { Id = "expansion", Start = c.Day, End = c.Day + 3 });
+        Check(c.RentDue > rent, $"Halcyon's urban renewal puts the rent up ({rent} -> {c.RentDue})");
+        c.Happenings.Add(new Happening { Id = "council", Start = c.Day, End = c.Day + 3 });
+        c.Rep = 9;
+        var lj = Enumerable.Range(0, 300).Select(_ => c.MakeJob(city)).Where(x => x != null && x.Faction == Faction.Lotus && !x.Driving && x.Type != JobType.Bounty).ToList();
+        Check(lj.Count > 0 && lj.All(x => x.Has(RunMod.Elite)), "a Lotus council fields its best on every site");
         c.Clocks["lotus"] = 5;
         Check(c.Gossip() != null, "the street kids know what's brewing");
         int before = c.Clock("halcyon");

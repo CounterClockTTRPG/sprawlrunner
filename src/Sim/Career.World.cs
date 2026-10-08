@@ -40,9 +40,9 @@ public sealed partial class Career
         ("grid", "Grid failure", "the power is out: every site in the district is under blackout."),
         ("strike", "Lone Star strike", "no police chases -- and the gangs know it: ambushes twice as likely."),
         ("lanterns", "Lantern festival", "the night market's vendors sell at half price."),
-        ("gangwar", "Gang war", "Vipers and Lotus at each other's throats: their jobs pay 20 % more, and someone follows you home."),
-        ("expansion", "Halcyon expansion", "Halcyon-Matsuda is buying up the Docks and Industrial: elite security on their new sites."),
-        ("council", "Council in the pocket", "the Red Lotus own the council this week: busts cost double, jobs against the Lotus pay 25 % more."),
+        ("gangwar", "Gang war", "Vipers and Lotus at each other's throats: their jobs pay 10 % more, and after any job someone follows you home (80 %)."),
+        ("expansion", "Halcyon expansion", "Halcyon-Matsuda is buying up the Docks and Industrial: elite security on their new sites, and every landlord in the city puts the rent up 25 %."),
+        ("council", "Council in the pocket", "the Red Lotus own the council this week: busts cost double, heat cools at half speed, Lotus sites field their best, and jobs against them pay 12 % more."),
         ("crackdown", "Crackdown", "Lone Star is cracking down: checkpoints close avenue blocks (stop and be waved through, if you're clean -- hot, and they come after you), heat cools at half speed, the informant costs three times as much."),
     };
 
@@ -240,7 +240,10 @@ public sealed partial class Career
         Tell(Hook.Morning, max: 1);
     }
 
-    public int RentDue => (int)(Lifestyles[LifeTier].week * (HasUpgrade("loft") ? 1.5f : 1f) / 50) * 50;
+    public int RentDue => RentOf(LifeTier);
+
+    /// <summary>A week at this tier: the loft costs more, and Halcyon's "urban renewal" puts every rent up while it runs.</summary>
+    public int RentOf(int tier) => (int)(Lifestyles[tier].week * (HasUpgrade("loft") ? 1.5f : 1f) * (On("expansion") ? 1.25f : 1f) / 50) * 50;
 
     /// <summary>A seventh of the week's rent, every morning: you pay for the nights you lived there.</summary>
     public int DailyRent => (int)MathF.Round(RentDue / 7f);
@@ -403,7 +406,8 @@ public sealed partial class Career
     {
         float p = 0.35f;
         if (On("strike")) p *= 2;
-        if (On("gangwar") && j.Faction is Faction.Vipers or Faction.Lotus) p = MathF.Max(p, 0.6f);
+        // A gang war spills onto every street: whoever you crossed, someone is out with a gun tonight.
+        if (On("gangwar")) p = MathF.Max(p, 0.8f);
         if (Flag("block:lookout") > 0) p *= 0.5f;
         // Friends of whoever holds the street, or wearing Viper colours against Vipers: nobody waits for you.
         if (j.District != null && Tables.Districts.Any(d => d.Id == j.District) && Holder(j.District) != j.Faction && StandingOf(Holder(j.District)) >= Tables.StandingSafe) p *= 0.25f;
