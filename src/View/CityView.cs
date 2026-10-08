@@ -129,6 +129,20 @@ public partial class CityView : Node2D
             }
         }
         Fx.Step(dt);
+        _dirty = true;
+    }
+
+    private bool _dirty;
+
+    /// <summary>
+    /// Repaint once per rendered frame, not per physics step: Godot runs queued
+    /// redraws after every step, so a slow frame followed by several catch-up
+    /// steps would draw the whole city several times over and get slower still.
+    /// </summary>
+    public override void _Process(double delta)
+    {
+        if (!_dirty || _movers == null) return;
+        _dirty = false;
         _movers.QueueRedraw();
         _buildings.QueueRedraw();
         _glow.QueueRedraw();
@@ -157,6 +171,7 @@ public partial class CityView : Node2D
 
         public override void _Draw()
         {
+            using var _perf = Perf.Time("draw.street");
             for (int y = CY * 16; y < Math.Min(City.H, CY * 16 + 16); y++)
             for (int x = CX * 16; x < Math.Min(City.W, CX * 16 + 16); x++)
                 DrawCityTile(this, C, x, y);
@@ -233,6 +248,7 @@ public partial class CityView : Node2D
 
         public override void _Draw()
         {
+            using var _perf = Perf.Time("draw.movers");
             CitySim s = V.Sim;
             Rect2 view = V.ViewRect;
             // Place markers on the pavement.
@@ -340,6 +356,7 @@ public partial class CityView : Node2D
 
         public override void _Draw()
         {
+            using var _perf = Perf.Time("draw.buildings");
             City c = V.Sim.City;
             Rect2 view = V.ViewRect;
             Vector2 cam = V.CamCentre;
@@ -347,7 +364,9 @@ public partial class CityView : Node2D
                 .Select(l => (l, rect: new Rect2(l.R.X * T, l.R.Y * T, l.R.W * T, l.R.H * T)))
                 .Where(x => view.Intersects(x.rect))
                 .OrderByDescending(x => (x.rect.GetCenter() - cam).LengthSquared());
-            foreach (var (l, rect) in list) DrawBuilding(l, rect);
+            int n = 0;
+            foreach (var (l, rect) in list) { DrawBuilding(l, rect); n++; }
+            Perf.Count("buildings", n);
         }
 
         /// <summary>A box from a base rectangle (shifted by baseOff) up to its roof (shifted by topOff).</summary>
@@ -642,6 +661,7 @@ public partial class CityView : Node2D
 
         public override void _Draw()
         {
+            using var _perf = Perf.Time("draw.glow");
             CitySim s = V.Sim;
             Rect2 view = V.ViewRect;
             foreach (Lot l in s.City.Lots)

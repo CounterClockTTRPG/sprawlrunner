@@ -57,6 +57,16 @@ public partial class FxLayer : Node2D
             if (p.Kind == FxKind.Smoke) p.Size += dt * 18;
             if (p.Kind == FxKind.Ring) p.Size += dt * p.Vel.X;
         }
+        _dirty = true;
+    }
+
+    private bool _dirty;
+
+    /// <summary>Repaint once per rendered frame, however many steps ran (see CityView._Process).</summary>
+    public override void _Process(double delta)
+    {
+        if (!_dirty) return;
+        _dirty = false;
         QueueRedraw();
     }
 

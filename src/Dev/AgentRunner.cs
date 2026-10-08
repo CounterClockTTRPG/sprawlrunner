@@ -54,6 +54,7 @@ public partial class AgentRunner : Node
   freeze on|off         on (default): game time passes only while a command runs
   ui all                also list buttons scrolled out of view
   answer [N]            in a dialog (a call, a scene, mail): press the Nth open choice (default the first), else Continue/OK
+  perf start|report     (dev) record frame timings from now / print the slow frames (also agent/perf.txt)
   help";
 
     public override void _Ready()
@@ -69,6 +70,7 @@ public partial class AgentRunner : Node
         Directory.CreateDirectory(_dir);
         File.WriteAllText(Path.Combine(_dir, "out.txt"), "ready\n" + Help + "\n");
         if (File.Exists(Path.Combine(_dir, "cmd.txt"))) _lastId = File.ReadAllLines(Path.Combine(_dir, "cmd.txt")).FirstOrDefault();
+        AddChild(new Perf.Probe());
         GD.Print("agent: listening on " + _dir);
     }
 
@@ -286,6 +288,14 @@ public partial class AgentRunner : Node
             case "drive": return await Drive(w.Length > 1 ? w[1] : "job");
             case "walk": return await Walk(new V2(F(w[1]), F(w[2])), w.Length > 3 ? (int)F(w[3]) : 15000, false);
             case "sneak": return await Walk(new V2(F(w[1]), F(w[2])), w.Length > 3 ? (int)F(w[3]) : 15000, true);
+            case "perf" when w.Length > 1 && w[1] == "start": Perf.Start(GetViewport()); return "perf: recording";
+            case "perf":
+            {
+                string rep = Perf.Report();
+                File.WriteAllText(Path.Combine(_dir, "perf.txt"), rep);
+                File.WriteAllText(Path.Combine(_dir, "perf.csv"), Perf.Csv());
+                return rep;
+            }
             case "quit": GetTree().Quit(); return "bye";
         }
         return $"unknown command '{op}' (try 'help')";

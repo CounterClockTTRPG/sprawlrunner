@@ -198,8 +198,8 @@ public partial class CityScreen : Control
         inp.Smoke = _smoke;
         inp.Oil = _oil;
         _smoke = _oil = false;
-        Sim.Step(dt, inp);
-        StepRoute(dt);
+        using (Perf.Time("sim.step")) Sim.Step(dt, inp);
+        using (Perf.Time("route")) StepRoute(dt);
         Root.CityView.Braking = inp.Throttle < 0 && Sim.Player.Speed > 0.5f || inp.Handbrake;
         foreach (CityEvent e in Sim.Events)
         {
@@ -228,14 +228,15 @@ public partial class CityScreen : Control
                     break;
             }
         }
-        Root.CityView.Frame(dt);
+        using (Perf.Time("view.frame")) Root.CityView.Frame(dt);
         float sp = MathF.Abs(Sim.Player.Speed) / Sim.Player.Def.Top;
         Sfx.Instance?.Engine(0.18f + 0.2f * sp, sp);
 
-        if ((_saveT -= dt) <= 0) { _saveT = 20; Sim.SaveCar(); Profile.SaveCareer(C); }
+        if ((_saveT -= dt) <= 0) { using var _ = Perf.Time("autosave"); _saveT = 20; Sim.SaveCar(); Profile.SaveCareer(C); }
         if ((_achT -= dt) <= 0)
         {
             _achT = 2;
+            using var _ = Perf.Time("achievements");
             foreach (string a in Profile.Current.CheckAchievements(C)) { _toast = $"Street cred earned: {a}"; _toastT = 5; Sfx.Instance?.Play(Sound.Objective); }
         }
         if (Sim.CourierFailed != null)
@@ -377,6 +378,7 @@ public partial class CityScreen : Control
         public override void _Draw()
         {
             if (S.Root.CitySim == null || S.Root.CityView == null || !IsInstanceValid(S.Root.CityView)) return;
+            using var _perf = Perf.Time("draw.hud");
             Career c = S.C;
             CitySim sim = S.Sim;
             Vector2 size = GetViewportRect().Size;

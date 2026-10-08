@@ -26,6 +26,8 @@ Godot and `dotnet.exe` driven from WSL. Design and every number:
     ./play.sh --agent           remote control for an agent playtester; drive it with
                                 scripts/agent.sh "state; drive fixer; key E; ui" ('help' lists
                                 commands). Own career file (user://agent_career.json).
+                                `perf start` ... `perf report` profiles frames (sections via
+                                `Perf.Time`, GC, render) into agent/perf.txt and perf.csv.
 
 Machine paths default in `scripts/common.sh`; override in `.env` (see `.env.example`).
 Sound is off until turned on in Settings. Settings live in `user://sprawlrunner.json`, the career in `user://career.json`.

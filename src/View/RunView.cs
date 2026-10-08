@@ -96,20 +96,30 @@ public partial class RunView : Node2D
         return new V2(m.X / T, m.Y / T);
     }
 
-    public void Frame(float dt)
+    private bool _dirty;
+
+    /// <summary>Repaint once per rendered frame, however many steps ran (see CityView._Process).</summary>
+    public override void _Process(double delta)
     {
-        if (R == null) return;
+        if (!_dirty || R == null) return;
+        _dirty = false;
         Level L = R.L;
         for (int i = 0; i < _chunks.Length; i++)
             if (_drawn[i] != L.ChunkVersion[i]) { _drawn[i] = L.ChunkVersion[i]; _chunks[i].QueueRedraw(); }
+        _entities.QueueRedraw();
+        _life.QueueRedraw();
+        _top.QueueRedraw();
+    }
+
+    public void Frame(float dt)
+    {
+        if (R == null) return;
         HandleEvents();
         Fx.Step(dt);
         Glow.Step(dt);
         AmbientFire(dt);
         _fog.Refresh();
-        _entities.QueueRedraw();
-        _life.QueueRedraw();
-        _top.QueueRedraw();
+        _dirty = true;
 
         // Camera: follow, lean towards the mouse, shake.
         Vector2 target = Art.G(R.Projecting && R.AstralForm != null ? R.AstralForm.Pos : R.Rigging && R.Drone != null ? R.Drone.Pos : R.Player.Pos, T);
