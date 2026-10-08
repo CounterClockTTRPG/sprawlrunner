@@ -233,6 +233,8 @@ public sealed partial class Run
         if (by != null && by.Team == 0 && !ko) Kills++;
         if (ko) KnockOuts++;
         if (a == Vip) Say(ko ? $"{Job.Target} is out cold. That will do." : $"{Job.Target} is down.");
+        RivalDown(a, by, ko);
+        if (by != null && by.Rival && a == Vip && !RivalKilledTarget) { RivalKilledTarget = true; Say($"{by.Name} got {Job.Target} first. The Johnson will only pay half for it."); }
         if (a.Badge) { a.Badge = false; Pickups.Add(new Pickup { Kind = PickupKind.Badge, Pos = a.Pos + new V2(0.25f, -0.2f), Amount = 1, Name = "a keycard" }); }
         if (a.Def.Cash > 0 && R.Chance(0.45f))
             Pickups.Add(new Pickup { Kind = PickupKind.Cash, Pos = a.Pos, Amount = (int)(a.Def.Cash * R.Range(0.5f, 1.5f) * (1 + 0.3f * Job.Threat)) });

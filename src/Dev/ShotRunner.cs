@@ -572,6 +572,29 @@ public partial class ShotRunner : Node
                     }
                 }
             }
+            if (Want("run") || Want("rivals"))
+            {
+                // The other crew in the same building: in lime, three ways with the guards.
+                Root.EnterCity();
+                await Frames(5);
+                if (Root.Career.Rival == null) Root.Career.MeetRival();
+                var vj = new Job { Id = 955, Type = JobType.Retrieve, Style = SiteStyle.Warehouse, Threat = 2, Seed = 4711, Faction = Faction.Vipers, District = "docks", Target = "x", Item = "case", Title = "Contested", Lot = -1, Contested = true };
+                Root.StartRun(vj);
+                await Frames(10);
+                Sprawl.Run vr = Root.RunScreen.R;
+                vr.Player.MaxHp = vr.Player.Hp = 1e6f;
+                for (int i = 0; i < 60 * 75 && !vr.RivalsCame; i++) { vr.Step(new RunInput { Slot = -1, Aim = vr.Player.Pos + new V2(1, 0) }); vr.Events.Clear(); }
+                for (int i = 0; i < 60 * 3; i++) { vr.Step(new RunInput { Slot = -1, Aim = vr.Player.Pos + new V2(1, 0) }); vr.Events.Clear(); }
+                Actor lead = vr.Actors.FirstOrDefault(a => a.Rival && !a.Dead);
+                if (lead != null)
+                {
+                    vr.Player.Pos = lead.Pos + new V2(-4, 0);
+                    vr.Player.Hp = vr.Player.MaxHp;
+                    Root.RunView.Cam.Zoom = new Vector2(1.7f, 1.7f);
+                    for (int i = 0; i < 40; i++) { vr.Step(new RunInput { Slot = -1, Aim = lead.Pos }); Root.RunView.Frame(1 / 60f); vr.Events.Clear(); await Frames(1); }
+                    await Shot("13p_rivals");
+                }
+            }
             if (Want("people"))
             {
                 // Close-ups of each faction's people: gear, shadows, the breath at rest, a gun kicking.

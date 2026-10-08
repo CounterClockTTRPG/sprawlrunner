@@ -255,6 +255,12 @@ public partial class Pda : Control
             string effect = st >= Tables.StandingItem ? "a friend: safe passage, their jobs, their gear" : st >= Tables.StandingJobs ? "safe passage, and their own jobs" : st >= Tables.StandingSafe ? "safe passage on their streets" : st > 0 ? "they've noticed you" : "nothing yet";
             list.AddChild(UITheme.Label($"{Tables.FactionNames[(int)f]}   " + new string('■', st) + new string('□', Math.Max(0, Tables.StandingItem - st)) + $"   {effect}", 18, st >= Tables.StandingSafe ? UITheme.Good : UITheme.Text));
         }
+        if (C.RivalLine() is string rival)
+        {
+            list.AddChild(UITheme.Spacer(8));
+            list.AddChild(UITheme.Label("THE OTHER CREW", 14, UITheme.Dim));
+            list.AddChild(UITheme.Label(rival, 16, C.Rival.Active ? UITheme.Amber : UITheme.Dim));
+        }
         list.AddChild(UITheme.Spacer(8));
         list.AddChild(UITheme.Label($"Heat: {C.Heat:0.0} / 5 stars (cools while no patrol is near; sleeping clears it).", 16, UITheme.Text));
     }

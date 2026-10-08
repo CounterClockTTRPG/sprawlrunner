@@ -49,6 +49,8 @@ public sealed class Job
     public bool Has(RunMod m) => Mods.Contains(m);
     /// <summary>A tower: how many floors above the lobby (0: an ordinary site).</summary>
     public int Floors;
+    /// <summary>The rival crew want this job too (they turn up in the run, and take it if it lapses).</summary>
+    public bool Contested;
     /// <summary>The way in chosen on the briefing map (an <see cref="EntryPoint"/> id; null: the front gate).</summary>
     public string Entry;
     /// <summary>A bounty that is a hive: a queen, her egg sacs and her workers (prestige, the Industrial district).</summary>
@@ -80,6 +82,10 @@ public sealed class RunResult
     public bool DroneLost;
     /// <summary>The target got out of the building; the target was carried out alive; the hostage died.</summary>
     public bool TargetFled, TargetTaken, HostageDead;
+    /// <summary>The rival crew came; who of theirs died, how many went down alive; they got away with the objective.</summary>
+    public bool RivalCame, RivalRobbed;
+    public List<string> RivalDead = new();
+    public int RivalSpared;
     /// <summary>The extraction moved mid-run; a Johnson's squad came in by the exit.</summary>
     public bool ExfilBurned, Trap;
     /// <summary>The hired runner went down for good -- or was carried out, down but alive.</summary>
@@ -132,6 +138,7 @@ public sealed partial class Career
         {
             Job j = MakeJob(city);
             if (j == null) break;
+            Contest(j);
             Board.Add(j);
             added++;
         }

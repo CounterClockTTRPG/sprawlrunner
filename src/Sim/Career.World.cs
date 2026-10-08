@@ -287,6 +287,8 @@ public sealed partial class Career
     /// <summary>After the debrief is drawn up: fates, fame, the city's answer, and the call that follows.</summary>
     private void Aftermath(Job j, RunResult r, Debrief d)
     {
+        RivalAftermath(j, r, d);
+        RivalHideoutDone(j, r);
         LastRun last = Last;
         if (last.Fate != null && j.Target != null && j.Type is JobType.Eliminate or JobType.Rescue && j.Story == 0)
         {

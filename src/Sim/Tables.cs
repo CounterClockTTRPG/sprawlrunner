@@ -178,6 +178,11 @@ public static class Tables
     public const int Cleaners = 2;
     public const float CleanerCall = 3f, DrunkShare = 0.35f, DrunkPace = 0.8f, DrunkAim = 1.6f, DrunkNotice = 0.75f, Smell = 4.5f, SmellRate = 0.6f;
     public const float MusicMask = 0.45f, Sprinklers = 3f, ToppleHurt = 45, ToppleStun = 2.5f;
+    /// <summary>The rival crew: the share of jobs they can do that they bid on, how many days such a job waits, when in the run they turn up (s), and their kit.</summary>
+    public const float RivalContest = 0.25f, RivalFrom = 30, RivalTo = 70;
+    public const int RivalWait = 3;
+    /// <summary>Seconds a rival needs at the mainframe to pull the data (you take about 12-20).</summary>
+    public const float RivalHack = 22;
     /// <summary>Street encounters: seconds of driving before the first look and between looks, at most this many a day,
     /// how long one waits on its kerb, and how far past it you can be before it's gone.</summary>
     public const float StreetFirst = 60, StreetEvery = 140, StreetLife = 60, StreetGone = 45;

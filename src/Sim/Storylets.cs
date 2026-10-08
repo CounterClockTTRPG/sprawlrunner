@@ -19,7 +19,7 @@ public static partial class Storylets
     private static IEnumerable<Storylet> Build() =>
         Basics().Concat(Fates()).Concat(RunChoices()).Concat(Crosses()).Concat(ContactLives()).Concat(Writers())
             .Concat(World()).Concat(CrewStories()).Concat(Block()).Concat(Story()).Concat(Tide())
-            .Concat(Forks()).Concat(Danger()).Concat(Heists()).Concat(Campaigns()).Concat(Night()).Concat(Pasts()).Concat(Backgrounds()).Concat(CrewHome()).Concat(Lamp()).Concat(Streets());
+            .Concat(Forks()).Concat(Danger()).Concat(Heists()).Concat(Campaigns()).Concat(Night()).Concat(Pasts()).Concat(Backgrounds()).Concat(CrewHome()).Concat(Lamp()).Concat(Streets()).Concat(Rivals());
 
     // ---- shorthand ------------------------------------------------------------------------
 

@@ -69,6 +69,8 @@ public sealed class Actor
     public Mood Mood;
     /// <summary>Had a few (a den's ganger); carries the keycard; a night cleaner, and how long until they reach a phone (0: not calling).</summary>
     public bool Drunk, Badge, Cleaner;
+    /// <summary>One of the rival crew (team 3: fights the guards and you).</summary>
+    public bool Rival;
     public float CallT;
     public EnemyKind Kind => Def?.Kind ?? EnemyKind.Ganger;
     public bool Hostile => Team == 1 && !Dead;
@@ -246,6 +248,7 @@ public sealed partial class Run
             foreach (Actor a in Actors.Where(a => a.Is(EnemyKind.Camera))) a.Stun = 1e9f;
         }
         if (job.Has(RunMod.Deadline)) Deadline = job.Deadline;
+        PlanRival();
         // About one run in eight, the plan changes on the way.
         var twists = new List<Twist>();
         if (job.Type == JobType.Retrieve) twists.Add(Twist.Moved);
@@ -361,6 +364,7 @@ public sealed partial class Run
         StepGrenades(wdt);
         StepFire(wdt);
         StepGas(wdt);
+        StepRivalArrival();
         FlushExplosions();
         StepRooms();
         StepAlarm(wdt);
@@ -399,6 +403,7 @@ public sealed partial class Run
             JobType.Eliminate when Twist == Twist.Alive && TwistFired => Vip != null && Vip.KO ? (CarriedBody == Vip ? $"Carry {Job.Target} to the extraction." : $"Pick up {Job.Target} (E) and carry them out.") : $"Knock {Job.Target} out (baton, taser, gel, Manabolt to finish) -- alive.",
             JobType.Eliminate when Vip2 != null && Vip != null && Vip.Dead => "Eliminate the lieutenant.",
             JobType.Eliminate => Vip != null && !Shown(Vip) ? $"Eliminate {Job.Target} -- last seen at the marker." : $"Eliminate {Job.Target}.",
+            JobType.Retrieve when RivalCarrier != null => $"{RivalCarrier.Name} has {TheItem} -- get it back.",
             JobType.Retrieve => $"Find {TheItem}.",
             JobType.Destroy => $"Destroy {TheItem}: {TargetsLeft} left.",
             JobType.Datasteal => DataProgress > 0 ? $"Download {DataProgress * 100:0} %. Stay jacked in (hold E)." : "Jack into the mainframe.",
@@ -453,7 +458,7 @@ public sealed partial class Run
         {
             case JobType.Retrieve:
                 Pickup o = Pickups.FirstOrDefault(p => p.Kind == PickupKind.Objective && !p.Taken);
-                return o?.Pos;
+                return o?.Pos ?? RivalCarrier?.Pos;
             case JobType.Datasteal: return Plan.Mainframe.Centre;
             // Intel: where the target was last seen -- their spot until you have eyes on them.
             case JobType.Eliminate:
@@ -715,7 +720,8 @@ public sealed partial class Run
     public RunResult Result() => new()
     {
         Success = Success, Died = Phase == RunPhase.Dead, Aborted = Aborted, Alarm = Alarm || Job.Type == JobType.Defend && Waves > 0, Kills = Kills,
-        Cash = CashFound, Loot = LootFound, DroneLost = Drone != null && Drone.Dead, HpLeft = Player.Hp / Player.MaxHp, PayMul = PayMul, Twist = TwistFired ? TwistNote : null,
+        Cash = CashFound, Loot = LootFound, DroneLost = Drone != null && Drone.Dead, HpLeft = Player.Hp / Player.MaxHp, PayMul = PayMul * (RivalKilledTarget ? 0.5f : 1), Twist = TwistFired ? TwistNote : null,
+        RivalCame = RivalsCame, RivalRobbed = RivalRobbed, RivalDead = new List<string>(RivalDead), RivalSpared = RivalSpared,
         TargetFled = Vip != null && (Vip.Escaped || !Vip.Dead || Vip.KO), TargetTaken = Twist == Twist.Alive && TwistFired && Vip != null && Vip.KO && Success,
         HostageDead = Hostage != null && Hostage.Dead && !Hostage.Escaped, ExfilBurned = Twist == Twist.ExfilMoved && TwistFired, Trap = _trapped,
         AllyDied = Ally != null && Ally.Dead && !AllyCarriedOut, AllyCarried = AllyCarriedOut, ObjectiveDone = ObjectiveDone, ShotTrauma = HtrHostile,

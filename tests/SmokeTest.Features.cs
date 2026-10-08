@@ -483,4 +483,116 @@ public partial class SmokeTest
         Run walk = new Run(tower, TestCareer(), LevelGen.Generate(tower));
         Check(Pt.Of(walk.Player.Pos) == tp.Entry, "without a helicopter, you go in at the front");
     }
+
+    /// <summary>The other crew: they bid on your work, turn up in it, race you for it, remember, and can be ended.</summary>
+    private void RivalCrews()
+    {
+        City city = City.Generate(777);
+        Career c = TestCareer();
+        c.CityRef = city;
+        c.MeetRival();
+        Check(c.Rival is { Active: true } && c.Rival.Members.Count == 3 && c.Rival.Name != null, "a rival crew: a name, a boss, three runners");
+
+        // They want about a quarter of the jobs they can do, and those don't wait.
+        int able = 0, contested = 0;
+        for (int k = 0; k < 400; k++)
+        {
+            Job j = c.MakeJob(city);
+            if (j == null || j.Type is not (JobType.Retrieve or JobType.Datasteal or JobType.Eliminate)) continue;
+            able++;
+            c.Board.Clear();
+            c.Board.Add(j);
+            var before = j.Expires;
+            typeof(Career).GetMethod("Contest", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance).Invoke(c, new object[] { j });
+            if (j.Contested) { contested++; Check(j.Expires <= c.Day + Tables.RivalWait, "a contested job won't wait long"); }
+        }
+        c.Board.Clear();
+        Check(contested > able / 8 && contested < able / 2, $"they bid on some of your work ({contested}/{able})");
+
+        // A contested job you let lapse: theirs.
+        var lapse = new Job { Id = 77, Type = JobType.Retrieve, Contested = true, Expires = c.Day - 1, District = "docks", Lot = 1, Title = "x", Target = "x", Item = "x" };
+        c.Board.Add(lapse);
+        int wins = c.Rival.Wins;
+        c.RefreshBoard(city, 0);
+        Check(c.Rival.Wins == wins + 1, "a contested job you let lapse is a job they did");
+
+        // In the run: a third side. They and the guards are foes; they make for the objective and get out with it.
+        string[] rows =
+        {
+            "#####################",
+            "#P..................#",
+            "#...................#",
+            "#...................#",
+            "#####################",
+        };
+        LevelPlan plan = Site(rows);
+        plan.Pickups.Add(new PickupSpawn { Kind = PickupKind.Objective, Pos = new V2(17.5f, 2.5f), Name = "the case" });
+        var job = new Job { Id = 1, Type = JobType.Retrieve, Faction = Faction.Halcyon, Style = SiteStyle.Office, Threat = 1, Seed = 7, Target = "x", Item = "the case", Title = "x", Lot = -1, Pay = 1000, Contested = true };
+        Run r = new Run(job, c, plan);
+        r.Events.Clear();
+        Steps(r, Tables.RivalTo + 1, new RunInput { Slot = -1, Aim = r.Player.Pos + new V2(0, 1) });
+        var rivals = r.Actors.Where(a => a.Rival && !a.Is(EnemyKind.Drone)).ToList();
+        Check(r.RivalsCame && rivals.Count == 3 && rivals.All(a => a.Team == 3), $"on a contested job, they turn up ({rivals.Count})");
+        Actor g = r.AddEnemy(EnemyKind.Guard, new V2(10.5f, 2.5f), 0);
+        var foes = typeof(Run).GetMethod("Foes", System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        Check((bool)foes.Invoke(null, new object[] { g, rivals[0] }) && (bool)foes.Invoke(null, new object[] { rivals[0], g }) && (bool)foes.Invoke(null, new object[] { rivals[0], r.Player }), "the guards and the crew are foes, and both are yours");
+        g.Hp = 0; g.Dead = true;
+        Steps(r, 40, new RunInput { Slot = -1, Aim = r.Player.Pos + new V2(0, 1) });
+        Check(r.RivalCarrier != null || r.RivalRobbed, "they go for the objective and take it");
+        Check(r.RivalRobbed && r.ObjectiveLost, "and get away with it, if nobody stops them");
+
+        // A carrier who goes down drops it.
+        Run d = new Run(job, c, Site(rows) is var p2 && p2.Pickups.Count == 0 ? AddCase(p2) : p2);
+        for (int k = 0; k < 60 * (int)(Tables.RivalTo + 40) && d.RivalCarrier == null && !d.ObjectiveLost; k++) d.Step(new RunInput { Slot = -1, Aim = d.Player.Pos + new V2(0, 1) });
+        Actor carrier = d.RivalCarrier;
+        Check(carrier != null, "someone of theirs picks it up");
+        if (carrier != null)
+        {
+            d.Hurt(carrier, 1e6f, d.Player, false);
+            Check(d.RivalCarrier == null && d.Pickups.Any(k => k.Kind == PickupKind.Objective && !k.Taken), "shot, the carrier drops it");
+            Check(d.RivalDead.Contains(carrier.Name), "and the dead are counted by name");
+        }
+
+        // Afterwards the career remembers: who died, who came out ahead; two beatings, and they make an offer.
+        Career m = TestCareer();
+        m.CityRef = city;
+        m.MeetRival();
+        string first = m.Rival.Members[0];
+        var cj = new Job { Id = 9, Type = JobType.Retrieve, Contested = true, District = "docks", Lot = 1, Title = "x", Target = "x", Item = "x", Pay = 1000, Karma = 4, Employer = "fixer" };
+        m.Board.Add(cj);
+        m.ActiveJob = cj.Id;
+        Debrief deb = m.Finish(cj, new RunResult { Success = true, RivalCame = true, RivalDead = new() { first } });
+        Check(!m.Rival.Members.Contains(first) && m.Rival.Dead == 1 && m.Rival.Losses == 1 && deb.Lines.Any(l => l.what == m.Rival.Name), "the debrief says who of theirs died and who came off worse");
+        m.Rival.Losses = 2;
+        Check(Sprawl.Storylets.ById("rival-offer").When(m), "after two beatings their boss makes an offer");
+        Mail offer = m.Send("rival-offer");
+        m.Cash = 100000;
+        Check(m.Choose(offer, 0) == null && m.Rival.Fate == "paid" && !m.Rival.Active, "paid, they leave town");
+
+        // Two of theirs dead: Juno finds their hideout; clearing it ends them.
+        Career h = TestCareer();
+        h.CityRef = city;
+        h.MeetRival();
+        h.Rival.Dead = 2;
+        Check(Sprawl.Storylets.ById("rival-hideout").When(h), "two of theirs dead, Juno knows where they sleep");
+        h.Cash = 5000;
+        Mail hm = h.Send("rival-hideout");
+        h.Choose(hm, 0);
+        Job hide = h.Board.FirstOrDefault(j => j.Tag == "rival");
+        Check(hide != null && hide.Type == JobType.Clear, "their hideout goes on the board");
+        if (hide != null)
+        {
+            Run hr = new Run(hide, h, LevelGen.Generate(hide));
+            Check(hr.Actors.Count(a => a.Rival && a.Team == 1) == h.Rival.Members.Count + 1, "at home, the whole crew and their boss, on the site's side");
+            h.ActiveJob = hide.Id;
+            h.Finish(hide, new RunResult { Success = true });
+            Check(h.Rival.Fate == "finished" && !h.Rival.Active, "cleared, they're finished");
+        }
+    }
+
+    private static LevelPlan AddCase(LevelPlan p)
+    {
+        p.Pickups.Add(new PickupSpawn { Kind = PickupKind.Objective, Pos = new V2(17.5f, 2.5f), Name = "the case" });
+        return p;
+    }
 }

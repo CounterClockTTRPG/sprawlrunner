@@ -71,6 +71,7 @@ public sealed partial class Run
         if (a.Is(EnemyKind.Camera)) { StepCamera(a, dt); return; }
         if (a.IsAlly) { StepAlly(a, dt); return; }
         if (a.Team == 0) { StepHacked(a, dt); return; }
+        if (a.Rival && a.Team == 3) { StepRivalActor(a, dt); return; }
 
         Actor target = PickTarget(a, out bool sees);
         Perceive(a, dt, sees && target == Player);
@@ -121,7 +122,7 @@ public sealed partial class Run
         float bd = float.MaxValue;
         foreach (Actor t in Actors)
         {
-            if (t.Dead || t.Team != 0) continue;
+            if (t.Dead || !Foes(a, t) || t.IsNpc) continue;
             if (t.IsHostage && t.State == AiState.Tied) continue;
             if (!t.IsPlayer && !a.Alert) continue;
             float d = V2.DistanceSquared(a.Pos, t.Pos);

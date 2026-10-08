@@ -494,6 +494,7 @@ public partial class AgentRunner : Node
         sb.AppendLine($"car: {car.Def.Name} at ({car.Pos.X:0.0},{car.Pos.Y:0.0}) heading {hdg:0} deg (0 = east, 90 = south), speed {car.Speed:0.0} t/s, hull {car.Hp:0}/{car.Def.Hp}");
         Lot at = s.AtDoor();
         sb.AppendLine(at != null ? $"at the door of: {PlaceName(at)} -- press E to go in" : "not at any door");
+        if (s.C.RivalLine() is string rival) sb.AppendLine($"rival crew: {rival}");
         if (s.Street is StreetEncounter se)
             sb.AppendLine($"street: {se.Kind} at ({se.At.X:0},{se.At.Y:0}), {V2.Distance(se.At, car.Pos):0} tiles, {se.Life:0} s left{(s.AtStreet() ? " -- you're beside it: press E" : " -- stop beside it and press E ('drive street')")}");
         if (s.C.Passenger is Fare fare && s.FareKerb is V2 drop)
@@ -559,7 +560,7 @@ public partial class AgentRunner : Node
         sb.AppendLine(seen.Count == 0 ? "nobody in sight" : "in sight:");
         foreach (Actor a in seen.Take(12))
         {
-            string who = a.IsHostage ? $"HOSTAGE {a.Name} ({a.State})" : a.IsNpc ? (a.Vendor != null ? $"vendor: {a.Name}" : a.Cleaner ? "night cleaner" : "passer-by") : a.IsGhost ? "??? (a figure -- real?)" : a.IsAlly ? $"{a.Name} [your {(a.IsDrone ? "drone" : a.Summoned ? "spirit" : "hire")}]" : a.Def != null ? $"{a.Def.Name}{(a == r.Vip ? " [TARGET]" : "")}{(a.Team == 0 ? " [hacked, yours]" : "")}" : a.Name;
+            string who = a.IsHostage ? $"HOSTAGE {a.Name} ({a.State})" : a.IsNpc ? (a.Vendor != null ? $"vendor: {a.Name}" : a.Cleaner ? "night cleaner" : "passer-by") : a.IsGhost ? "??? (a figure -- real?)" : a.IsAlly ? $"{a.Name} [your {(a.IsDrone ? "drone" : a.Summoned ? "spirit" : "hire")}]" : a.Rival ? $"{a.Name} [RIVAL, {r.C.Rival?.Name}]{(a == r.RivalCarrier ? " CARRYING THE OBJECTIVE" : "")}" : a.Def != null ? $"{a.Def.Name}{(a == r.Vip ? " [TARGET]" : "")}{(a.Team == 0 ? " [hacked, yours]" : "")}" : a.Name;
             string mind = a.Def == null ? "" : a.Alert ? "ALERT" : a.State == AiState.Suspicious ? "suspicious" : a.Detect > 0.05f ? $"noticing {a.Detect * 100:0}%" : "unaware";
             sb.AppendLine($"  {Letter(a, r)} {who} at ({a.Pos.X:0.0},{a.Pos.Y:0.0}) {V2.Distance(a.Pos, p.Pos):0.0} tiles, hp {a.Hp:0}/{a.MaxHp:0} {mind}{(a.Mood == Mood.Asleep ? " ASLEEP" : a.Mood == Mood.OffDuty ? " off duty" : a.Mood == Mood.Bound ? " bound to its circle" : "")}{(a.Drunk ? " drunk" : "")}{(a.Badge ? " (has the keycard)" : "")}{(a.Cleaner ? a.CallT > 0 ? $" CALLING SECURITY ({a.CallT:0.0} s)" : " (sees a gun: calls security)" : "")}{(a.Stun > 0 ? " stunned" : "")}");
         }

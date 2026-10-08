@@ -14,6 +14,9 @@ namespace Sprawl;
 public partial class RunView : Node2D
 {
     /// <summary>What a stolen uniform looks like on you: a guard of the site's faction.</summary>
+    /// <summary>The rival crew: lime on black, so you can tell them from the site's people at a glance.</summary>
+    private static readonly Color RivalColour = new(0.65f, 1f, 0.2f);
+    private static readonly Art.Look RivalLook = new() { Body = new Color(0.1f, 0.11f, 0.12f), Trim = new Color(0.65f, 1f, 0.2f), Skin = new Color(0.7f, 0.55f, 0.45f), Hair = new Color(0.15f, 0.12f, 0.1f) };
     private static readonly Actor DisguiseLook = new() { Def = Tables.Enemy(EnemyKind.Guard) };
     public const int T = LevelArt.T;
     public Run R;
@@ -902,7 +905,7 @@ public partial class RunView : Node2D
                 if (!a.Dead || a.Escaped || a.IsPlayer || a.Def == null || a.IsAlly && a.Summoned || a.Is(EnemyKind.Drone) || a.Is(EnemyKind.Turret) || a.Is(EnemyKind.Camera) || a.Is(EnemyKind.Spirit)) continue;
                 if (!r.Seen(a.Pos) && !r.L.Explored[r.L.Idx((int)a.Pos.X, (int)a.Pos.Y)]) continue;
                 Vector2 bp = Art.G(a.Pos, T);
-                Art.Look l = a.IsPlayer ? (r.Disguised ? Art.LookFor(DisguiseLook, r.Job.Faction) : Art.PlayerLook(r.C.Archetype, r.C.Has("eyes"))) : a.IsMedic ? new Art.Look { Body = new Color(0.85f, 0.88f, 0.86f), Trim = new Color(0.15f, 0.75f, 0.4f), Skin = new Color(0.75f, 0.6f, 0.5f), Hair = new Color(0.2f, 0.2f, 0.2f), Heavy = true } : Art.LookFor(a, r.Job.Faction);
+                Art.Look l = a.IsPlayer ? (r.Disguised ? Art.LookFor(DisguiseLook, r.Job.Faction) : Art.PlayerLook(r.C.Archetype, r.C.Has("eyes"))) : a.Rival ? RivalLook : a.IsMedic ? new Art.Look { Body = new Color(0.85f, 0.88f, 0.86f), Trim = new Color(0.15f, 0.75f, 0.4f), Skin = new Color(0.75f, 0.6f, 0.5f), Hair = new Color(0.2f, 0.2f, 0.2f), Heavy = true } : Art.LookFor(a, r.Job.Faction);
                 float lie = a.Facing + (Art.Hash(a.Id, 7) - 0.5f) * 1.6f + MathF.PI;
                 Art.Corpse(this, bp, lie, a.Radius * T * 1.1f, l, a.Kind, a.KO, a.Id);
                 if (a.KO && r.Seen(a.Pos)) UITheme.Write(this, bp + new Vector2(6, -8 - MathF.Sin(time * 2) * 2), "z", 13, UITheme.Cyan with { A = 0.8f }, heading: true);
@@ -1105,7 +1108,7 @@ public partial class RunView : Node2D
             }
             else
             {
-                Art.Look l = a.IsPlayer ? (r.Disguised ? Art.LookFor(DisguiseLook, r.Job.Faction) : Art.PlayerLook(r.C.Archetype, r.C.Has("eyes"))) : a.IsMedic ? new Art.Look { Body = new Color(0.85f, 0.88f, 0.86f), Trim = new Color(0.15f, 0.75f, 0.4f), Skin = new Color(0.75f, 0.6f, 0.5f), Hair = new Color(0.2f, 0.2f, 0.2f), Heavy = true } : Art.LookFor(a, r.Job.Faction);
+                Art.Look l = a.IsPlayer ? (r.Disguised ? Art.LookFor(DisguiseLook, r.Job.Faction) : Art.PlayerLook(r.C.Archetype, r.C.Has("eyes"))) : a.Rival ? RivalLook : a.IsMedic ? new Art.Look { Body = new Color(0.85f, 0.88f, 0.86f), Trim = new Color(0.15f, 0.75f, 0.4f), Skin = new Color(0.75f, 0.6f, 0.5f), Hair = new Color(0.2f, 0.2f, 0.2f), Heavy = true } : Art.LookFor(a, r.Job.Faction);
                 WeaponClass? wc = a.IsPlayer ? r.CurrentWeapon?.Class : a.Gun?.Def.Class;
                 if (a.IsHostage && a.State == AiState.Tied) wc = null;
                 float walk = a.IsPlayer ? r.Player.Vel.Length() * time * 2.2f : time * a.Speed * 2.2f;
@@ -1190,6 +1193,11 @@ public partial class RunView : Node2D
             if (a.Surrendered && !a.Dead) UITheme.Write(this, p + new Vector2(-60, -rad - 10), "HANDS UP", 11, UITheme.Text, HorizontalAlignment.Center, 120, heading: true);
             if (a.IsMedic && !a.Dead) UITheme.Write(this, p + new Vector2(-60, -rad - 10), "TRAUMALINK", 11, a.Team == 2 ? new Color(0.3f, 0.95f, 0.5f) : UITheme.Bad, HorizontalAlignment.Center, 120, heading: true);
             if (a.IsAlly) UITheme.Write(this, p + new Vector2(-50, -rad - 10), a.Name.ToUpperInvariant(), 11, UITheme.Good, HorizontalAlignment.Center, 100, heading: true);
+            else if (a.Rival && !a.Dead)
+            {
+                UITheme.Write(this, p + new Vector2(-60, -rad - 10), (a == r.RivalCarrier ? a.Name + " -- HAS IT" : a.Name).ToUpperInvariant(), 11, RivalColour, HorizontalAlignment.Center, 120, heading: true);
+                DrawArc(p, rad + 4, 0, MathF.Tau, 16, RivalColour with { A = 0.8f }, 1.5f);
+            }
             else if (a.Team == 0 && a.Def != null) DrawArc(p, rad + 4, 0, MathF.Tau, 16, UITheme.Violet, 1.5f);
         }
 
