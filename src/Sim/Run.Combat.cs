@@ -108,19 +108,21 @@ public sealed partial class Run
         Pt start = Pt.Of(a);
         Pt found = default;
         bool any = false;
-        Level.Walk(a, b, (x, y) =>
+        bool fromStart = Pt.Of(s.Origin) == start;
+        var w = new Level.Walker(a, b);
+        while (w.Next(out int x, out int y))
         {
-            if (x == start.X && y == start.Y && Pt.Of(s.Origin) == start) return true;
+            if (x == start.X && y == start.Y && fromStart) continue;
             Tile t = L[x, y];
             TileDef d = Level.Def(t);
-            if (!d.BlocksShot) return true;
+            if (!d.BlocksShot) continue;
             float near = V2.Distance(s.Origin, new Pt(x, y).Centre);
             bool target = t is Tile.Rack or Tile.Vat or Tile.Console or Tile.Locker or Tile.Barrel;
-            if (d.Low && !target && near < 1.25f && near + 0.45f < s.AimDist) return true;
+            if (d.Low && !target && near < 1.25f && near + 0.45f < s.AimDist) continue;
             found = new Pt(x, y);
             any = true;
-            return false;
-        });
+            break;
+        }
         tile = found;
         at = any ? Level.Entry(a, b, found) : b;
         return any;
@@ -401,17 +403,16 @@ public sealed partial class Run
     /// <summary>Something solid between a blast and this tile?</summary>
     private bool Shielded(V2 from, Pt to)
     {
-        bool shielded = false;
         Pt start = Pt.Of(from);
-        Level.Walk(from, to.Centre, (x, y) =>
+        var w = new Level.Walker(from, to.Centre);
+        while (w.Next(out int x, out int y))
         {
             if (x == to.X && y == to.Y) return false;
-            if (x == start.X && y == start.Y) return true;
+            if (x == start.X && y == start.Y) continue;
             TileDef d = Level.Def(L[x, y]);
-            if (d.BlocksMove && !d.Low) { shielded = true; return false; }
-            return true;
-        });
-        return shielded;
+            if (d.BlocksMove && !d.Low) return true;
+        }
+        return false;
     }
 
     // ---- fire -----------------------------------------------------------------------

@@ -88,6 +88,11 @@ public sealed partial class CitySim
     private readonly List<Ped> _roadPeds = new();
     private bool _blockedByPlayer;
 
+    /// <summary>The collision tests handed to <see cref="Collide.PushOut"/>, made once.</summary>
+    private Func<int, int, bool> _citySolid, _carSolid;
+    /// <summary>A walker's ways on at a corner (reused).</summary>
+    private readonly List<Pt> _pedOpts = new(4);
+
     private static readonly uint[] CarColours = { 0x3a3f4aff, 0x6a1e2aff, 0x2a4a6aff, 0xb0b0a8ff, 0x1a1a1eff, 0x7a6a3aff, 0x2e5a3eff, 0xc8c0a0ff };
     private static readonly uint[] PedColours = { 0xff2a6dff, 0x05d9e8ff, 0xe0e0e0ff, 0x8a8a9aff, 0xf9c80eff, 0x40ffb0ff, 0x9a6bffff, 0x5a4a3aff };
 
@@ -263,13 +268,14 @@ public sealed partial class CitySim
         car.Pos += car.Vel * dt;
 
         // Walls and water.
+        Func<int, int, bool> solid = car.Def == PoliceCar ? _citySolid ??= City.Solid : _carSolid ??= CarSolid;
         for (int pass = 0; pass < 2; pass++)
-        foreach (bool front in new[] { true, false })
+        for (int end = 0; end < 2; end++)
         {
-            V2 c = front ? car.Front : car.Back;
+            V2 c = end == 0 ? car.Front : car.Back;
             V2 before = c;
             // Police drive through their own checkpoints.
-            if (!Collide.PushOut(ref c, car.R, car.Def == PoliceCar ? City.Solid : CarSolid, out V2 n)) continue;
+            if (!Collide.PushOut(ref c, car.R, solid, out V2 n)) continue;
             car.Pos += c - before;
             float into = -V2.Dot(car.Vel, n);
             if (into > 0)
@@ -282,15 +288,20 @@ public sealed partial class CitySim
         }
 
         // Traffic.
+        float carReach = MathF.Abs(car.Def.Length / 2 - car.R) + car.R;
         foreach (TrafficCar t in Traffic)
         {
             if (t.Ghost > 0) continue;
-            V2 tf = t.Forward;
             float tr = t.Width / 2;
+            // Too far apart for any of the four circle pairs to touch.
+            float reach = carReach + MathF.Abs(t.Length / 2 - tr) + tr + 0.05f;
+            if (V2.DistanceSquared(car.Pos, t.Pos) >= reach * reach) continue;
+            V2 tf = t.Forward;
             V2 t1 = t.Pos + tf * (t.Length / 2 - tr), t2 = t.Pos - tf * (t.Length / 2 - tr);
-            foreach (V2 pc in new[] { car.Front, car.Back })
-            foreach (V2 tc in new[] { t1, t2 })
+            V2 front = car.Front, back = car.Back;
+            for (int k = 0; k < 4; k++)
             {
+                V2 pc = k < 2 ? front : back, tc = k % 2 == 0 ? t1 : t2;
                 V2 delta = pc - tc;
                 float dist = delta.Length(), min = car.R + tr;
                 if (dist >= min || dist < 1e-4f) continue;
@@ -687,12 +698,14 @@ public sealed partial class CitySim
             bool onWalk = here == CTile.Sidewalk;
             if ((onWalk && ahead != CTile.Sidewalk) || City.Solid((int)MathF.Floor(next.X), (int)MathF.Floor(next.Y)) || R.Chance(0.002f))
             {
-                var opts = Pt.Dirs4.Where(d2 =>
+                List<Pt> opts = _pedOpts;
+                opts.Clear();
+                foreach (Pt d2 in Pt.Dirs4)
                 {
                     V2 n2 = p.Pos + new V2(d2.X, d2.Y) * 0.6f;
                     CTile t2 = City[(int)MathF.Floor(n2.X), (int)MathF.Floor(n2.Y)];
-                    return onWalk ? t2 == CTile.Sidewalk : !City.Solid((int)MathF.Floor(n2.X), (int)MathF.Floor(n2.Y));
-                }).ToList();
+                    if (onWalk ? t2 == CTile.Sidewalk : !City.Solid((int)MathF.Floor(n2.X), (int)MathF.Floor(n2.Y))) opts.Add(d2);
+                }
                 if (opts.Count > 1) opts.Remove(new Pt(-p.Dir.X, -p.Dir.Y));
                 p.Dir = opts.Count > 0 ? R.Pick(opts) : new Pt(-p.Dir.X, -p.Dir.Y);
                 move = new V2(p.Dir.X, p.Dir.Y);

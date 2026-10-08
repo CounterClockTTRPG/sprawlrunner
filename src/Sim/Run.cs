@@ -47,6 +47,8 @@ public sealed class Actor
     public int PatrolIdx;
     public ushort[] Field;
     public Pt FieldFor = new(-1, -1);
+    /// <summary>The <see cref="Level.PassVersion"/> and the reach (see <see cref="Level.Field(Pt, int, bool, ushort[], int, int, out int)"/>) <see cref="Field"/> was searched for.</summary>
+    public int FieldPass = -1, FieldReach;
     public bool Bodyguard;
     /// <summary>A TraumaLink trauma team member: neutral until someone shoots at them.</summary>
     public bool IsMedic;
@@ -739,17 +741,23 @@ public sealed partial class Run
     // ---- sight ---------------------------------------------------------------------
 
     private Pt _fovFrom = new(-99, -99);
-    private int _fovVersion = -1;
+    private int _fovSight = -1, _fovRadius = -1;
+    /// <summary>Moves every time <see cref="Visible"/> (and the explored map) is recomputed: the fog repaints only then.</summary>
+    public int FovVersion { get; private set; }
 
     public int FovRadius => FlashT > 0 ? 3 : Peaceful ? 24 : Math.Max(6, C.Fov - FovPenalty);
 
     private void UpdateFov(bool force)
     {
         Pt p = Pt.Of(Projecting && AstralForm != null ? AstralForm.Pos : Rigging && Drone != null ? Drone.Pos : Player.Pos);
-        if (!force && p == _fovFrom && L.Version == _fovVersion && FlashT <= 0) return;
+        int radius = Projecting ? 9 : Rigging ? 11 : FovRadius;
+        // The field of view only depends on where you stand, how far you see and what blocks sight.
+        if (!force && p == _fovFrom && L.SightVersion == _fovSight && radius == _fovRadius && FlashT <= 0) return;
         _fovFrom = p;
-        _fovVersion = L.Version;
-        L.Fov(p, Projecting ? 9 : Rigging ? 11 : FovRadius, Visible);
+        _fovSight = L.SightVersion;
+        _fovRadius = radius;
+        L.Fov(p, radius, Visible);
+        FovVersion++;
     }
 
     /// <summary>The room furthest from you that's inside the building and on the same floor as <paramref name="near"/> (for twists that move things).</summary>
@@ -781,6 +789,9 @@ public sealed partial class Run
 
     // ---- movement --------------------------------------------------------------------
 
+    /// <summary>What a walker and a flier bump into, for <see cref="Collide.PushOut"/> (made once).</summary>
+    private Func<int, int, bool> _solidWalk, _solidFly;
+
     /// <summary>Move a circle through the level, opening doors it walks into.</summary>
     public void Move(Actor a, V2 delta)
     {
@@ -794,8 +805,7 @@ public sealed partial class Run
             a.Pos += d;
             OpenDoors(a);
             V2 p = a.Pos;
-            bool fly = a.Flying;
-            Collide.PushOut(ref p, a.Radius, (x, y) => L.Solid(x, y, fly), out _);
+            Collide.PushOut(ref p, a.Radius, a.Flying ? _solidFly ??= (x, y) => L.Solid(x, y, true) : _solidWalk ??= (x, y) => L.Solid(x, y, false), out _);
             a.Pos = p;
         }
         // Never left inside a wall: hop to the nearest open tile.

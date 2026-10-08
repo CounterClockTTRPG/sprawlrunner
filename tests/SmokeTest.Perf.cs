@@ -40,7 +40,7 @@ public partial class SmokeTest
     /// </summary>
     private void PathFields()
     {
-        int compared = 0, wrong = 0, fields = 0;
+        int compared = 0, wrong = 0, fields = 0, early_ = 0, earlyWrong = 0;
         double fastMs = 0, slowMs = 0;
         foreach (SiteStyle st in Enum.GetValues<SiteStyle>())
         for (int t = 1; t <= 5; t += 2)
@@ -64,8 +64,16 @@ public partial class SmokeTest
                 slowMs += sw.Elapsed.TotalMilliseconds;
                 compared++;
                 if (!fast.AsSpan().SequenceEqual(slow)) wrong++;
+                // Stopped early near a walker: the same up to its reach, nothing beyond pretending to be closer.
+                Pt to;
+                do to = new Pt(rng.Range(0, L.W - 1), rng.Range(0, L.H - 1)); while (!L.Walkable(to.X, to.Y));
+                ushort[] early = L.Field(from, max, fly, new ushort[L.W * L.H], L.Idx(to.X, to.Y), 40, out int reach);
+                early_++;
+                for (int i = 0; i < early.Length; i++)
+                    if (slow[i] <= reach ? early[i] != slow[i] : early[i] != Level.Far && early[i] <= reach) { earlyWrong++; break; }
             }
         }
+        Check(earlyWrong == 0, $"a path field stopped near the walker agrees with the full one within its reach ({early_ - earlyWrong}/{early_})");
         GD.Print($"    a path field: {fastMs / fields:0.000} ms, a plain Dijkstra {slowMs / fields:0.000} ms (avg over {fields}, sites up to threat 5 and 3 floors)");
         Check(wrong == 0, $"the path search matches a plain Dijkstra ({compared - wrong}/{compared})");
         Check(fastMs / fields < 2.0, $"a path field stays cheap ({fastMs / fields:0.000} ms)");

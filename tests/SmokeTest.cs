@@ -30,7 +30,7 @@ public partial class SmokeTest : Node
 
     private IEnumerable<Action> Sections() => new Action[]
     {
-        Sight, Shots, Destruction, Explosions, Fire, Stealth, Noise, Fighting, Grenades, Abilities, Magic, Bodies, EnemyGrenades, Conditions, NonLethal, Carrying, Lures, Fixtures, Ammo, Shields, Riggers, Bosses, Allies, Basements, PlaytestFixes, Hubs, Johnsons, Grudges, Spirits, Campaign, Storylets, Consequences, Crosses, TraumaLinkStreets, Turf, Happenings, Crew, NewJobs, MoreJobs, Fifth, LateCampaigns, NewFaces, Towers, TopTier, Verbs, RunChoices, Backgrounds, Receipts, Roadblocks, Standing, EdgePoints, DialogsClose, Crowds, LegacyChoice, HighEnd, DangerCalls, SecurityLadder, Lamplighter, Balance, Performance, Block, LongCareer, Favours, Injuries, Legacy, Phantoms, Tutorial, Bindings, Playtest2Fixes, Twists, ContactStories, Trust, StatsAndAchievements, Rigging, Playtest3Fixes,
+        Sight, Shots, Destruction, Repathing, Explosions, Fire, Stealth, Noise, Fighting, Grenades, Abilities, Magic, Bodies, EnemyGrenades, Conditions, NonLethal, Carrying, Lures, Fixtures, Ammo, Shields, Riggers, Bosses, Allies, Basements, PlaytestFixes, Hubs, Johnsons, Grudges, Spirits, Campaign, Storylets, Consequences, Crosses, TraumaLinkStreets, Turf, Happenings, Crew, NewJobs, MoreJobs, Fifth, LateCampaigns, NewFaces, Towers, TopTier, Verbs, RunChoices, Backgrounds, Receipts, Roadblocks, Standing, EdgePoints, DialogsClose, Crowds, LegacyChoice, HighEnd, DangerCalls, SecurityLadder, Lamplighter, Balance, Performance, Block, LongCareer, Favours, Injuries, Legacy, Phantoms, Tutorial, Bindings, Playtest2Fixes, Twists, ContactStories, Trust, StatsAndAchievements, Rigging, Playtest3Fixes,
         Objectives, Extraction, LevelGenSeeds, LevelGenDebug, Bot, CityGen, Driving, Autopilot, Traffic, Police, Gangs, Couriers, Motorcycles, Shops, Karma, Board, Debriefs, Saving, Audio, GeneratedAssets, Retiring, StreetEncounters, Lighting, RoomKinds, StyleRules, EntryPoints, RivalCrews, Presentation,
     };
 
@@ -209,6 +209,60 @@ public partial class SmokeTest : Node
         r.DamageTile(new Pt(0, 0), 1e6f, default);
         Eq(p.L[0, 0], Tile.Reinforced, "reinforced walls never break");
         Check(r.Events.Any(e => e.Kind == Ev.Broken), "breaking is reported");
+    }
+
+    /// <summary>
+    /// Paths follow the walls as they are now: blow a hole in the wall between a hunter
+    /// and you, and it comes through the hole rather than the long way it set off on.
+    /// </summary>
+    private void Repathing()
+    {
+        string[] rows =
+        {
+            "####################",
+            "#........c.........#",
+            "#..P.....c.........#",
+            "#........c.........#",
+            "#........c.........#",
+            "#........c.........#",
+            "#........c.........#",
+            "#..................#",
+            "####################",
+        };
+        // Hunting you (the shared field from where you stand).
+        Run r = Make(Site(rows));
+        Actor h = r.AddEnemy(EnemyKind.Hound, new V2(16.5f, 2.5f), MathF.PI);
+        r.BecomeAlert(h, r.Player.Pos, false);
+        Steps(r, 0.4f);
+        Check(h.Pos.Y > 2.6f, $"the hound sets off the long way round, by the gap ({h.Pos.X:0.0}, {h.Pos.Y:0.0})");
+        int pass = r.L.PassVersion;
+        for (int y = 1; y <= 4; y++) r.L.Set(9, y, Tile.Rubble);
+        Check(r.L.PassVersion > pass, "blowing a wall open changes the way through");
+        float deepest = h.Pos.Y;
+        for (int i = 0; i < 240 && V2.Distance(h.Pos, r.Player.Pos) > 1.6f; i++)
+        {
+            r.Step(new RunInput { Slot = -1, Aim = r.Player.Pos + new V2(1, 0) });
+            deepest = MathF.Max(deepest, h.Pos.Y);
+        }
+        Check(V2.Distance(h.Pos, r.Player.Pos) <= 1.6f && deepest < 5.5f, $"and turns back through the hole (got as low as y {deepest:0.0}, ends {V2.Distance(h.Pos, r.Player.Pos):0.0} from you)");
+
+        // Going to look at a noise (its own field, to the spot).
+        Run q = Make(Site(rows));
+        q.Player.Pos = new V2(1.5f, 7.5f);
+        Actor g = q.AddEnemy(EnemyKind.Guard, new V2(16.5f, 2.5f), MathF.PI);
+        q.Noise(new V2(4.5f, 2.5f), 30, false);
+        Steps(q, 1.4f, new RunInput { Slot = -1, Aim = q.Player.Pos + new V2(1, 0) });
+        Check(g.State == AiState.Suspicious && g.Pos.Y > 2.6f, $"a guard heads round to look at a noise ({g.State}, y {g.Pos.Y:0.0})");
+        for (int y = 1; y <= 4; y++) q.L.Set(9, y, Tile.Rubble);
+        float low = g.Pos.Y;
+        bool through = false;
+        for (int i = 0; i < 720 && !through; i++)
+        {
+            q.Step(new RunInput { Slot = -1, Aim = q.Player.Pos + new V2(1, 0) });
+            low = MathF.Max(low, g.Pos.Y);
+            through = g.Pos.X < 9 && g.Pos.Y < 5;
+        }
+        Check(through && low < 5.5f, $"and comes through the hole instead (got as low as y {low:0.0})");
     }
 
     private void Explosions()

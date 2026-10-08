@@ -167,9 +167,10 @@ public sealed partial class CitySim
         Drive(car, dt, inp, false);
 
         // Contact with your car.
-        foreach (V2 pc in new[] { Player.Front, Player.Back })
-        foreach (V2 cc in new[] { car.Front, car.Back })
+        V2 pFront = Player.Front, pBack = Player.Back, cFront = car.Front, cBack = car.Back;
+        for (int k = 0; k < 4; k++)
         {
+            V2 pc = k < 2 ? pFront : pBack, cc = k % 2 == 0 ? cFront : cBack;
             V2 delta = pc - cc;
             float d = delta.Length(), min = Player.R + car.R;
             if (d >= min || d < 1e-4f) continue;
@@ -239,9 +240,10 @@ public sealed partial class CitySim
     /// <summary>No building between two points on the street.</summary>
     public bool ClearRoad(V2 a, V2 b)
     {
-        bool ok = true;
-        Level.Walk(a, b, (x, y) => { if (City.Solid(x, y)) { ok = false; return false; } return true; });
-        return ok;
+        var w = new Level.Walker(a, b);
+        while (w.Next(out int x, out int y))
+            if (City.Solid(x, y)) return false;
+        return true;
     }
 
     // ---- Torque's gadgets ---------------------------------------------------------------

@@ -722,24 +722,36 @@ public partial class RunView : Node2D
         private Image _img;
         private ImageTexture _tex;
         private byte[] _data;
+        private int _fovDrawn = -1;
 
+        /// <summary>Re-upload the fog only when the run recomputed its field of view.</summary>
         public void Refresh()
         {
             Level L = R.L;
-            if (_img == null)
+            bool first = _img == null;
+            if (!first && _fovDrawn == R.FovVersion) return;
+            _fovDrawn = R.FovVersion;
+            int n = L.W * L.H;
+            if (first)
             {
-                _data = new byte[L.W * L.H * 4];
+                // The colour never changes: only the alpha is written from then on.
+                _data = new byte[n * 4];
+                for (int i = 0; i < n; i++) { _data[i * 4] = 2; _data[i * 4 + 1] = 3; _data[i * 4 + 2] = 8; }
+            }
+            bool[] vis = R.Visible, known = L.Explored;
+            for (int i = 0; i < n; i++)
+                _data[i * 4 + 3] = vis[i] ? (byte)0 : known[i] ? (byte)185 : (byte)250;
+            if (first)
+            {
                 _img = Image.CreateFromData(L.W, L.H, false, Image.Format.Rgba8, _data);
                 _tex = ImageTexture.CreateFromImage(_img);
                 TextureFilter = TextureFilterEnum.Linear;
             }
-            for (int i = 0; i < L.W * L.H; i++)
+            else
             {
-                byte a = R.Visible[i] ? (byte)0 : L.Explored[i] ? (byte)185 : (byte)250;
-                _data[i * 4] = 2; _data[i * 4 + 1] = 3; _data[i * 4 + 2] = 8; _data[i * 4 + 3] = a;
+                _img.SetData(L.W, L.H, false, Image.Format.Rgba8, _data);
+                _tex.Update(_img);
             }
-            _img.SetData(L.W, L.H, false, Image.Format.Rgba8, _data);
-            _tex.Update(_img);
             QueueRedraw();
         }
 
@@ -1060,15 +1072,7 @@ public partial class RunView : Node2D
             {
                 float a = facing - half + 2 * half * i / n;
                 V2 end = from + M.Dir(a) * (range / T);
-                V2 hit = end;
-                Pt start = Pt.Of(from);
-                Level.Walk(from, end, (x, y) =>
-                {
-                    if (x == start.X && y == start.Y) return true;
-                    if (r.L.BlocksSight(x, y)) { hit = Level.Entry(from, end, new Pt(x, y)); return false; }
-                    return true;
-                });
-                pts[i + 1] = Art.G(hit, T);
+                pts[i + 1] = Art.G(r.L.FirstSightBlock(from, end), T);
             }
             DrawColoredPolygon(pts, c);
         }
