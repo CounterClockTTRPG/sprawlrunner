@@ -184,7 +184,7 @@ public partial class Root : Node
         }
         using var _e = Perf.Event("enter city");
         using (Perf.Event("  clear")) Clear();
-        using (Perf.Event("  city sim")) CitySim = new CitySim(City, Career, Career.Seed ^ (ulong)Career.Day * 7919);
+        using (Perf.Event("  city sim")) CitySim = new CitySim(City, Career, Career.Seed ^ (ulong)Career.Day * 7919) { Encounters = true };
         if (parkAt != null) CitySim.ParkAt(parkAt);
         CityView = new CityView();
         _world.AddChild(CityView);

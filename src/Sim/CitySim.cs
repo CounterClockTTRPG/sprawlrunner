@@ -192,6 +192,7 @@ public sealed partial class CitySim
     {
         Time += dt;
         Events.Clear();
+        StepStreet(dt);
         StepGadgets(dt, input);
         StepRoadblocks(dt);
         Drive(Player, dt, input, true);

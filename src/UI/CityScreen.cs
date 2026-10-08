@@ -255,9 +255,29 @@ public partial class CityScreen : Control
         if (_enter)
         {
             _enter = false;
+            if (Sim.AtStreet()) { OpenStreet(); return; }
             Lot l = Sim.AtDoor();
             if (l != null) Enter(l);
         }
+    }
+
+    /// <summary>Stopped beside a street encounter: its scene plays; closed unanswered, you drive on (its last choice).</summary>
+    private void OpenStreet()
+    {
+        Storylet s = Storylets.ById(Sim.Street.Story);
+        Sim.Street = null;
+        if (s == null) return;
+        Sim.Player.Vel = V2.Zero;
+        Sfx.Instance?.Engine(0, 0);
+        Mail m = C.Send(s);
+        var modal = new StoryModal(C, m);
+        modal.Closed = () =>
+        {
+            if (m.Answer < 0 && s.Choices is { Length: > 0 }) C.Choose(m, s.Choices.Length - 1);
+            // What the street does back: a toll you ran sends the bikes after you.
+            if (C.Flag("street:ambush") is int n && n > 0) { C.Set("street:ambush", 0); Sim.Ambush(n); }
+        };
+        AddChild(modal);
     }
 
     /// <summary>The morning card: the weather, what's going on, what came in, what it cost.</summary>
@@ -492,9 +512,27 @@ public partial class CityScreen : Control
             if (c.CarHas("guns")) gadgets.Add("guns armed");
             if (gadgets.Count > 0) UITheme.Write(this, new Vector2(30, size.Y - 84), string.Join("  ·  ", gadgets), 13, sim.BoostT > 0 ? UITheme.Cyan : UITheme.Amber);
 
+            // Street encounter prompt (it takes the door prompt's place).
+            if (sim.AtStreet() && !S._map)
+            {
+                string what = sim.Street.Kind switch { StreetKind.Wreck => "E  Get out and look", StreetKind.Toll => "E  Deal with the toll", _ => "E  Wind the window down" };
+                var pr = new Rect2(size.X / 2 - 300, size.Y - 120, 600, 44);
+                UITheme.DrawPanel(this, pr, UITheme.Amber);
+                UITheme.Write(this, new Vector2(pr.Position.X, pr.Position.Y + 29), what, 19, UITheme.Amber, HorizontalAlignment.Center, 600, heading: true);
+            }
+            // A fare aboard: who, and where they're going.
+            if (c.Passenger is Fare fare && sim.FareKerb is V2 drop)
+            {
+                EdgeArrow(drop, UITheme.Yellow, "DROP-OFF");
+                var fp = new Rect2(16, jp.End.Y + (target != null ? 40 : 6), 380, 28);
+                UITheme.DrawPanel(this, fp, UITheme.Yellow);
+                UITheme.Write(this, fp.Position + new Vector2(12, 20), $"ABOARD  {fare.Who}  ·  {V2.Distance(drop, sim.Player.Pos) * 4:0} m  (stop at the kerb)", 14, UITheme.Yellow, heading: true);
+                DrawArc(mo + Art.G(drop) * ms, 6, 0, MathF.Tau, 16, UITheme.Yellow, 2);
+            }
+            if (sim.Street != null) DrawCircle(mo + Art.G(sim.Street.At) * ms, 3, UITheme.Amber);
             // Door prompt.
             Lot at = sim.AtDoor();
-            if (at != null && !S._map)
+            if (at != null && !S._map && !sim.AtStreet())
             {
                 string what = at.Place switch
                 {

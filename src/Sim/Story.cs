@@ -4,8 +4,8 @@ using System.Linq;
 
 namespace Sprawl;
 
-/// <summary>When a storylet may fire: the start of a day, after a job is settled, on walking in somewhere, in your sleep.</summary>
-public enum Hook { Morning, Debrief, Place, Sleep }
+/// <summary>When a storylet may fire: the start of a day, after a job is settled, on walking in somewhere, in your sleep, on the street from the car.</summary>
+public enum Hook { Morning, Debrief, Place, Sleep, Drive }
 
 /// <summary>
 /// A message for the runner: mail in the inbox, a call that rings as soon as

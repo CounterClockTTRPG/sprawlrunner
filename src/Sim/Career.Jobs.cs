@@ -589,6 +589,8 @@ public sealed partial class Career
     {
         Day++;
         Heat = 0;
+        // Whoever was riding with you got out somewhere in the night.
+        if (Passenger != null) { Say($"{Passenger.Who} got out at a red light and didn't come back."); Passenger = null; }
         // How well you live is how well you mend.
         if (rested && Injuries > 0 && LifeTier >= 1) Injuries = LifeTier >= 2 ? 0 : Injuries - 1;
         if (rested) Tell(Hook.Sleep);

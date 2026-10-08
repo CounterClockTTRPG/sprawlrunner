@@ -301,6 +301,15 @@ public partial class CityView : Node2D
                 DrawCircle(at, 6, c.Darkened(0.2f));
                 DrawCircle(at, 3.5f, new Color(0.15f, 0.12f, 0.1f));
             }
+            // Something on the street ahead, and where a fare is going.
+            if (s.Street is StreetEncounter se && view.HasPoint(Art.G(se.At, T))) DrawStreet(se);
+            if (s.FareKerb is V2 drop)
+            {
+                Vector2 dp = Art.G(drop, T);
+                float pulse = 0.5f + 0.5f * MathF.Sin(V.Time * 3);
+                DrawCircle(dp, 18, UITheme.Yellow with { A = 0.12f + 0.1f * pulse });
+                DrawArc(dp, 18 + pulse * 4, 0, MathF.Tau, 28, UITheme.Yellow with { A = 0.8f }, 2);
+            }
             // The planned route, a dotted line along the lanes.
             if (V.Route != null && V.Route.Count >= 2)
                 for (int k = 0; k + 1 < V.Route.Count; k++)
@@ -366,6 +375,56 @@ public partial class CityView : Node2D
             Car car = s.Player;
             if (V.HidePlayer) return;
             Art.Car(this, Art.G(car.Pos, T), car.Heading, car.Def.Length * T, car.Def.Width * T, Art.C(car.Def.Colour), false, car.Speed > 0.5f && V.Braking, car.Def.Bike, car.Lean, car.Wheelie);
+        }
+    }
+
+    /// <summary>A street encounter: who's waving, the wreck with its hazards, the bikes across the lane -- and a ring to stop in.</summary>
+    private partial class Movers
+    {
+        private void DrawStreet(StreetEncounter se)
+        {
+            Vector2 p = Art.G(se.At, T);
+            float t = V.Time;
+            float pulse = 0.5f + 0.5f * MathF.Sin(t * 3);
+            DrawCircle(p, 30, UITheme.Amber with { A = 0.1f + 0.08f * pulse });
+            DrawArc(p, 30 + pulse * 4, 0, MathF.Tau, 32, UITheme.Amber with { A = 0.75f }, 2);
+            switch (se.Kind)
+            {
+                case StreetKind.Waving:
+                {
+                    DrawCircle(p + new Vector2(1.5f, 2), 6, new Color(0, 0, 0, 0.3f));
+                    DrawCircle(p, 6, new Color(0.75f, 0.55f, 0.3f));
+                    DrawCircle(p, 3.5f, new Color(0.15f, 0.12f, 0.1f));
+                    // An arm going back and forth over the head.
+                    Vector2 hand = p + new Vector2(MathF.Sin(t * 7) * 7, -11);
+                    DrawLine(p + new Vector2(3, -3), hand, new Color(0.75f, 0.55f, 0.3f), 2.5f);
+                    break;
+                }
+                case StreetKind.Wreck:
+                {
+                    float h = se.Heading + 0.7f;
+                    Art.Car(this, p, h, 2.2f * T, 1.1f * T, new Color(0.35f, 0.33f, 0.32f), false, false);
+                    bool on = MathF.Sin(t * 6) > 0;
+                    Vector2 f = new(MathF.Cos(h), MathF.Sin(h)), sd = new(-f.Y, f.X);
+                    foreach (Vector2 corner in new[] { f * 32 + sd * 14, f * 32 - sd * 14, -f * 32 + sd * 14, -f * 32 - sd * 14 })
+                        DrawCircle(p + corner, 3, on ? new Color(1f, 0.6f, 0.1f) : new Color(0.3f, 0.18f, 0.05f));
+                    for (int k = 0; k < 3; k++)
+                        DrawCircle(p + f * 34 + new Vector2(MathF.Sin(t + k * 2) * 6, -10 - k * 9 - (t * 12 % 9)), 7 + k * 2, new Color(0.8f, 0.8f, 0.85f, 0.18f - k * 0.04f));
+                    break;
+                }
+                case StreetKind.Toll:
+                {
+                    // Two bikes nose to tail across the lane, and the ganger with the bucket.
+                    float across = se.Heading + MathF.PI / 2;
+                    Vector2 a = new(MathF.Cos(across), MathF.Sin(across));
+                    for (int k = -1; k <= 1; k += 2)
+                        Art.Car(this, p + a * k * 26, across + (k > 0 ? 0.25f : -0.25f), CitySim.GangBike.Length * T, CitySim.GangBike.Width * T, Art.C(CitySim.GangBike.Colour), false, false, true);
+                    Vector2 g = p - new Vector2(MathF.Cos(se.Heading), MathF.Sin(se.Heading)) * 22;
+                    DrawCircle(g, 6, new Color(0.3f, 0.45f, 0.15f));
+                    DrawCircle(g, 3.5f, new Color(0.15f, 0.12f, 0.1f));
+                    break;
+                }
+            }
         }
     }
 

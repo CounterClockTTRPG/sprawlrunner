@@ -158,6 +158,10 @@ public static class Tables
     public const float GunfireScatter = 10;
     /// <summary>Crackdown checkpoints: how many, kept this far from doors you need, how near one sees a hot car, where you stop, how long the look takes.</summary>
     public const int Roadblocks = 5;
+    /// <summary>Street encounters: seconds of driving before the first look and between looks, at most this many a day,
+    /// how long one waits on its kerb, and how far past it you can be before it's gone.</summary>
+    public const float StreetFirst = 60, StreetEvery = 140, StreetLife = 60, StreetGone = 45;
+    public const int StreetPerDay = 2;
     /// <summary>Saved this much, a runner can walk away a success whenever they like (as after a finished campaign).</summary>
     public const int RetireSavings = 250_000;
     /// <summary>Faction standing (0-10): safe passage, their own jobs on the board (paying this much more), the faction item.</summary>

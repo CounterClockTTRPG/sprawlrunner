@@ -47,7 +47,7 @@ public partial class StoryModal : Modal
         Build();
     }
 
-    private static string PlaceTitle(string place) => place == "home" ? "THE BLOCK" : Tables.Contacts.FirstOrDefault(k => k.Id == place)?.Venue.ToUpperInvariant() ?? "SOMEWHERE";
+    private static string PlaceTitle(string place) => place == "home" ? "THE BLOCK" : place.StartsWith("street:") ? "ON THE STREET" : Tables.Contacts.FirstOrDefault(k => k.Id == place)?.Venue.ToUpperInvariant() ?? "SOMEWHERE";
 
     public override void _Ready()
     {

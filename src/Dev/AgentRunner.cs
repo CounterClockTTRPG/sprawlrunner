@@ -47,7 +47,7 @@ public partial class AgentRunner : Node
   click [left|right] [MS]   press a mouse button at the mouse (hold MS ms; right = throw)
   fire MS               hold the left button for MS ms
   wait MS               let the game run
-  drive PLACE           (city) autopilot to home|fixer|doc|arms|rigger|decker|fence|talismonger|market|bazaar|job; stops at the door
+  drive PLACE           (city) autopilot to home|fixer|doc|arms|rigger|decker|fence|talismonger|market|bazaar|job, or street (an encounter) or fare (a drop-off); stops there ('drive PLACE street' also stops when an encounter appears)
   walk X Y [MS]         (run) walk to tile X,Y by the shortest path, with real WASD; stops on arrival, when spotted, or after MS (default 15000)
   sneak X Y [MS]        like walk, holding Shift
   scroll up|down [N]    mouse wheel at the mouse (lists in shops)
@@ -285,7 +285,7 @@ public partial class AgentRunner : Node
                     await Frames(1);
                 }
                 return null;
-            case "drive": return await Drive(w.Length > 1 ? w[1] : "job");
+            case "drive": return await Drive(w.Length > 1 ? w[1] : "job", w.Length > 2 && w[2] == "street");
             case "walk": return await Walk(new V2(F(w[1]), F(w[2])), w.Length > 3 ? (int)F(w[3]) : 15000, false);
             case "sneak": return await Walk(new V2(F(w[1]), F(w[2])), w.Length > 3 ? (int)F(w[3]) : 15000, true);
             case "perf" when w.Length > 1 && w[1] == "start": Perf.Start(GetViewport()); return "perf: recording";
@@ -494,6 +494,10 @@ public partial class AgentRunner : Node
         sb.AppendLine($"car: {car.Def.Name} at ({car.Pos.X:0.0},{car.Pos.Y:0.0}) heading {hdg:0} deg (0 = east, 90 = south), speed {car.Speed:0.0} t/s, hull {car.Hp:0}/{car.Def.Hp}");
         Lot at = s.AtDoor();
         sb.AppendLine(at != null ? $"at the door of: {PlaceName(at)} -- press E to go in" : "not at any door");
+        if (s.Street is StreetEncounter se)
+            sb.AppendLine($"street: {se.Kind} at ({se.At.X:0},{se.At.Y:0}), {V2.Distance(se.At, car.Pos):0} tiles, {se.Life:0} s left{(s.AtStreet() ? " -- you're beside it: press E" : " -- stop beside it and press E ('drive street')")}");
+        if (s.C.Passenger is Fare fare && s.FareKerb is V2 drop)
+            sb.AppendLine($"aboard: {fare.Who} -- stop at the kerb ({drop.X:0},{drop.Y:0}), {V2.Distance(drop, car.Pos):0} tiles ('drive fare')");
         if (s.C.Active is Job cj && cj.Driving)
             sb.AppendLine($"courier: {(s.C.Courier ? $"package aboard -- deliver to the DROP door ({s.City.Lots[cj.Lot2].Door.X},{s.City.Lots[cj.Lot2].Door.Y}), {s.C.CourierT:0} s left; 'drive job' goes there" : $"collect at the PICKUP door ({s.City.Lots[cj.Lot].Door.X},{s.City.Lots[cj.Lot].Door.Y}) with E; 'drive job' goes there")}");
         foreach (Lot l in s.Destinations())
@@ -679,10 +683,17 @@ public partial class AgentRunner : Node
         Set(Key.S, d.Y > 0.38f); Set(Key.W, d.Y < -0.38f);
     }
 
-    private async Task<string> Drive(string place)
+    private async Task<string> Drive(string place, bool stopForStreet = false)
     {
         if (Root.CityScreen == null || Root.CitySim == null) return "not in the city";
         CitySim s = Root.CitySim;
+        // A street encounter or a fare's drop-off: a kerb, not a door.
+        if (place is "street" or "fare")
+        {
+            V2? kerb = place == "street" ? s.Street?.At : s.FareKerb;
+            if (kerb is not V2 k) return $"no {place} to drive to";
+            return await DriveTo(s, new DriveAutopilot(s.City, s.Player.Pos, k, s.Roadblocks.Count > 0 ? s.Closed : null), place == "street" ? () => s.AtStreet() : () => s.C.Passenger == null, false);
+        }
         Lot lot = place.ToLowerInvariant() switch
         {
             "job" => s.C.Active == null ? null : s.C.Active.Driving ? s.CourierLot(s.C.Active) : s.City.Lots[s.C.Active.Lot],
@@ -690,7 +701,13 @@ public partial class AgentRunner : Node
             _ => s.City.Place(place.ToLowerInvariant()),
         };
         if (lot == null) return $"no such place '{place}'";
-        var ap = s.RouteTo(lot);
+        return await DriveTo(s, s.RouteTo(lot), null, stopForStreet);
+    }
+
+    /// <summary>Drive an autopilot with real keys until it arrives (or <paramref name="there"/> says so), the car is wrecked, or 150 s pass.</summary>
+    private async Task<string> DriveTo(CitySim s, DriveAutopilot ap, Func<bool> there, bool stopForStreet)
+    {
+        string passed = null;
         ulong end = Time.GetTicksMsec() + 150000;
         string why = "timed out";
         void Set(Key k, bool on) { if (on) KeyDown(k); else KeyUp(k); }
@@ -698,16 +715,22 @@ public partial class AgentRunner : Node
         {
             if (Root.CityScreen.Paused) { await Frames(2); continue; }
             DriveInput d = ap.Step(s, (float)GetProcessDeltaTime());
-            if (ap.Done) { why = "arrived at the door"; break; }
+            if (ap.Done || there?.Invoke() == true) { why = "arrived"; break; }
+            if (s.Street != null) passed ??= $"{s.Street.Kind} at ({s.Street.At.X:0},{s.Street.At.Y:0})";
+            if (stopForStreet && s.Street != null) { why = $"stopped: something on the street ahead ({passed}) -- 'drive street' goes to it"; break; }
             Set(Key.W, d.Throttle > 0); Set(Key.S, d.Throttle < 0);
             Set(Key.D, d.Steer > 0); Set(Key.A, d.Steer < 0);
             await Frames(1);
             if (s.Wrecked) { why = "the car was wrecked"; break; }
         }
         foreach (Key k in new[] { Key.W, Key.A, Key.S, Key.D }) KeyUp(k);
+        // Come to a stop before reporting where we are.
+        for (int i = 0; i < 90 && MathF.Abs(s.Player.Speed) > 0.5f && Root.CityScreen != null; i++) { KeyDown(Key.S); await Frames(1); KeyUp(Key.S); if (s.Player.Speed < 0) break; }
+        KeyUp(Key.S);
         await Ms(300);
         Lot at = s.AtDoor();
-        return $"drive: {why}; {(at != null ? $"at the door of {PlaceName(at)} (press E)" : "not at a door")}; hull {s.Player.Hp:0}";
+        string where = s.AtStreet() ? "beside the street encounter (press E)" : at != null ? $"at the door of {PlaceName(at)} (press E)" : "not at a door";
+        return $"drive: {why}; {where}; hull {s.Player.Hp:0}{(passed != null && !stopForStreet ? $"; passed a street encounter ({passed})" : "")}";
     }
 
 }
