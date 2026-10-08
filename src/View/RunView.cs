@@ -25,6 +25,8 @@ public partial class RunView : Node2D
     private TileChunk[] _chunks;
     private int[] _drawn;
     private Node2D _lights;
+    /// <summary>Each lamp's glow, by its index in <see cref="Level.Lights"/> (so a lamp shot out can go dark).</summary>
+    private readonly List<Sprite2D> _lamps = new();
     private DecalLayer _decals;
     private TileLife _life;
     private float _pickupAt = -10;
@@ -53,6 +55,7 @@ public partial class RunView : Node2D
             _drawn[cy * L.ChunksX + cx] = -1;
             AddChild(c);
         }
+        _lamps.Clear();
         _lights = new Node2D { Material = Art.Additive, Name = "Lights" };
         AddChild(_lights);
         foreach (var (pos, colour, radius) in L.Lights)
@@ -60,6 +63,7 @@ public partial class RunView : Node2D
             var s = new Sprite2D { Texture = Art.Glow, Position = Art.G(pos, T), Modulate = Art.C(colour) with { A = 0.32f } };
             s.Scale = Vector2.One * radius * T * 2 / Art.Glow.GetWidth();
             _lights.AddChild(s);
+            _lamps.Add(s);
         }
         _life = new TileLife { V = this, Name = "TileLife" };
         _life.Scan(L);
@@ -288,6 +292,15 @@ public partial class RunView : Node2D
                     ring.Drag = 0;
                     _decals.Add(p, rad * 0.55f, new Color(0.02f, 0.02f, 0.02f, 0.55f));
                     Shake = 10 + 14 * Vol(e.Pos, 20);
+                    break;
+                }
+                case Ev.LampOut:
+                {
+                    if (e.A >= 0 && e.A < _lamps.Count) _lamps[e.A].Visible = false;
+                    Play(Sound.Glass, e.Pos, 0.55f);
+                    Glow.Burst(FxKind.Spark, p, 14, 220, 0.4f, 1.6f, new Color(1f, 0.9f, 0.6f));
+                    Fx.Burst(FxKind.Debris, p, 6, 90, 0.5f, 1.8f, new Color(0.8f, 0.9f, 1f, 0.8f));
+                    _decals.Add(p, 5, new Color(0.03f, 0.03f, 0.03f, 0.5f));
                     break;
                 }
                 case Ev.Broken:

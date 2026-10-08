@@ -266,6 +266,10 @@ public partial class RunScreen : Control
                 if (k < r.Edge) DrawColoredPolygon(dia, UITheme.Amber);
                 else DrawPolyline(new[] { dia[0], dia[1], dia[2], dia[3], dia[0] }, UITheme.Faint, 1.2f);
             }
+            // How lit you stand: the dark hides you, a lamp gives you away.
+            float lit = r.L.LightAt(p.Pos);
+            string light = lit > 0.55f ? "LIT" : lit > 0.15f ? "DIM" : "DARK";
+            UITheme.Write(this, new Vector2(edgeX + (r.Edge + r.EdgeUsed) * 12 + 10, size.Y - 84), light, 12, lit > 0.55f ? UITheme.Yellow : lit > 0.15f ? UITheme.Dim : UITheme.Cyan, heading: true);
             string med = $"[{Controls.KeyName(Act.Medkit)}] Medkits {r.Medkits}", dashT = $"[{Controls.KeyName(Act.Dash)}] Dash";
             UITheme.Write(this, new Vector2(24, size.Y - 28), med, 15, r.Medkits > 0 ? UITheme.Good : UITheme.Faint);
             float dash = r.DashCd > 0 ? 1 - r.DashCd / r.C.DashCooldown : 1;

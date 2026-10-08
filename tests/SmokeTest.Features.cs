@@ -1,3 +1,4 @@
+using System;
 using System.Linq;
 using Godot;
 
@@ -84,5 +85,89 @@ public partial class SmokeTest
         f.TakeAboard(doc.Index, 600, "a box", "Delivered.");
         f.NextDay(city);
         Check(f.Passenger == null, "a fare lapses overnight");
+    }
+
+    /// <summary>Light: lamps light their rooms (walls cast shadows), the dark hides you, and lamps can be shot out or blown.</summary>
+    private void Lighting()
+    {
+        // Two rooms side by side; one lamp in the left one.
+        string[] rows =
+        {
+            "#####################",
+            "#P........#.........#",
+            "#.........#.........#",
+            "#...................#",
+            "#.........#.........#",
+            "#####################",
+        };
+        LevelPlan p = Site(rows);
+        p.L.Ambient = Tables.NightAmbient;
+        p.L.Lights.Add((new V2(5.5f, 2.5f), 0xffe0a0ff, 6));
+        Level L = p.L;
+        Check(L.LightAt(new V2(5.5f, 2.5f)) > 0.9f, "under the lamp it's bright");
+        Check(L.LightAt(new V2(15.5f, 1.5f)) <= Tables.NightAmbient + 0.01f, $"through the wall, only the night ({L.LightAt(new V2(15.5f, 1.5f)):0.00})");
+        Check(L.LightAt(new V2(10.5f, 3.5f)) > Tables.NightAmbient + 0.05f, "light spills into the doorway");
+
+        // Seen in the light vs in the dark: the same guard, the same distance, two runs.
+        float Detect(V2 at)
+        {
+            LevelPlan q = Site(rows);
+            q.L.Ambient = Tables.NightAmbient;
+            q.L.Lights.Add((new V2(5.5f, 2.5f), 0xffe0a0ff, 6));
+            Run r = Make(q);
+            r.Player.Pos = at;
+            Actor g = r.AddEnemy(EnemyKind.Guard, at + new V2(4, 0), MathF.PI);
+            g.BaseFacing = MathF.PI;
+            Steps(r, 0.4f, new RunInput { Slot = -1, Aim = g.Pos });
+            return g.Detect;
+        }
+        float lit = Detect(new V2(4.5f, 2.5f)), dark = Detect(new V2(12.5f, 1.5f));
+        Check(lit > 0 && dark > 0 && lit > dark * 1.5f, $"you're noticed much faster under a lamp than in the dark ({lit:0.00} vs {dark:0.00})");
+
+        // Shoot it out: aim at the lamp and fire.
+        Run s = Make(Site(rows));
+        s.L.Ambient = Tables.NightAmbient;
+        s.L.Lights.Add((new V2(5.5f, 2.5f), 0xffe0a0ff, 6));
+        bool popped = false;
+        for (int k = 0; k < 60 && !popped; k++)
+        {
+            s.Step(new RunInput { Slot = 1, Fire = true, Aim = new V2(5.5f, 2.5f) });
+            popped = s.Events.Any(e => e.Kind == Ev.LampOut);
+            s.Events.Clear();
+        }
+        Check(popped && s.L.LampsOut.Contains(0), "a shot aimed at a lamp puts it out");
+        Check(s.L.LightAt(new V2(5.5f, 2.5f)) <= Tables.NightAmbient + 0.01f, "and the room goes dark");
+
+        // A grenade takes the lamps near it.
+        Run b = Make(Site(rows));
+        b.L.Ambient = Tables.NightAmbient;
+        b.L.Lights.Add((new V2(15.5f, 2.5f), 0xffe0a0ff, 5));
+        b.Explode(new V2(15f, 2.5f), 3, 10, GrenadeKind.Flash, b.Player.Id, 0);
+        Check(b.L.LampsOut.Contains(0), "a blast blows the lamps near it");
+
+        // Generated sites are night: inside, some floor lit and some dark, in every style.
+        foreach (SiteStyle st in Enum.GetValues<SiteStyle>())
+        {
+            int floor = 0, litTiles = 0, darkTiles = 0;
+            bool night = true;
+            foreach (ulong seed in new ulong[] { 991, 1201, 7333 })
+            {
+                var job = new Job { Id = 1, Type = JobType.Retrieve, Style = st, Threat = 2, Seed = seed, Faction = Faction.Vipers, Count = 2, Target = "T", Item = "I", Title = "light" };
+                LevelPlan gp = LevelGen.Generate(job);
+                Level g = gp.L;
+                night &= g.Ambient == Tables.NightAmbient;
+                for (int y = 0; y < g.H; y++)
+                for (int x = 0; x < g.W; x++)
+                {
+                    if (g.Solid(x, y) || gp.RoomOf[g.Idx(x, y)] < 0) continue;
+                    floor++;
+                    float v = g.LightAt(new Pt(x, y).Centre);
+                    if (v > 0.55f) litTiles++;
+                    if (v < 0.15f) darkTiles++;
+                }
+            }
+            if (_only == "Lighting") GD.Print($"    {st}: {litTiles * 100 / floor} % lit, {darkTiles * 100 / floor} % dark");
+            Check(night && litTiles > floor / 5 && darkTiles > floor / 10, $"{st}: inside is light and dark ({litTiles} lit, {darkTiles} dark of {floor})");
+        }
     }
 }

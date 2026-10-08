@@ -105,7 +105,7 @@ public sealed class Pickup
 public enum Ev
 {
     Shot, Impact, Hit, Death, Explosion, Broken, Throw, Bounce, Pickup, Alarm, Alert, Reload, Dash, Melee,
-    Hack, Message, Door, Flash, Emp, Ignite, Telegraph, Spotted, Objective, Empty, Swap, Heal, Ability, Wave, Spell, HitMark, EnemyThrow, Whistle, Carry, Safe, Stairs, Hint, Panic,
+    Hack, Message, Door, Flash, Emp, Ignite, Telegraph, Spotted, Objective, Empty, Swap, Heal, Ability, Wave, Spell, HitMark, EnemyThrow, Whistle, Carry, Safe, Stairs, Hint, Panic, LampOut,
 }
 
 public readonly record struct RunEvent(Ev Kind, V2 Pos, V2 Dir = default, float Value = 0, int A = 0, string Text = null);

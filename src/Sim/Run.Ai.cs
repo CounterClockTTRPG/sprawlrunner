@@ -153,7 +153,7 @@ public sealed partial class Run
             float rate = dist < 2 ? 4f : 1.6f * (1.25f - dist / vision);
             // In their uniform you're one of them -- until they get a close look.
             if (Disguised) rate *= dist < 2.2f ? 0.6f : 0.2f;
-            rate = MathF.Max(0.25f, rate) * C.DetectMul * (Sneaking ? 0.5f : 1f) * (a.State == AiState.Search ? 2f : 1f)
+            rate = MathF.Max(0.25f, rate) * C.DetectMul * (Sneaking ? 0.5f : 1f) * (a.State == AiState.Search ? 2f : 1f) * LightDetect(Player.Pos)
                 // Guards who have searched for you, or a site on edge, notice you faster.
                 * (a.Jumpy ? Tables.JumpyDetect : 1f) * (SecurityLevel >= 1 && !Alarm ? Tables.OnEdgeDetect : 1f);
             if (a.Is(EnemyKind.Turret)) rate *= 2.5f;
@@ -168,6 +168,13 @@ public sealed partial class Run
             }
         }
         else a.Detect = MathF.Max(0, a.Detect - dt * 0.12f);
+    }
+
+    /// <summary>How fast you're noticed for the light you stand in: <see cref="Tables.DarkDetect"/> in the dark, <see cref="Tables.LitDetect"/> under a lamp.</summary>
+    public float LightDetect(V2 p)
+    {
+        float lit = M.Clamp(L.LightAt(p) / 0.6f, 0, 1);
+        return Tables.DarkDetect + (Tables.LitDetect - Tables.DarkDetect) * lit;
     }
 
     public void BecomeAlert(Actor a, V2 where, bool shout = true)

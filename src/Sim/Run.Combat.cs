@@ -34,6 +34,8 @@ public sealed partial class Run
             V2 a = s.Pos, b = s.Pos + s.Vel * dt;
             float segLen = V2.Distance(a, b);
             bool dead = false;
+            // A shot aimed at a lamp puts it out (only the runner's: a firefight doesn't black out the site by itself).
+            if (s.Team == 0 && s.Blast <= 0 && ShootLamp(s, a, b)) { Shots.RemoveAt(i); continue; }
             // Repeat while a pierce carries the shot through something in this step.
             for (int guard = 0; guard < 4 && !dead; guard++)
             {
@@ -122,6 +124,27 @@ public sealed partial class Run
         tile = found;
         at = any ? Level.Entry(a, b, found) : b;
         return any;
+    }
+
+    /// <summary>Does this shot, aimed at a lamp, pass close enough to it in this step? Then the lamp is out.</summary>
+    private bool ShootLamp(Projectile s, V2 a, V2 b)
+    {
+        V2 aim = s.Origin + M.Norm(s.Vel) * s.AimDist;
+        int k = L.LampNear(aim, Tables.LampAim);
+        if (k < 0) return false;
+        V2 lamp = L.Lights[k].pos;
+        if (M.SegDist(a, b, lamp, out _) > Tables.LampHit || !L.Los(s.Origin, lamp)) return false;
+        LampOut(k);
+        return true;
+    }
+
+    /// <summary>A lamp goes out with a pop of glass: a little noise, and the room it lit is darker.</summary>
+    public void LampOut(int k)
+    {
+        if (!L.LampsOut.Add(k)) return;
+        V2 at = L.Lights[k].pos;
+        Events.Add(new RunEvent(Ev.LampOut, at, default, 0, k));
+        Noise(at, 5, true, quiet: true);
     }
 
     private void Blast(Projectile s, V2 at)
@@ -338,6 +361,9 @@ public sealed partial class Run
         {
             var (pos, radius, damage, kind, owner, tileMul) = _blasts.Dequeue();
             Events.Add(new RunEvent(Ev.Explosion, pos, default, radius, (int)kind));
+            // A blast takes out the lamps near it (a flashbang or an EMP too: the bulbs go).
+            for (int k = 0; k < L.Lights.Count; k++)
+                if (!L.LampsOut.Contains(k) && V2.Distance(L.Lights[k].pos, pos) < radius * Tables.LampBlast) LampOut(k);
             Actor by = ActorById(owner);
             int r = (int)MathF.Ceiling(radius);
             Pt c = Pt.Of(pos);

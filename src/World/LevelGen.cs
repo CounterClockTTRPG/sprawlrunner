@@ -234,6 +234,8 @@ public sealed class LevelGen
             foreach (Spawn s in P.Enemies.Where(e => e.Kind is not (EnemyKind.Camera or EnemyKind.Turret or EnemyKind.Vip or EnemyKind.Boss) && !e.Bodyguard).Take(2))
                 if (floor != null) { s.Pos = FreeSpot(floor); s.Patrol.Clear(); }
         }
+        // Night: the light is the lamps' (the hand-drawn checks' sites stay fully lit).
+        P.L.Ambient = Tables.NightAmbient;
         return P;
     }
 
@@ -1286,9 +1288,22 @@ public sealed class LevelGen
             foreach (Room r in P.Rooms.Where(_ => _r.Chance(0.3f))) L.Lights.Add((r.Centre, 0xff2020ff, 2.5f));
             return;
         }
+        // At night most rooms have their lights off: which, by a hash of the room (not the site's
+        // random stream, so the rest of the site is the same as before there was light).
+        float on = _job.Style switch { SiteStyle.Office => 0.45f, SiteStyle.Lab => 0.6f, SiteStyle.Warehouse => 0.6f, SiteStyle.Den => 0.7f, _ => 0.8f };
         foreach (Room r in P.Rooms)
         {
             uint c = r.Vault ? 0xff3030ff : _job.Style == SiteStyle.Club && L.F[L.Idx(r.R.X, r.R.Y)] == Floor.Dance ? 0xff40c0ff : col;
+            if (c == col && new Rng(_job.Seed * 0x9E3779B97F4A7C15UL + (ulong)(r.R.X * 131 + r.R.Y * 7919 + 1)).Float() >= on) continue;
+            // A big room (a hall, an open-plan floor) hangs a row of lamps: pools of light, dark aisles between.
+            int nx = Math.Max(1, (int)MathF.Round(r.R.W / (float)Tables.LampEvery)), ny = Math.Max(1, (int)MathF.Round(r.R.H / (float)Tables.LampEvery));
+            if (nx * ny > 1 && c == col)
+            {
+                for (int gy = 0; gy < ny; gy++)
+                for (int gx = 0; gx < nx; gx++)
+                    L.Lights.Add((new V2(r.R.X + r.R.W * (gx + 0.5f) / nx, r.R.Y + r.R.H * (gy + 0.5f) / ny), c, 4.5f));
+                continue;
+            }
             L.Lights.Add((r.Centre, c, MathF.Min(6, MathF.Max(r.R.W, r.R.H) * 0.6f)));
             if (_job.Style == SiteStyle.Club && c == 0xff40c0ff)
             {

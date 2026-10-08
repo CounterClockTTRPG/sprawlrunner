@@ -183,6 +183,72 @@ public sealed class Level
         return t;
     }
 
+    // ---- light -----------------------------------------------------------------
+
+    /// <summary>The light everywhere before the lamps: 1 on a hand-drawn site (no lighting at all), the night on a generated one.</summary>
+    public float Ambient = 1;
+    /// <summary>Lamps shot out (by index into <see cref="Lights"/>).</summary>
+    public readonly HashSet<int> LampsOut = new();
+    private float[] _light;
+    private int _lightVersion = -1, _lampsOut = -1;
+
+    /// <summary>
+    /// How lit a spot is, 0 (dark: the night outside the lamps) to 1: the
+    /// brightest lamp that sees the tile, falling off over its radius. Walls
+    /// cast shadows (the same opacity as sight). Rebuilt only when tiles change
+    /// or a lamp goes out.
+    /// </summary>
+    public float LightAt(V2 p)
+    {
+        Pt t = Pt.Of(p);
+        if (!In(t)) return 0;
+        if (_light == null || _lightVersion != Version || _lampsOut != LampsOut.Count) BuildLight();
+        return _light[Idx(t.X, t.Y)];
+    }
+
+    private void BuildLight()
+    {
+        _light ??= new float[W * H];
+        Array.Fill(_light, Ambient);
+        for (int k = 0; k < Lights.Count; k++)
+        {
+            if (LampsOut.Contains(k)) continue;
+            var (pos, _, radius) = Lights[k];
+            int r = (int)MathF.Ceiling(radius);
+            Pt c = Pt.Of(pos);
+            for (int y = c.Y - r; y <= c.Y + r; y++)
+            for (int x = c.X - r; x <= c.X + r; x++)
+            {
+                if (!In(x, y)) continue;
+                var at = new Pt(x, y).Centre;
+                float d = V2.Distance(at, pos);
+                if (d > radius) continue;
+                float v = 1 - d / radius;
+                // Full light near the lamp, a soft edge out to its radius.
+                v = MathF.Min(1, v * 1.6f);
+                int i = Idx(x, y);
+                if (v <= _light[i] || !Los(pos, at)) continue;
+                _light[i] = v;
+            }
+        }
+        _lightVersion = Version;
+        _lampsOut = LampsOut.Count;
+    }
+
+    /// <summary>The lamp under this point (within a third of a tile), or -1.</summary>
+    public int LampNear(V2 p, float within)
+    {
+        int best = -1;
+        float bd = within;
+        for (int k = 0; k < Lights.Count; k++)
+        {
+            if (LampsOut.Contains(k)) continue;
+            float d = V2.Distance(Lights[k].pos, p);
+            if (d < bd) { bd = d; best = k; }
+        }
+        return best;
+    }
+
     // ---- sight -----------------------------------------------------------------
 
     /// <summary>

@@ -71,6 +71,7 @@ public static class HubGen
             if (!L.Solid((int)p.X, (int)p.Y)) P.Npcs.Add((p, null));
         }
         P.Reinforce.Add(new V2(w - 3, h / 2));
+        L.Ambient = Tables.NightAmbient;
         return P;
     }
 

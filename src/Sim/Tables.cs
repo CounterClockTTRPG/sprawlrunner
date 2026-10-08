@@ -158,6 +158,13 @@ public static class Tables
     public const float GunfireScatter = 10;
     /// <summary>Crackdown checkpoints: how many, kept this far from doors you need, how near one sees a hot car, where you stop, how long the look takes.</summary>
     public const int Roadblocks = 5;
+    /// <summary>Light: how much faster a guard notices you in full light, and how much slower in the dark (light 0);
+    /// a shot aimed this close to a lamp, passing this close, puts it out; a blast puts out lamps in this share of its radius.</summary>
+    public const float LitDetect = 1.15f, DarkDetect = 0.65f, LampAim = 0.9f, LampHit = 0.3f, LampBlast = 1f;
+    /// <summary>The night on a generated site, before any lamp: a little light from the sky and the city.</summary>
+    public const float NightAmbient = 0.08f;
+    /// <summary>A room hangs a lamp every this many tiles along each side (one, for a small room).</summary>
+    public const int LampEvery = 8;
     /// <summary>Street encounters: seconds of driving before the first look and between looks, at most this many a day,
     /// how long one waits on its kerb, and how far past it you can be before it's gone.</summary>
     public const float StreetFirst = 60, StreetEvery = 140, StreetLife = 60, StreetGone = 45;
