@@ -583,7 +583,7 @@ public partial class PlaceScreen : Control
         if (site && j.Threat >= 5) Face(faces, Assets.BossPicture(j.Faction), "In charge", Tables.BossOf(j.Faction).name, UITheme.Bad);
         if (j.Hired != null) Face(faces, Assets.HirePicture(j.Hired), "With you", Tables.Hires.First(h => h.id == j.Hired).name, UITheme.Good);
         if (faces.GetChildCount() > 0) left.AddChild(faces);
-        left.AddChild(UITheme.Label("Go in quiet: no alarm pays a quarter extra. Loot you carry out is yours. Leaving before the job is done fails it.", 16, UITheme.Dim));
+        left.AddChild(UITheme.Label((Career.GhostPays(j) ? "Go in quiet: no alarm pays a quarter extra. " : "") + "Loot you carry out is yours. Leaving before the job is done fails it.", 16, UITheme.Dim));
         if (C.TraumaLinks == 0) left.AddChild(UITheme.Label("No TraumaLink on file. If you go down in there, you stay down -- the career ends.", 16, UITheme.Bad));
         else left.AddChild(UITheme.Label($"TraumaLink: {C.TraumaLinks} pick-up(s) on file.", 16, UITheme.Good));
         // Legwork: what a little money and the right friends buy before you go in.

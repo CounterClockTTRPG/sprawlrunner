@@ -262,7 +262,7 @@ public partial class Terminal : PanelContainer
         Line($"[{n}] {j.Title.ToUpperInvariant()}{(j.Johnson ? "   -- MR. JOHNSON (negotiated on accept)" : "")}", UITheme.Cyan);
         Line($"    employer: {Tables.Contact(j.Employer).Name} ({Tables.Contact(j.Employer).Role.ToLower()})", GDim);
         Line($"    site:     {Tables.District(j.District).Name}, held by {Tables.FactionNames[(int)j.Faction]}", GDim);
-        Line($"    threat:   {Threat(j.Threat)}    pay {M.Money(j.Pay)}{(j.Driving ? "" : " (+25% if no alarm)")}    karma +{j.Karma}", GDim);
+        Line($"    threat:   {Threat(j.Threat)}    pay {M.Money(j.Pay)}{(!Career.GhostPays(j) ? "" : Career.NoKillPays(j) ? $" (+25% if no alarm, +{(j.JohnsonId == "vale" ? 30 : 15)}% if no kills)" : " (+25% if no alarm)")}    karma +{j.Karma}", GDim);
         if (j.Hired != null) Line($"    hired: {Tables.Hires.First(h => h.id == j.Hired).name} comes along.", GDim);
         foreach (string l in Wrap(j.Brief, 70)) Line("    " + l, G);
         if (j.Johnson) Line($"    a mr. johnson job{(Career.JohnsonById(j.JohnsonId) is JohnsonDef jj ? $" ({jj.Name.ToLower()})" : "")}: terms are negotiated when you accept.", GDim);

@@ -78,7 +78,8 @@ street rep. A Matrix rig upgrade lists more jobs and can pull site schematics.
 Every job ends at the **extraction** zone (often where you came in): walk
 in once the objective is done. Leaving early (hold E in the zone, or bail
 out from the pause menu) is a failed job (rep loss, no pay). **Bonuses**: no
-alarm raised (+25 % pay), loot (cash stacks, paydata, valuables to fence).
+alarm raised (+25 % pay; not on couriers and races, which raise none), loot
+(cash stacks, paydata, valuables to fence).
 
 Pay: `800 * threat^1.6 * (0.9..1.2)` nuyen, karma `2 + 2 * threat`.
 
@@ -349,7 +350,8 @@ cameras), club (a big dance floor, a VIP room upstairs-equivalent at the back).
   target leaves / security sweeps), Elite security (+2 armour, +20 % HP),
   Skeleton crew (fewer guards, less pay).
 - **Stealth tools**: non-lethal weapons (stun baton, taser) and gel rounds
-  knock out instead of killing (a no-kill run pays +15 %); carry bodies (press
+  knock out instead of killing (a no-kill run pays +15 %, not on hacks, wetwork,
+  sweeps or driving jobs); carry bodies (press
   and hold E; E drops); whistle (V) to lure a guard; unaware guards who see a
   body raise the alert.
 - **Fixtures**: a security console (loop every camera and turret), lockers

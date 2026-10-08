@@ -600,6 +600,16 @@ public partial class SmokeTest : Node
         int cash = k.Cash;
         Debrief d = k.Finish(j, new RunResult { Success = true, Alarm = true, Kills = 0, Seconds = 60, GrenadesLeft = k.RunGrenades(), MedkitsLeft = k.RunMedkits() });
         Check(d.Lines.Any(l => l.what.StartsWith("No-kill")), "no kills pays a bonus");
+        // Not where it means nothing: a courier raises no alarm (no ghost bonus), a hack kills nobody (no no-kill bonus).
+        foreach (JobType jt in new[] { JobType.Courier, JobType.Hack })
+        {
+            Job x = k.Board.First(b => !b.Johnson && b.Story == 0);
+            x.Type = jt;
+            Accept(k, x);
+            Debrief dx = k.Finish(x, new RunResult { Success = true, Alarm = false, Kills = 0, Seconds = 60, GrenadesLeft = k.RunGrenades(), MedkitsLeft = k.RunMedkits() });
+            Check(dx.Lines.Any(l => l.what == "Payment") && (jt == JobType.Hack || !dx.Lines.Any(l => l.what.StartsWith("Ghost"))), $"paid, and no ghost bonus on a courier ({jt})");
+            Check(jt != JobType.Hack || !dx.Lines.Any(l => l.what.StartsWith("No-kill")), "no no-kill bonus on a hack");
+        }
     }
 
     private void Carrying()
@@ -2050,7 +2060,7 @@ public partial class SmokeTest : Node
         Career c = TestCareer();
         c.CityRef = city;
         c.RefreshBoard(city);
-        Job j = c.Board[0];
+        Job j = c.Board.First(x => !x.Driving);
         Accept(c, j);
         int cash = c.Cash, rep = c.Rep, day = c.Day;
         var res = new RunResult { Success = true, Alarm = false, Cash = 100, GrenadesLeft = c.RunGrenades(), MedkitsLeft = c.RunMedkits() };

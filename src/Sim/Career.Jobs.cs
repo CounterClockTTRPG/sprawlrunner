@@ -763,14 +763,14 @@ public sealed partial class Career
             Cash += pay;
             d.Lines.Insert(0, ("Payment", j.Stiff ? "never arrived" : M.Money(pay)));
             if (j.Stiff) Say($"{j.Title}: the Johnson's account was closed an hour after the job. Stiffed.");
-            if (!r.Alarm && pay > 0)
+            if (!r.Alarm && pay > 0 && GhostPays(j))
             {
                 int bonus = pay / 4;
                 Cash += bonus;
                 Count("earned", bonus);
                 d.Lines.Insert(1, ("Ghost bonus (no alarm)", M.Money(bonus)));
             }
-            if (r.Kills == 0 && j.Type is not (JobType.Courier or JobType.Race or JobType.Clear or JobType.Eliminate) && r.Seconds > 0)
+            if (r.Kills == 0 && NoKillPays(j) && r.Seconds > 0)
             {
                 int clean = pay * (j.JohnsonId == "vale" ? 30 : 15) / 100;
                 Cash += clean;
@@ -832,6 +832,12 @@ public sealed partial class Career
         NextDayAfterRun();
         return d;
     }
+
+    /// <summary>The ghost bonus is for sites: a car on the road raises no alarm to begin with.</summary>
+    public static bool GhostPays(Job j) => !j.Driving;
+
+    /// <summary>The no-kill bonus, for jobs where killing was an option and you didn't.</summary>
+    public static bool NoKillPays(Job j) => j.Type is not (JobType.Courier or JobType.Race or JobType.Clear or JobType.Eliminate or JobType.Hack);
 
     private void Bump(string contact, Debrief d)
     {
