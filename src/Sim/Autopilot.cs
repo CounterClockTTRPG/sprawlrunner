@@ -22,35 +22,39 @@ public sealed class DriveAutopilot
     /// <summary>The planned route, for drawing: junction to junction, then the kerb.</summary>
     public IReadOnlyList<V2> Waypoints => _route;
     public int Next => _wp;
+    /// <summary>Where the route was planned from.</summary>
+    public V2 From { get; private set; }
 
-    public DriveAutopilot(City c, V2 from, Lot lot, Func<(int, int), (int, int), bool> closed = null) : this(c, from, c.Kerb(lot).pos, closed) => _lot = lot;
+    public DriveAutopilot(City c, V2 from, Lot lot, Func<(int, int), (int, int), bool> closed = null)
+    {
+        _lot = lot;
+        _goal = c.Kerb(lot).pos;
+        // A door faces the road it opens onto: north or south means an east-west street.
+        Plan(c, from, _goal, closed, lot.Facing.Y != 0);
+    }
 
     /// <summary>To a point on the road (chasers use this to follow you round corners). <paramref name="closed"/>: junction steps to avoid.</summary>
     public DriveAutopilot(City c, V2 from, V2 kerb, Func<(int, int), (int, int), bool> closed = null)
     {
         _goal = kerb;
-        (int, int) Nearest(V2 p)
-        {
-            int bi = 0, bj = 0;
-            float bd = float.MaxValue;
-            for (int i = 0; i < c.RoadX.Count; i++)
-            for (int j = 0; j < c.RoadY.Count; j++)
-            {
-                float d = V2.Distance(c.Node(i, j), p);
-                if (d < bd) { bd = d; bi = i; bj = j; }
-            }
-            return (bi, bj);
-        }
-        var a = Nearest(from);
-        var b = Nearest(kerb);
-        var nodes = closed == null ? null : Search(c, a, b, closed);
-        if (nodes == null)
-        {
-            nodes = new List<(int, int)> { a };
-            var cur = a;
-            while (cur.Item1 != b.Item1) { cur = (cur.Item1 + Math.Sign(b.Item1 - cur.Item1), cur.Item2); nodes.Add(cur); }
-            while (cur.Item2 != b.Item2) { cur = (cur.Item1, cur.Item2 + Math.Sign(b.Item2 - cur.Item2)); nodes.Add(cur); }
-        }
+        Plan(c, from, kerb, closed, null);
+    }
+
+    /// <summary>
+    /// Along the streets only: each end joins the road it is on at the two
+    /// junctions either side of it (never the nearest corner of some other
+    /// street, which drew lines through blocks), then the shortest way between
+    /// them by road, a turn costing a little so it keeps to few corners.
+    /// </summary>
+    private void Plan(City c, V2 from, V2 kerb, Func<(int, int), (int, int), bool> closed, bool? kerbOnEastWest)
+    {
+        From = from;
+        var starts = Ends(c, from, null);
+        var goals = Ends(c, kerb, kerbOnEastWest);
+        var nodes = Search(c, starts, goals, closed) ?? Search(c, starts, goals, null);
+        // Both on the same stretch of road, and nothing shorter round the block: straight there.
+        bool sameStretch = starts.Count == goals.Count && starts.TrueForAll(a => goals.Exists(b => b.node == a.node));
+        if (sameStretch && V2.Distance(from, kerb) <= Length(c, from, nodes, kerb)) nodes = new List<(int, int)>();
         for (int k = 0; k < nodes.Count; k++)
         {
             V2 n = c.Node(nodes[k].Item1, nodes[k].Item2);
@@ -61,29 +65,121 @@ public sealed class DriveAutopilot
         _route.Add(kerb);
     }
 
-    /// <summary>Junction to junction by the fewest blocks, round the closed ones (null: no way round).</summary>
-    private static List<(int, int)> Search(City c, (int, int) a, (int, int) b, Func<(int, int), (int, int), bool> closed)
+    /// <summary>
+    /// The first waypoint still ahead of a car at <paramref name="pos"/>, from <paramref name="from"/> on (the route
+    /// line is drawn from the car to it). Passed means beyond it along the leg that led there -- not along the next
+    /// one alone, or a car in the right-hand lane counts a right turn as taken a block early and the line cuts
+    /// the corner (unless it is in the junction, taking it on the inside).
+    /// </summary>
+    public int Ahead(V2 pos, int from)
     {
-        var from = new Dictionary<(int, int), (int, int)> { [a] = a };
-        var q = new Queue<(int, int)>();
-        q.Enqueue(a);
-        while (q.Count > 0)
+        while (from < _route.Count - 1)
         {
-            var n = q.Dequeue();
-            if (n == b) break;
-            // Prefer the straight line: try the steps towards the goal first.
-            foreach (var (di, dj) in new[] { (Math.Sign(b.Item1 - n.Item1), 0), (0, Math.Sign(b.Item2 - n.Item2)), (1, 0), (-1, 0), (0, 1), (0, -1) })
+            V2 t = _route[from], d = pos - t;
+            float came = V2.Dot(d, M.Norm(t - (from > 0 ? _route[from - 1] : From)));
+            bool passed = came > 0 || came > -3 && V2.Dot(d, M.Norm(_route[from + 1] - t)) > 1.5f;
+            if (d.Length() >= 3 && !passed) break;
+            from++;
+        }
+        return from;
+    }
+
+    /// <summary>Where a car at <paramref name="pos"/> rejoins the leg into waypoint <paramref name="ahead"/>: the route line goes there first, so it follows the road even from the kerb.</summary>
+    public V2 OnLeg(V2 pos, int ahead)
+    {
+        V2 a = ahead > 0 ? _route[ahead - 1] : From, b = _route[ahead], d = b - a;
+        float u = d.LengthSquared() < 1e-4f ? 1 : Math.Clamp(V2.Dot(pos - a, d) / d.LengthSquared(), 0, 1);
+        return a + d * u;
+    }
+
+    private static float Length(City c, V2 from, List<(int, int)> nodes, V2 to)
+    {
+        float len = 0;
+        V2 at = from;
+        foreach (var (i, j) in nodes) { len += V2.Distance(at, c.Node(i, j)); at = c.Node(i, j); }
+        return len + V2.Distance(at, to);
+    }
+
+    /// <summary>
+    /// The junctions a point on the road can drive to without leaving it: the
+    /// street it is on (the nearer centre line, unless <paramref name="eastWest"/> says),
+    /// and the junction before and after it along that street.
+    /// </summary>
+    internal static List<((int, int) node, float cost)> Ends(City c, V2 p, bool? eastWest)
+    {
+        int vi = 0, hj = 0;
+        for (int i = 1; i < c.RoadX.Count; i++) if (MathF.Abs(c.Node(i, 0).X - p.X) < MathF.Abs(c.Node(vi, 0).X - p.X)) vi = i;
+        for (int j = 1; j < c.RoadY.Count; j++) if (MathF.Abs(c.Node(0, j).Y - p.Y) < MathF.Abs(c.Node(0, hj).Y - p.Y)) hj = j;
+        bool ew = eastWest ?? MathF.Abs(c.Node(0, hj).Y - p.Y) <= MathF.Abs(c.Node(vi, 0).X - p.X);
+        var ends = new List<((int, int), float)>();
+        void Add(int i, int j)
+        {
+            if (i < 0 || j < 0 || i >= c.RoadX.Count || j >= c.RoadY.Count || ends.Exists(e => e.Item1 == (i, j))) return;
+            ends.Add(((i, j), V2.Distance(p, c.Node(i, j))));
+        }
+        if (ew)
+        {
+            int i = 0;
+            while (i + 1 < c.RoadX.Count && c.Node(i + 1, 0).X <= p.X) i++;
+            Add(i, hj);
+            if (c.Node(i, 0).X < p.X) Add(i + 1, hj);
+        }
+        else
+        {
+            int j = 0;
+            while (j + 1 < c.RoadY.Count && c.Node(0, j + 1).Y <= p.Y) j++;
+            Add(vi, j);
+            if (c.Node(0, j).Y < p.Y) Add(vi, j + 1);
+        }
+        return ends;
+    }
+
+    /// <summary>
+    /// Junction to junction by road from any of the starts to the best of the
+    /// goals, counting the legs on and off; round the closed steps (null: no way round).
+    /// </summary>
+    private static List<(int, int)> Search(City c, List<((int, int) node, float cost)> starts, List<((int, int) node, float cost)> goals,
+        Func<(int, int), (int, int), bool> closed)
+    {
+        const float Turn = 4;
+        var dirs = new[] { (1, 0), (-1, 0), (0, 1), (0, -1) };
+        // State: a junction and the way you came into it (4: you started there).
+        var dist = new Dictionary<((int, int), int), float>();
+        var prev = new Dictionary<((int, int), int), ((int, int), int)>();
+        var q = new PriorityQueue<((int, int), int), float>();
+        foreach (var (n, cost) in starts) { dist[(n, 4)] = cost; q.Enqueue((n, 4), cost); }
+        while (q.TryDequeue(out var st, out float d))
+        {
+            if (d > dist[st]) continue;
+            var (n, came) = st;
+            for (int k = 0; k < 4; k++)
             {
-                if (di == 0 && dj == 0) continue;
-                var m = (n.Item1 + di, n.Item2 + dj);
-                if (m.Item1 < 0 || m.Item2 < 0 || m.Item1 >= c.RoadX.Count || m.Item2 >= c.RoadY.Count || from.ContainsKey(m) || closed(n, m)) continue;
-                from[m] = n;
-                q.Enqueue(m);
+                var m = (n.Item1 + dirs[k].Item1, n.Item2 + dirs[k].Item2);
+                if (m.Item1 < 0 || m.Item2 < 0 || m.Item1 >= c.RoadX.Count || m.Item2 >= c.RoadY.Count) continue;
+                if (closed != null && closed(n, m)) continue;
+                // Between equal ways, cross town east-west first and turn up the street after (as it always has).
+                float turn = came == 4 || came == k ? 0 : came >= 2 && k < 2 ? Turn + 0.01f : Turn;
+                float nd = d + V2.Distance(c.Node(n.Item1, n.Item2), c.Node(m.Item1, m.Item2)) + turn;
+                if (dist.TryGetValue((m, k), out float old) && old <= nd) continue;
+                dist[(m, k)] = nd;
+                prev[(m, k)] = st;
+                q.Enqueue((m, k), nd);
             }
         }
-        if (!from.ContainsKey(b)) return null;
-        var path = new List<(int, int)> { b };
-        while (path[^1] != a) path.Add(from[path[^1]]);
+        float best = float.MaxValue;
+        ((int, int), int) end = default;
+        bool found = false;
+        foreach (var kv in dist)
+        {
+            int g = goals.FindIndex(e => e.node == kv.Key.Item1);
+            if (g < 0 || kv.Value + goals[g].cost >= best) continue;
+            best = kv.Value + goals[g].cost;
+            end = kv.Key;
+            found = true;
+        }
+        if (!found) return null;
+        var path = new List<(int, int)> { end.Item1 };
+        while (prev.TryGetValue(end, out var p)) { end = p; path.Add(end.Item1); }
         path.Reverse();
         return path;
     }

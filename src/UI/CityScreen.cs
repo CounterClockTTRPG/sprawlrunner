@@ -73,13 +73,13 @@ public partial class CityScreen : Control
         // Arrived, or the place has gone off the list (the job you were heading for is done): back to the job.
         if (Sim.AtDoor() == _routeTo || V2.Distance(Sim.Player.Pos, _routeTo.Door.Centre) < 3 || !Sim.Destinations().Contains(_routeTo)) { ClearRoute(); return; }
         var w = _route.Waypoints;
-        while (_routeFrom < w.Count - 1 && (V2.Distance(Sim.Player.Pos, w[_routeFrom]) < 3 || V2.Dot(Sim.Player.Pos - w[_routeFrom], w[_routeFrom + 1] - w[_routeFrom]) > 0)) _routeFrom++;
+        _routeFrom = _route.Ahead(Sim.Player.Pos, _routeFrom);
         if ((_replanT -= dt) <= 0)
         {
             _replanT = 1.5f;
             if (V2.Distance(Sim.Player.Pos, w[Math.Min(_routeFrom, w.Count - 1)]) > 14) { _route = Sim.RouteTo(_routeTo); _routeFrom = 0; }
         }
-        var pts = new System.Collections.Generic.List<V2> { Sim.Player.Pos };
+        var pts = new System.Collections.Generic.List<V2> { Sim.Player.Pos, _route.OnLeg(Sim.Player.Pos, _routeFrom) };
         for (int k = _routeFrom; k < _route.Waypoints.Count; k++) pts.Add(_route.Waypoints[k]);
         Root.CityView.Route = pts;
     }
@@ -567,7 +567,7 @@ public partial class CityScreen : Control
         private void DrawRoute(Vector2 mo, float ms, float width = 2)
         {
             if (S._route == null) return;
-            var pts = new System.Collections.Generic.List<Vector2> { mo + Art.G(S.Sim.Player.Pos) * ms };
+            var pts = new System.Collections.Generic.List<Vector2> { mo + Art.G(S.Sim.Player.Pos) * ms, mo + Art.G(S._route.OnLeg(S.Sim.Player.Pos, S._routeFrom)) * ms };
             for (int k = S._routeFrom; k < S._route.Waypoints.Count; k++) pts.Add(mo + Art.G(S._route.Waypoints[k]) * ms);
             if (pts.Count >= 2) DrawPolyline(pts.ToArray(), UITheme.Cyan with { A = 0.8f }, width);
         }

@@ -56,9 +56,16 @@ public static class Controls
     /// <summary>The key bound to an action (the agent always plays on the defaults).</summary>
     public static Key KeyOf(Act a) => !AgentRunner.Active && Profile.Current.Bindings.TryGetValue(a, out Key k) ? k : Defaults[a];
 
-    public static string KeyName(Act a) => OS.GetKeycodeString(KeyOf(a));
+    /// <summary>The key's name as printed on the player's keyboard (bindings are positions: Q on AZERTY is the QWERTY A).</summary>
+    public static string KeyName(Act a)
+    {
+        Key k = KeyOf(a);
+        Key label = AgentRunner.Active ? Key.None : DisplayServer.KeyboardGetKeycodeFromPhysical(k);
+        return OS.GetKeycodeString(label != Key.None ? label : k);
+    }
 
-    public static bool Down(Key k) => AgentRunner.Active ? AgentKeys.Contains(k) : Input.IsPhysicalKeyPressed(k) || Input.IsKeyPressed(k);
+    /// <summary>Is the key held -- by position only, so a layout's letters never fire a second action (AZERTY's Q is Left, not Ability 1).</summary>
+    public static bool Down(Key k) => AgentRunner.Active ? AgentKeys.Contains(k) : Input.IsPhysicalKeyPressed(k);
 
     /// <summary>Is the action held: its key, the arrow keys for movement, or the gamepad.</summary>
     public static bool Down(Act a)
@@ -71,7 +78,7 @@ public static class Controls
     /// <summary>Did this event just press the action?</summary>
     public static bool Is(InputEvent e, Act a)
     {
-        if (e is InputEventKey { Pressed: true, Echo: false } k) return k.PhysicalKeycode == KeyOf(a) || k.Keycode == KeyOf(a);
+        if (e is InputEventKey { Pressed: true, Echo: false } k) return (k.PhysicalKeycode != Key.None ? k.PhysicalKeycode : k.Keycode) == KeyOf(a);
         if (e is InputEventJoypadButton { Pressed: true } jb && !AgentRunner.Active) return Pad.TryGetValue(a, out JoyButton b) && jb.ButtonIndex == b;
         return false;
     }
