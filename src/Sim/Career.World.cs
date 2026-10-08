@@ -148,6 +148,7 @@ public sealed partial class Career
         Explain("turf", "A district changed hands. Whoever holds it decides who hires you there -- and who comes after you. The PDA's City tab and the map (1) show it.");
         Set("held:" + district, (int)now + 1);
         Set("heldday:" + district, Day);
+        Set("heldprev:" + district, (int)before + 1);
         Say($"KBN: The {Tables.FactionNames[(int)now]} now run the {Tables.District(district).Name}; the {Tables.FactionNames[(int)before]} have lost their grip.");
     }
 

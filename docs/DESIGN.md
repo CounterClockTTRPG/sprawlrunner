@@ -619,7 +619,8 @@ Runner tab. They open storylet choices; Corporate adds 10 % to a haggle.
   job against a faction there takes 5 % of it (Clear and Destroy 8 %) and
   gives it to the others; each week every share drifts a quarter of the way
   back to the district's mix. Generated jobs pick their faction by share. A
-  district changing hands makes the news, and the new owners write. The PDA's
+  district changing hands makes the news, and the new owners write: offering
+  them your services drops their grudge by 2 and raises the old owners' by 1. The PDA's
   City tab draws the bars.
 - **Faction clocks** (0-8): the Vipers' gang war, Halcyon's expansion, the
   Lotus buying the council, Lone Star's crackdown. +1 every three days (Lone

@@ -482,13 +482,23 @@ public static partial class Storylets
             c => Flipped(c) != null,
             new[]
             {
-                Fx(new Choice("Offer them your services", (c, m) => { Faction f = (Faction)int.Parse(m.Vars["fac"]); c.Grudge[f] = Math.Max(0, c.Grudge.GetValueOrDefault(f) - 2); return "They remember who answers. Their grudge against you drops by 2."; }), "their grudge -2"),
+                Fx(new Choice("Offer them your services", (c, m) =>
+                {
+                    Faction f = (Faction)int.Parse(m.Vars["fac"]), lost = (Faction)int.Parse(m.Vars["lost"]);
+                    c.Grudge[f] = Math.Max(0, c.Grudge.GetValueOrDefault(f) - 2);
+                    // Whoever was pushed out hears who came running.
+                    if (lost == f) return "They remember who answers. Their grudge against you drops by 2.";
+                    c.Grudge[lost] = c.Grudge.GetValueOrDefault(lost) + 1;
+                    return $"They remember who answers. Their grudge against you drops by 2 -- and the {Tables.FactionNames[(int)lost]} hear about it (grudge +1).";
+                }), "their grudge -2, the {lostname} grudge +1"),
                 Ok("Ignore it"),
             },
             Bind: c =>
             {
                 string d = Flipped(c);
                 Faction f = c.Holder(d);
+                int prev = c.Flag("heldprev:" + d) - 1;
+                Faction lost = prev >= 0 ? (Faction)prev : Tables.District(d).Factions[0];
                 string from = f switch { Faction.Vipers => "A Viper lieutenant", Faction.Halcyon => "Halcyon Community Relations", _ => "Auntie Mei, Red Lotus" };
                 string text = f switch
                 {
@@ -496,7 +506,7 @@ public static partial class Storylets
                     Faction.Halcyon => $"'Halcyon-Matsuda is proud to welcome the {Tables.District(d).Name} into its family of secure communities. Independent contractors of good standing are invited to apply.'",
                     _ => $"'The {Tables.District(d).Name} has new management. We are polite people. We would like to stay polite with you.'",
                 };
-                return V(("district", Tables.District(d).Name), ("from", from), ("text", text), ("fac", ((int)f).ToString()), ("id", d));
+                return V(("district", Tables.District(d).Name), ("from", from), ("text", text), ("fac", ((int)f).ToString()), ("lost", ((int)lost).ToString()), ("lostname", Tables.FactionNames[(int)lost]), ("id", d));
             },
             Fire: (c, m) => c.Set("turfseen:" + m.Vars["id"], c.Day), Cooldown: 2);
 

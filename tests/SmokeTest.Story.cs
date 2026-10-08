@@ -284,6 +284,13 @@ public partial class SmokeTest
         Check(c.Holder("barrens") != Faction.Vipers && c.Flag("held:barrens") > 0, "push long enough and the district changes hands");
         Check(c.News.Any(n => n.Contains("now run the Barrens")), "which makes the news");
         Check(c.Eligible(Hook.Morning).Any(s => s.Id == "turf"), "and the new owners write");
+        Faction owner = c.Holder("barrens");
+        c.Grudge[owner] = 3;
+        c.Grudge[Faction.Vipers] = 0;
+        Mail turf = c.Send("turf");
+        Check(c.Choose(turf, 0) == null, "offering them your services");
+        Eq(c.Grudge.GetValueOrDefault(owner), 1, "makes friends of the new owners");
+        Eq(c.Grudge.GetValueOrDefault(Faction.Vipers), 1, "and an enemy of the old ones");
         // New jobs follow the turf.
         c.Turf["docks"] = new[] { 0f, 0f, 1f };
         var jobs = Enumerable.Range(0, 300).Select(_ => c.MakeJob(city)).Where(j => j != null && j.District == "docks" && j.Style != SiteStyle.Lab && !j.Driving && j.Type != JobType.Bounty).ToList();
