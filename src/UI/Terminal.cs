@@ -268,6 +268,10 @@ public partial class Terminal : PanelContainer
         if (j.Johnson) Line($"    a mr. johnson job{(Career.JohnsonById(j.JohnsonId) is JohnsonDef jj ? $" ({jj.Name.ToLower()})" : "")}: terms are negotiated when you accept.", GDim);
         if (j.DoubleCross && C.Loyalty.GetValueOrDefault("fixer") >= 3) Line("    juno: 'something about this johnson smells wrong. watch the exit.'", Warn);
         int grudge = C.Grudge.GetValueOrDefault(j.Faction);
+        int held = Career.GrudgeChange(j, new RunResult { Success = true, Alarm = true });
+        if (held < 0) Line($"    {Tables.FactionNames[(int)j.Faction].ToLower()} grudge {grudge} -> {Math.Max(0, grudge + held)} if you hold it.", GDim);
+        else if (held > 0)
+            Line($"    {Tables.FactionNames[(int)j.Faction].ToLower()} grudge {grudge} -> {grudge + 1} unless you ghost it (no alarm, no kills); at {Career.DangerGrudge} they go after your contacts.", GDim);
         if (grudge >= 3) Line($"    {Tables.FactionNames[(int)j.Faction].ToLower()} remember you (grudge {grudge}): elite security{(grudge >= 5 ? ", and hitters after the job" : "")}.", Warn);
         if (j.Id == C.ActiveJob) Line("    >> this is your active job. drive to the pink marker.", UITheme.Magenta);
         else Line($"    [ accept {n} ]", UITheme.Cyan, () => Accept(n));
