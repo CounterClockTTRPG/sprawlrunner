@@ -49,7 +49,7 @@ public sealed partial class Run
             GasCloud c = Clouds[i];
             c.T += dt;
             if (c.T > c.Life) { Clouds.RemoveAt(i); continue; }
-            foreach (Actor a in Actors.ToList())
+            foreach (Actor a in ActorsNow)
             {
                 if (a.Dead || a.IsGhost || a.Def != null && (a.Def.Kind is EnemyKind.Camera or EnemyKind.Turret or EnemyKind.Drone or EnemyKind.Spirit)) continue;
                 if (V2.Distance(a.Pos, c.Pos) >= c.Reach) continue;

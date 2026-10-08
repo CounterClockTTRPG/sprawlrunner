@@ -811,7 +811,7 @@ public sealed partial class Run
             L.Set(t, Tile.Rubble);
             Events.Add(new RunEvent(Ev.Broken, t.Centre, default, 0, (int)Tile.Crate));
             if (L[fall] == Tile.Floor) L.Set(fall, Tile.Rubble);
-            foreach (Actor a in Actors.ToList())
+            foreach (Actor a in ActorsNow)
             {
                 if (a.Dead || a.IsPlayer || a.Flying || V2.Distance(a.Pos, fall.Centre) > 0.9f) continue;
                 Hurt(a, Tables.ToppleHurt, Player, false);

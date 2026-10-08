@@ -23,6 +23,11 @@ public sealed partial class Run
     public int KilledHelpless;
     private bool _beggedAsked, _dirtAsked;
 
+    /// <summary>Whether this job's hostage begs, and its paydata hides the dirt: a roll on the job's seed, made once.</summary>
+    private bool Begs => _begs ??= new Rng(Job.Seed ^ 0xBE65UL).Chance(1 / 3f);
+    private bool Dirt => _dirt ??= new Rng(Job.Seed ^ 0xD127UL).Chance(1 / 3f);
+    private bool? _begs, _dirt;
+
     private bool Ordinary => Job.Story == 0 && Job.Arc == null && !Job.Tutorial && Job.Tag == null;
 
     private void Ask(string id, string text, params string[] options)
@@ -43,14 +48,14 @@ public sealed partial class Run
     {
         if (!Ordinary || Pending != null) return;
         // At the exit, with the hostage behind you: one in three wants to be let go.
-        if (!_beggedAsked && Job.Type == JobType.Rescue && Hostage != null && Hostage.State == AiState.Follow && NearExit(Player.Pos) && new Rng(Job.Seed ^ 0xBE65UL).Chance(1 / 3f))
+        if (!_beggedAsked && Job.Type == JobType.Rescue && Hostage != null && Hostage.State == AiState.Follow && NearExit(Player.Pos) && Begs)
         {
             _beggedAsked = true;
             Ask("begs", $"{Job.Target} grabs your arm at the door: 'The people who hired you aren't saving me. They're collecting me. Let me go -- please.'",
                 "Hand them over as agreed", "Let them go (the job fails)");
         }
         // The download's done, and there's a second folder in it.
-        if (!_dirtAsked && Job.Type == JobType.Datasteal && DataProgress >= 1 && new Rng(Job.Seed ^ 0xD127UL).Chance(1 / 3f))
+        if (!_dirtAsked && Job.Type == JobType.Datasteal && DataProgress >= 1 && Dirt)
         {
             _dirtAsked = true;
             Ask("dirt", "There's a second folder in the paydata: your Johnson's own payroll for a black site. You could pull it too.",

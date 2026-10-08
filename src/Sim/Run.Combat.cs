@@ -176,7 +176,7 @@ public sealed partial class Run
         s.Vel = M.Dir(turned) * speed;
     }
 
-    public Actor ActorById(int id) => Actors.FirstOrDefault(a => a.Id == id);
+    public Actor ActorById(int id) => FindActor(id);
 
     // ---- damage ---------------------------------------------------------------------
 
@@ -340,7 +340,7 @@ public sealed partial class Run
                 break;
             case GrenadeKind.Emp:
                 Events.Add(new RunEvent(Ev.Emp, g.Pos, default, d.Radius));
-                foreach (Actor a in Actors.ToList())
+                foreach (Actor a in ActorsNow)
                 {
                     if (a.Dead || V2.Distance(a.Pos, g.Pos) > d.Radius) continue;
                     if (a.Is(EnemyKind.Drone)) Hurt(a, 999, Player, true);
@@ -385,7 +385,7 @@ public sealed partial class Run
                 if (Shielded(pos, p)) f *= 0.25f;
                 DamageTile(p, damage * tileMul * f, p.Centre);
             }
-            foreach (Actor a in Actors.ToList())
+            foreach (Actor a in ActorsNow)
             {
                 if (a.Dead) continue;
                 float d = V2.Distance(a.Pos, pos);
@@ -438,6 +438,15 @@ public sealed partial class Run
     }
 
     private float _fireSpread;
+    private readonly List<int> _fireTiles = new();
+
+    /// <summary>The burning tiles as a list (reused), so the fire can change while it is walked.</summary>
+    private List<int> FireTiles()
+    {
+        _fireTiles.Clear();
+        _fireTiles.AddRange(Fire.Keys);
+        return _fireTiles;
+    }
 
     private void StepFire(float dt)
     {
@@ -446,7 +455,7 @@ public sealed partial class Run
         bool spread = _fireSpread > 0.5f;
         if (spread) _fireSpread = 0;
         float drown = FireMul();
-        foreach (int i in Fire.Keys.ToList())
+        foreach (int i in FireTiles())
         {
             float left = Fire[i] - dt * drown;
             var p = new Pt(i % L.W, i / L.W);
@@ -474,7 +483,7 @@ public sealed partial class Run
             if (Fire.ContainsKey(L.Idx(M.Clamp((int)a.Pos.X, 0, L.W - 1), M.Clamp((int)a.Pos.Y, 0, L.H - 1)))) a.Burn = 2f;
         }
         // Barrels in fire cook off.
-        foreach (int i in Fire.Keys.ToList())
+        foreach (int i in FireTiles())
         {
             var p = new Pt(i % L.W, i / L.W);
             for (int k = 0; k < 4; k++)

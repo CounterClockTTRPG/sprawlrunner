@@ -143,6 +143,42 @@ public sealed partial class Run
     public Level L => Plan.L;
     public readonly Rng R;
     public readonly List<Actor> Actors = new();
+
+    /// <summary>
+    /// Everyone on site as the loop starts: like iterating <c>Actors.ToList()</c> (anyone
+    /// added during the loop waits for the next one) without the copy.
+    /// </summary>
+    public ActorsSoFar ActorsNow => new(Actors);
+
+    public readonly struct ActorsSoFar
+    {
+        private readonly List<Actor> _list;
+        public ActorsSoFar(List<Actor> list) => _list = list;
+        public Enumerator GetEnumerator() => new(_list);
+
+        public struct Enumerator
+        {
+            private readonly List<Actor> _list;
+            private readonly int _count;
+            private int _i;
+            public Enumerator(List<Actor> list) { _list = list; _count = list.Count; _i = -1; }
+            public Actor Current => _list[_i];
+            public bool MoveNext() => ++_i < _count && _i < _list.Count;
+        }
+    }
+
+    private readonly Dictionary<int, int> _actorAt = new();
+    private int _actorAtCount = -1;
+
+    /// <summary>The actor with this id, or null: an index kept beside <see cref="Actors"/>, checked on every use and rebuilt when it no longer matches.</summary>
+    private Actor FindActor(int id)
+    {
+        if (_actorAtCount == Actors.Count && _actorAt.TryGetValue(id, out int at) && at < Actors.Count && Actors[at].Id == id) return Actors[at];
+        _actorAt.Clear();
+        for (int i = 0; i < Actors.Count; i++) _actorAt.TryAdd(Actors[i].Id, i);
+        _actorAtCount = Actors.Count;
+        return _actorAt.TryGetValue(id, out at) ? Actors[at] : null;
+    }
     public readonly Actor Player;
     public Actor Vip, Hostage, Boss, Ally, Vip2;
     public Twist Twist;
@@ -359,7 +395,7 @@ public sealed partial class Run
         if (_graceT > 0) _graceT -= dt;
         float wdt = dt * WorldScale;
         StepPlayer(input, dt);
-        foreach (Actor a in Actors.ToList())
+        foreach (Actor a in ActorsNow)
             if (!a.IsPlayer && !a.Dead) StepActor(a, wdt);
         Separate();
         StepShots(wdt);
