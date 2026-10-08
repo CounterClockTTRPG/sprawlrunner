@@ -1304,6 +1304,13 @@ public partial class SmokeTest
         Check(l.StandingOf(street) == standing + 1, "and makes friends of whoever runs the street");
         l.Buy(l.Offers("fixer").First(o => o.Kind == ShopKind.Retainer && o.Id == "ox"));
         Check(l.Retained.Contains("ox") && l.CrewCut("ox") == 0, "Ox on retainer takes no cut");
+        // Spending makes you a regular, and they say so.
+        Career reg = TestCareer();
+        reg.Cash = 100000;
+        reg.Loyalty["arms"] = 0;
+        foreach (Offer o in reg.Offers("arms").Where(o => o.Kind == ShopKind.Weapon && o.Block == null).OrderByDescending(o => o.Price).Take(4).ToList()) reg.Buy(o);
+        Check(reg.Loyalty["arms"] >= 1 && reg.News.Any(n => n.Contains("regular now")), "loyalty from spending is announced");
+        Check(global::Sprawl.Storylets.ById("turf").Weight >= 20, "a district changing hands takes the morning's news");
         // Luxury: TraumaLink for less, and three karma a week.
         Career lux = TestCareer();
         lux.CityRef = city;

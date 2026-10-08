@@ -489,6 +489,7 @@ public static partial class Storylets
 
     private static IEnumerable<Storylet> World()
     {
+        // A district changing hands is news that can't wait behind gossip: it all but always takes the morning.
         yield return new("turf", Hook.Morning, "{from}", "{district}", "{text}",
             c => Flipped(c) != null,
             new[]
@@ -519,7 +520,7 @@ public static partial class Storylets
                 };
                 return V(("district", Tables.District(d).Name), ("from", from), ("text", text), ("fac", ((int)f).ToString()), ("lost", ((int)lost).ToString()), ("lostname", Tables.FactionNames[(int)lost]), ("id", d));
             },
-            Fire: (c, m) => c.Set("turfseen:" + m.Vars["id"], c.Day), Cooldown: 2);
+            Fire: (c, m) => c.Set("turfseen:" + m.Vars["id"], c.Day), Cooldown: 2, Weight: 50);
 
         yield return new("null-clocks", Hook.Morning, Null, "Corp traffic", "{text}",
             c => Plotter(c) != null,

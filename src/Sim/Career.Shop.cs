@@ -447,7 +447,11 @@ public sealed partial class Career
             int before = Spent.GetValueOrDefault(who) / 8000;
             Spent[who] = Spent.GetValueOrDefault(who) + o.Price;
             int after = Spent[who] / 8000;
-            if (after > before && Loyalty.GetValueOrDefault(who) < 3) Loyalty[who] = Math.Min(3, Loyalty.GetValueOrDefault(who) + 1);
+            if (after > before && Loyalty.GetValueOrDefault(who) < 3)
+            {
+                Loyalty[who] = Math.Min(3, Loyalty.GetValueOrDefault(who) + 1);
+                Say($"{Tables.Contact(who).Name} counts you as a regular now: loyalty {Loyalty[who]} (every ¥8,000 spent, up to 3).");
+            }
         }
         return null;
     }

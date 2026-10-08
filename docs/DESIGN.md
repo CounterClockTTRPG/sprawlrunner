@@ -393,7 +393,8 @@ cameras), club (a big dance floor, a VIP room upstairs-equivalent at the back).
 - **Favours**: at loyalty 2, each contact does one every 5 days (heat wipe,
   getaway driver, camera loop, free TraumaLink, frags, full-value fence,
   faster spells).
-- **Loyalty** also grows with every ¥8,000 spent at a contact (up to 3).
+- **Loyalty** also grows with every ¥8,000 spent at a contact (up to 3); the news
+  ticker says when it does.
 - **Injuries**: ending a run below 30 % HP is an injury (-10 % max HP each,
   up to 3) until you sleep or the doc patches you up.
 - **Cyberpsychosis**: below 1.5 essence, phantoms that are not there.
@@ -625,7 +626,8 @@ Runner tab. They open storylet choices; Corporate adds 10 % to a haggle.
   job against a faction there takes 5 % of it (Clear and Destroy 8 %) and
   gives it to the others; each week every share drifts a quarter of the way
   back to the district's mix. Generated jobs pick their faction by share. A
-  district changing hands makes the news, and the new owners write: offering
+  district changing hands makes the news, and the new owners write (that letter
+  comes before any other morning mail): offering
   them your services drops their grudge by 2 and raises the old owners' by 1. The PDA's
   City tab draws the bars.
 - **Faction clocks** (0-8): the Vipers' gang war, Halcyon's expansion, the
