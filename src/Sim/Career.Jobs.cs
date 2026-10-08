@@ -386,7 +386,7 @@ public sealed partial class Career
             // The tell: a set-up pays a little over the odds.
             if (j.DoubleCross) j.Pay = (int)(MathF.Round(j.Pay * 1.15f / 50) * 50);
             // Old enemies: a faction with a long memory fields its best.
-            if ((Grudge.GetValueOrDefault(fac) >= 3 || fac == Faction.Halcyon && On("expansion")) && !j.Has(RunMod.Elite))
+            if ((Grudge.GetValueOrDefault(fac) >= Tables.GrudgeElite || fac == Faction.Halcyon && On("expansion")) && !j.Has(RunMod.Elite))
             {
                 j.Mods.Remove(RunMod.Skeleton);
                 j.Mods.Add(RunMod.Elite);
@@ -726,7 +726,7 @@ public sealed partial class Career
                 d.Lines.Add(("Job", "failed"));
                 d.Lines.Add(("Street rep", "-1"));
                 Say($"Went down on {j.Title}. TraumaLink got there in time.");
-                CloseJob(j);
+                CloseJob(j, r, d);
                 NextDayAfterRun();
                 return d;
             }
@@ -829,7 +829,7 @@ public sealed partial class Career
                 d.Lines.Add(("The raiders took", "-" + M.Money(lost)));
             }
         }
-        CloseJob(j);
+        CloseJob(j, r, d);
         NextDayAfterRun();
         return d;
     }
@@ -848,14 +848,30 @@ public sealed partial class Career
         d.Lines.Add(($"{Tables.Contact(contact).Name} loyalty", $"{l + 1}"));
     }
 
-    private void CloseJob(Job j)
+    /// <summary>What a job does to its faction's grudge: +1, nothing if they never knew you were there, -2 for seeing them off your own door.</summary>
+    public static int GrudgeChange(Job j, RunResult r)
+    {
+        if (j.Type is JobType.Courier or JobType.Race or JobType.Hub or JobType.Bounty) return 0;
+        if (r.Success && j.Type == JobType.Defend && (j.Tag == "raid" || j.Tag?.StartsWith("danger:") == true)) return -2;
+        if (!r.Alarm && r.Kills == 0 && !r.Died) return 0;
+        return 1;
+    }
+
+    public static string GrudgeNote(int g) => $"now {g}; at {Tables.GrudgeElite} their sites field elites, at {DangerGrudge} they come after you and your contacts";
+
+    private void CloseJob(Job j, RunResult r, Debrief d)
     {
         InRun = -1;
-        if (j.Type is not (JobType.Courier or JobType.Race or JobType.Hub or JobType.Bounty))
+        int by = GrudgeChange(j, r);
+        string who = Tables.FactionNames[(int)j.Faction];
+        if (by != 0)
         {
-            Grudge[j.Faction] = Math.Min(9, Grudge.GetValueOrDefault(j.Faction) + 1);
-            WarnGrudge(j.Faction);
+            Grudge[j.Faction] = M.Clamp(Grudge.GetValueOrDefault(j.Faction) + by, 0, 9);
+            d.Lines.Add(($"{who} grudge", $"{(by > 0 ? "+" : "")}{by} ({GrudgeNote(Grudge[j.Faction])})"));
+            if (by > 0) WarnGrudge(j.Faction);
         }
+        else if (j.Type is not (JobType.Courier or JobType.Race or JobType.Hub or JobType.Bounty))
+            d.Lines.Add(($"{who} grudge", "+0: they never knew you were there"));
         if (j.Driving) Courier = false;
         Board.Remove(j);
         if (ActiveJob == j.Id) { ActiveJob = -1; ResumeHeld(); }

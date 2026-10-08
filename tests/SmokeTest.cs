@@ -1027,8 +1027,22 @@ public partial class SmokeTest : Node
         c.RefreshBoard(city);
         Job j = c.Board.First(x => x.Type != JobType.Courier);
         Accept(c, j);
-        c.Finish(j, new RunResult { Success = true, GrenadesLeft = c.RunGrenades(), MedkitsLeft = c.RunMedkits() });
+        Debrief dj = c.Finish(j, new RunResult { Success = true, Alarm = true, GrenadesLeft = c.RunGrenades(), MedkitsLeft = c.RunMedkits() });
         Eq(c.Grudge.GetValueOrDefault(j.Faction), 1, "a job against a faction earns a grudge");
+        Check(dj.Lines.Any(l => l.what.EndsWith("grudge") && l.amount.StartsWith("+1") && l.amount.Contains("now 1")), "and the debrief says so, with where it leads");
+        // A ghost leaves nobody to hold it against you.
+        Job q = c.Board.First(x => !x.Driving && x.Type != JobType.Bounty && !x.Johnson);
+        int before = c.Grudge.GetValueOrDefault(q.Faction);
+        Accept(c, q);
+        Debrief dq = c.Finish(q, new RunResult { Success = true, Alarm = false, Kills = 0, GrenadesLeft = c.RunGrenades(), MedkitsLeft = c.RunMedkits() });
+        Eq(c.Grudge.GetValueOrDefault(q.Faction), before, "no alarm, no kills: no grudge");
+        Check(dq.Lines.Any(l => l.what.EndsWith("grudge") && l.amount.StartsWith("+0")), "and the debrief says why");
+        // Seeing them off a contact's door (or your own) cools them.
+        c.Grudge[Faction.Vipers] = 5;
+        Job dd = c.OfferSpecial(JobType.Defend, SiteStyle.Den, Faction.Vipers, "barrens", 2, "x", "x", tag: "danger:fence");
+        Accept(c, dd);
+        c.Finish(dd, new RunResult { Success = true, Alarm = true, Kills = 6, GrenadesLeft = c.RunGrenades(), MedkitsLeft = c.RunMedkits() });
+        Eq(c.Grudge[Faction.Vipers], 3, "holding a contact's door: grudge -2");
         c.Grudge[Faction.Halcyon] = 4;
         c.Rep = 15;
         var hal = Enumerable.Range(0, 300).Select(_ => c.MakeJob(city)).Where(x => x != null && x.Faction == Faction.Halcyon && !x.Driving).ToList();

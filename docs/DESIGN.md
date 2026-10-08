@@ -375,7 +375,10 @@ cameras), club (a big dance floor, a VIP room upstairs-equivalent at the back).
 - **Mr. Johnson** jobs (30 %) are negotiated: deal, haggle once (Charisma),
   or walk. 15 % are set-ups: a squad arrives by the exit when the job is
   done. Loyal fixers warn you.
-- **Grudges**: +1 per job against a faction, -1 a week. 3+: their sites get
+- **Grudges**: +1 per job against a faction (none if the run raised no alarm
+  and killed nobody: they never knew it was you), -2 for holding a contact's
+  door or your own against them, -1 a week; the debrief says the change and
+  where it leads. 3+: their sites get
   elite security (and Halcyon adds heat); 5+: hitters after every job.
 - **Magic**: Astral sight (see the living through walls, 8 s) and Summon fire
   spirit (an ally for 30 s) join Manabolt, Heal, Fireball and Invisibility.

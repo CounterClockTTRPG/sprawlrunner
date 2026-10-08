@@ -192,6 +192,8 @@ public static class Tables
     /// <summary>Faction standing (0-10): safe passage, their own jobs on the board (paying this much more), the faction item.</summary>
     public const int StandingSafe = 3, StandingJobs = 4, StandingItem = 5;
     public const float FavourPay = 1.25f;
+    /// <summary>A faction's grudge from which their sites field elite security.</summary>
+    public const int GrudgeElite = 3;
     /// <summary>A crew retainer costs at least this much a week per threat level you are offered.</summary>
     public const int RetainerPerThreat = 600;
     /// <summary>Spur blades: they take the combat knife's place, heavier and slower.</summary>

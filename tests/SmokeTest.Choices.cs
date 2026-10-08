@@ -394,7 +394,7 @@ public partial class SmokeTest
         c.Grudge[f] = Career.DangerGrudge - 2;
         Job against = c.OfferSpecial(JobType.Retrieve, SiteStyle.Den, f, k.District, 2, "x", "x");
         c.Accept(against);
-        c.Finish(against, Won(c));
+        c.Finish(against, Won(c, alarm: true));
         Check(c.Grudge[f] == Career.DangerGrudge - 1 && c.News.Any(n => n.Contains("sore at you") && n.Contains(k.Name)), "one short of the line: the street warns you, and says who's exposed");
         // Over it: the call, with the reason and the stakes. (That job may have cost them the district: whoever holds it now.)
         f = c.Holder(k.District);
