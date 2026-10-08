@@ -1291,6 +1291,33 @@ public partial class SmokeTest
         Check(l.Cash > cash - l.RentDue, $"a business pays every week ({l.Cash - cash})");
         l.Buy(l.Offers("fixer").First(o => o.Kind == ShopKind.Retainer && o.Id == "ox"));
         Check(l.Retained.Contains("ox") && l.CrewCut("ox") == 0, "Ox on retainer takes no cut");
+        // Luxury: TraumaLink for less, and three karma a week.
+        Career lux = TestCareer();
+        lux.CityRef = city;
+        lux.Cash = 1000000;
+        int tl = lux.TraumaLinkPrice;
+        lux.Lifestyle = "luxury";
+        Check(lux.TraumaLinkPrice < tl * 0.8f, $"luxury: TraumaLink for less ({tl} -> {lux.TraumaLinkPrice})");
+        lux.Day = 6;
+        int karma = lux.Karma;
+        lux.NextDay(city);
+        Eq(lux.Karma - karma, 3, "and three karma a week");
+        // Sgt. Dace on the payroll: fame brings no patrols, and a loud run half the heat.
+        Career dc = TestCareer();
+        dc.CityRef = city;
+        dc.Awareness = 9;
+        dc.NextDay(city);
+        float famous = dc.Heat;
+        dc.Set("dace", dc.Day);
+        dc.NextDay(city);
+        Check(famous >= 2 && dc.Heat == 0, $"paying Dace: your face on the news brings no heat ({famous:0.0} -> {dc.Heat:0.0})");
+        Job dj = new() { Faction = Faction.Vipers };
+        dc.RunHeat(dj, alarm: true, died: false, kills: 0);
+        Check(MathF.Abs(dc.Heat - 0.5f) < 0.01f, "and a loud job draws half the heat");
+        dc.Day += 9;
+        dc.Heat = 0;
+        dc.RunHeat(dj, alarm: true, died: false, kills: 0);
+        Check(MathF.Abs(dc.Heat - 1) < 0.01f, "stop paying, and it's all yours again");
         // Crew on retainer come on the job: the most trusted one free to.
         Career rc = TestCareer();
         rc.CityRef = city;

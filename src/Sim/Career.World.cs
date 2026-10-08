@@ -235,8 +235,9 @@ public sealed partial class Career
             Set("rentlate", 0);
         }
         // Fame follows you home; so does a landlady with a grudge.
+        // Unless the sergeant you pay keeps your file at the bottom of the pile.
         float known = MathF.Max(0, (Awareness - 3) * 0.5f) + (Flag("rentlate") >= 2 ? 2 : 0);
-        if (known > Heat) Heat = MathF.Min(5, known);
+        if (known > Heat && !DacePaid) Heat = MathF.Min(5, known);
         Tell(Hook.Morning, max: 1);
     }
 
@@ -399,6 +400,25 @@ public sealed partial class Career
         if (fled != null) tips.Add($"{fled}'s still around, you know. Asking who you are.");
         if (tips.Count == 0) return null;
         return tips[(int)((ulong)(Day * 31 + Rep) % (ulong)tips.Count)];
+    }
+
+    /// <summary>Sgt. Dace is on the payroll this week (a day's grace for his call).</summary>
+    public bool DacePaid => Flag("dace") > 0 && Day - Flag("dace") < 8;
+
+    /// <summary>
+    /// Noise follows you home: a loud run puts Lone Star on alert. A trauma team drives you
+    /// out (nobody follows an ambulance); a bent sergeant can lose the call, or halve it.
+    /// </summary>
+    public void RunHeat(Job job, bool alarm, bool died, int kills)
+    {
+        bool blind = Flag("noheat") > 0;
+        Set("noheat", 0);
+        float h = 0;
+        if (alarm && !died && !blind) h += 1;
+        if (kills > 6 && !blind) h += 0.5f;
+        if (job.Faction == Faction.Halcyon && Grudge.GetValueOrDefault(Faction.Halcyon) >= Tables.GrudgeElite) h += 0.5f;
+        if (DacePaid) h *= 0.5f;
+        Heat = MathF.Min(5, Heat + h);
     }
 
     /// <summary>The chance gangers follow you home from this job.</summary>

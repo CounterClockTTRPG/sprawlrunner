@@ -257,13 +257,8 @@ public partial class Root : Node
         // Noise follows you home: a loud run puts Lone Star on alert, a rich one draws gangers.
         if (!d.CareerOver)
         {
-            // A trauma team drives you out; nobody follows an ambulance. A bent sergeant can lose the call.
-            bool blind = Career.Flag("noheat") > 0;
-            Career.Set("noheat", 0);
-            if (run.Alarm && !run.Result().Died && !blind) Career.Heat = MathF.Min(5, Career.Heat + 1);
-            if (run.Kills > 6 && !blind) Career.Heat = MathF.Min(5, Career.Heat + 0.5f);
+            Career.RunHeat(job, run.Alarm, run.Result().Died, run.Kills);
             bool rich = run.LootFound.Count > 0 || run.CashFound > 600 * job.Threat;
-            if (job.Faction == Faction.Halcyon && Career.Grudge.GetValueOrDefault(Faction.Halcyon) >= 3) Career.Heat = MathF.Min(5, Career.Heat + 0.5f);
             // Gangers only bother with runners who have a name.
             _ambush = Career.Rep >= 3 && run.Success && (rich || run.Alarm) && new Rng(job.Seed ^ 0xAB).Chance(Career.AmbushChance(job)) ? 1 + job.Threat / 3 : 0;
             if (Career.Grudge.GetValueOrDefault(job.Faction) >= 5) _ambush = Math.Max(_ambush, 2);

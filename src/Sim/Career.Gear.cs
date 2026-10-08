@@ -175,7 +175,7 @@ public sealed partial class Career
         ("low", "Low", "Four walls that mostly keep the rain out. Sleep mends one injury.", 400),
         ("middle", "Middle", "Clean, quiet, a door that locks properly. Sleep mends every injury; raiders need more fame before they bother.", 1500),
         ("high", "High", "A doorman, a chef, a view. All of the above, and you start every run well fed.", 5000),
-        ("luxury", "Luxury", "Building security that answers to you. All of the above; nobody raids you; TraumaLink costs 30 % less; and you sleep well enough to learn (+1 karma a week).", 15000),
+        ("luxury", "Luxury", "Building security that answers to you. All of the above; nobody raids you; TraumaLink costs 30 % less; and you sleep well enough to learn (+3 karma a week).", 15000),
     };
 
     public int LifeTier => Math.Max(0, Array.FindIndex(Lifestyles, l => l.id == Lifestyle));
@@ -223,6 +223,6 @@ public sealed partial class Career
                 Say($"You couldn't pay {Tables.Hires.First(h => h.id == id).name}'s retainer. They walked, a little hurt.");
             }
         }
-        if (LifeTier >= 4) { Karma++; KarmaEarned++; }
+        if (LifeTier >= 4) { Karma += Tables.LuxuryKarma; KarmaEarned += Tables.LuxuryKarma; }
     }
 }

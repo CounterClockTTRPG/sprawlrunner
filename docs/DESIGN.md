@@ -722,8 +722,9 @@ Awareness drops by 3.
 
 ### People who only write
 Mara Quill (KBN stringer: buys footage of loud runs, the leak channel), Sgt.
-Dace (Lone Star, on the take: ¥1,500 a week keeps your heat at nothing and
-warns of crackdowns) and Vesper (dark work, at Notoriety 5+) live in the
+Dace (Lone Star, on the take: ¥1,500 a week puts your heat to nothing, and while
+he is paid fame and late rent bring no heat and runs draw half; he warns of
+crackdowns) and Vesper (dark work, at Notoriety 5+) live in the
 inbox only: no door, no shop.
 
 ### Achievements
@@ -892,7 +893,7 @@ acceleration), suspension (+5/10 % grip), plate (hull +25/50/100 %, top speed
 
 ### Money sinks
 Lifestyle (¥100/400/1,500/5,000/15,000 a week, squatter to luxury: healing,
-raids, TraumaLink price, karma), property (four businesses, ¥40k-250k, paying
+raids; luxury: TraumaLink -30 %, +3 karma a week), property (four businesses, ¥40k-250k, paying
 ¥1,500-10,000 a week, half when your enemies hold the street), crew retainers
 (¥1,800-3,000 a week instead of a cut, and at least ¥600 × the highest threat
 you are offered; the most trusted free one on retainer comes on every job but

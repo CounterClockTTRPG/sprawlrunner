@@ -447,7 +447,7 @@ public static partial class Storylets
             c => c.Stat("busts") >= 1 || c.Awareness >= 4 || c.Clock("lonestar") >= 4,
             new[]
             {
-                Pay("Pay him (¥1,500)", 1500, (c, m) => { c.Set("dace", c.Day); c.Heat = 0; return "'Pleasure.' Your heat drops to nothing, and he'll call before a crackdown."; }),
+                Pay("Pay him (¥1,500)", 1500, (c, m) => { c.Set("dace", c.Day); c.Heat = 0; return "'Pleasure.' Your heat drops to nothing; while he's paid, your face on the news brings no patrols and a loud job draws half the attention. He'll call before a crackdown."; }),
                 Past("cop", "'Sarge. It's me.'", (c, m) => { c.Set("dace", c.Day); c.Heat = 0; return "A long silence. 'Well, I'll be damned.' The first week's on him, for old times."; }),
                 new("Tell him where to go", (c, m) => { c.Set("dace", -1); return "'Your funeral,' he says, and means it."; }),
             });

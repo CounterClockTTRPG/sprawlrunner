@@ -29,7 +29,7 @@ public sealed partial class Career
 
     public float SellMul => ArcPath("fence") == 1 ? 1f : MathF.Min(0.95f, 0.6f + 0.05f * Loyalty.GetValueOrDefault("fence") + 0.02f * A(Attr.Charisma));
 
-    public int TraumaLinkPrice => (int)(MathF.Round(1800 * (1 + Rep / 5f) * (HasUpgrade("medbay") ? 0.7f : 1f) * PriceMul("doc") * (TraumaGrudge ? 2 : 1) / 50f) * 50);
+    public int TraumaLinkPrice => (int)(MathF.Round(1800 * (1 + Rep / 5f) * (HasUpgrade("medbay") ? 0.7f : 1f) * (LifeTier >= 4 ? 0.7f : 1f) * PriceMul("doc") * (TraumaGrudge ? 2 : 1) / 50f) * 50);
 
     public int RepairPrice(bool atHome)
     {

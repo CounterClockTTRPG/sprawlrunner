@@ -194,6 +194,8 @@ public static class Tables
     public const float FavourPay = 1.25f;
     /// <summary>The share of a hit that gets through any armour: a quarter, less a fortieth per point of armour, never below 8 %.</summary>
     public const float ArmorFloor = 0.25f, ArmorFloorFade = 40, ArmorFloorMin = 0.08f;
+    /// <summary>Karma a week for living in luxury.</summary>
+    public const int LuxuryKarma = 3;
     /// <summary>A faction's grudge from which their sites field elite security.</summary>
     public const int GrudgeElite = 3;
     /// <summary>A crew retainer costs at least this much a week per threat level you are offered.</summary>
