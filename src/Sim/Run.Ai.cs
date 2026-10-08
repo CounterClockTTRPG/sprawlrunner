@@ -31,12 +31,17 @@ public sealed partial class Run
         if (_walkField == null || (p != _fieldFrom && Time - _fieldT > 0.25f))
         {
             _walkField = L.Field(p, 400, false, _walkField);
-            _flyField = L.Field(p, 400, true, _flyField);
             _fieldFrom = p;
             _fieldT = Time;
+            _flyFresh = false;
         }
-        return fly ? _flyField : _walkField;
+        if (!fly) return _walkField;
+        // Few things fly: build their field only when one asks, from the same tile.
+        if (!_flyFresh) { _flyField = L.Field(_fieldFrom, 400, true, _flyField); _flyFresh = true; }
+        return _flyField;
     }
+
+    private bool _flyFresh;
 
     private void StepActor(Actor a, float dt)
     {

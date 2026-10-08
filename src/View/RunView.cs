@@ -101,14 +101,39 @@ public partial class RunView : Node2D
     /// <summary>Repaint once per rendered frame, however many steps ran (see CityView._Process).</summary>
     public override void _Process(double delta)
     {
-        if (!_dirty || R == null) return;
+        if (R == null) return;
+        PaintChunks();
+        if (!_dirty) return;
         _dirty = false;
-        Level L = R.L;
-        for (int i = 0; i < _chunks.Length; i++)
-            if (_drawn[i] != L.ChunkVersion[i]) { _drawn[i] = L.ChunkVersion[i]; _chunks[i].QueueRedraw(); }
+        using (Perf.Time("run.fog.refresh")) _fog.Refresh();
         _entities.QueueRedraw();
         _life.QueueRedraw();
         _top.QueueRedraw();
+    }
+
+    /// <summary>
+    /// Repaint changed chunks near the camera at once, and the rest (a door
+    /// opened across the site, the first paint of a new site) a couple a frame:
+    /// entering a site no longer paints all of it in one frame.
+    /// </summary>
+    private void PaintChunks()
+    {
+        Level L = R.L;
+        Rect2 near = ViewRect().Grow(Level.Chunk * T);
+        // A chunk is a few ms of drawing. Unpainted ones in view go at once (no black
+        // squares); one already painted can show its old picture a frame longer, so a
+        // door opening on a chunk corner (four chunks) is spread over two frames.
+        int spare = 2, repaints = 2;
+        for (int i = 0; i < _chunks.Length; i++)
+        {
+            if (_drawn[i] == L.ChunkVersion[i]) continue;
+            TileChunk c = _chunks[i];
+            var r = new Rect2(c.CX * Level.Chunk * T, c.CY * Level.Chunk * T, Level.Chunk * T, Level.Chunk * T);
+            if (!near.Intersects(r) ? spare-- <= 0 : c.Armed && repaints-- <= 0) continue;
+            _drawn[i] = L.ChunkVersion[i];
+            c.Armed = true;
+            c.QueueRedraw();
+        }
     }
 
     public void Frame(float dt)
@@ -118,7 +143,6 @@ public partial class RunView : Node2D
         Fx.Step(dt);
         Glow.Step(dt);
         AmbientFire(dt);
-        using (Perf.Time("run.fog.refresh")) _fog.Refresh();
         _dirty = true;
 
         // Camera: follow, lean towards the mouse, shake.
@@ -387,9 +411,12 @@ public partial class RunView : Node2D
     {
         public Level L;
         public int CX, CY;
+        /// <summary>Paints nothing until the view asks (see PaintChunks): no whole-site paint on the first frame.</summary>
+        public bool Armed;
 
         public override void _Draw()
         {
+            if (!Armed) return;
             using var _perf = Perf.Time("run.draw.chunk");
             int x0 = CX * Level.Chunk, y0 = CY * Level.Chunk;
             for (int y = y0; y < Math.Min(L.H, y0 + Level.Chunk); y++)
@@ -585,12 +612,22 @@ public partial class RunView : Node2D
         {
             if (_spots.Count > 600) _spots.RemoveAt(0);
             _spots.Add((p, r, c));
-            QueueRedraw();
+            _dirty = true;
         }
 
         public void Body(Actor a, Faction f)
         {
             _bodies.Add((a, f, a.Facing));
+            _dirty = true;
+        }
+
+        private bool _dirty;
+
+        /// <summary>Hits come in from the physics steps: repaint once a frame, not once a hit.</summary>
+        public override void _Process(double delta)
+        {
+            if (!_dirty) return;
+            _dirty = false;
             QueueRedraw();
         }
 

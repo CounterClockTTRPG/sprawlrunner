@@ -155,6 +155,9 @@ public static partial class Settings
         shake.Toggled += on => p.ScreenShake = on;
         m.Add(shake);
         Slider("Screen grime", p.Grime, v => p.Grime = v);
+        var light = new CheckBox { Text = "Light screen effects (faster on weak graphics)", ButtonPressed = p.LightScreenFx };
+        light.Toggled += on => p.LightScreenFx = on;
+        m.Add(light);
         Slider("Text size", (p.TextScale - 1) / 0.4f, v => p.TextScale = 1 + 0.4f * v);
         var cb = new CheckBox { Text = "Colour-blind safe faction colours", ButtonPressed = p.ColourBlind };
         cb.Toggled += on => p.ColourBlind = on;

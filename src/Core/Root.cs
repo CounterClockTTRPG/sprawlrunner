@@ -24,9 +24,15 @@ public partial class Root : Node
     public RunScreen RunScreen;
     public Control Screen;
 
+    private readonly HashSet<Script> _scripts = new();
+
     public override void _Ready()
     {
         GetWindow().Title = "Sprawlrunner";
+        // Hold on to every script once used. Godot drops a C# script resource when its
+        // last node goes, and making the next one reloads it: ~40 ms per screen change
+        // when the project is read over \\wsl.localhost (exported builds barely notice).
+        GetTree().NodeAdded += n => { if (n.GetScript().Obj is Script s) _scripts.Add(s); };
         string[] args = OS.GetCmdlineUserArgs();
         bool smoke = Array.IndexOf(args, "--smoke") >= 0;
         bool shots = Array.IndexOf(args, "--shots") >= 0;

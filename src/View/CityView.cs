@@ -40,9 +40,14 @@ public partial class CityView : Node2D
         _street = new Node2D();
         AddChild(_street);
         City c = sim.City;
+        _chunks.Clear();
         for (int cy = 0; cy < (City.H + 15) / 16; cy++)
         for (int cx = 0; cx < (City.W + 15) / 16; cx++)
-            _street.AddChild(new StreetChunk { C = c, CX = cx, CY = cy });
+        {
+            var chunk = new StreetChunk { C = c, CX = cx, CY = cy };
+            _chunks.Add(chunk);
+            _street.AddChild(chunk);
+        }
         var lamps = new Node2D { Material = Art.Additive };
         AddChild(lamps);
         AddLamps(lamps, c);
@@ -133,6 +138,21 @@ public partial class CityView : Node2D
     }
 
     private bool _dirty;
+    private readonly List<StreetChunk> _chunks = new();
+
+    /// <summary>Paint the street chunks near the camera now and the rest a couple a frame, not the whole city on the first frame.</summary>
+    private void PaintStreets()
+    {
+        Rect2 near = ViewRect;
+        int spare = 2;
+        foreach (StreetChunk c in _chunks)
+        {
+            if (c.Armed) continue;
+            if (!near.Intersects(new Rect2(c.CX * 16 * T, c.CY * 16 * T, 16 * T, 16 * T)) && spare-- <= 0) continue;
+            c.Armed = true;
+            c.QueueRedraw();
+        }
+    }
 
     /// <summary>
     /// Repaint once per rendered frame, not per physics step: Godot runs queued
@@ -141,7 +161,9 @@ public partial class CityView : Node2D
     /// </summary>
     public override void _Process(double delta)
     {
-        if (!_dirty || _movers == null) return;
+        if (_movers == null) return;
+        PaintStreets();
+        if (!_dirty) return;
         _dirty = false;
         _movers.QueueRedraw();
         _buildings.QueueRedraw();
@@ -168,9 +190,11 @@ public partial class CityView : Node2D
     {
         public City C;
         public int CX, CY;
+        public bool Armed;
 
         public override void _Draw()
         {
+            if (!Armed) return;
             using var _perf = Perf.Time("draw.street");
             for (int y = CY * 16; y < Math.Min(City.H, CY * 16 + 16); y++)
             for (int x = CX * 16; x < Math.Min(City.W, CX * 16 + 16); x++)

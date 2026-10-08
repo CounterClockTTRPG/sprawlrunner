@@ -289,6 +289,26 @@ public partial class AgentRunner : Node
             case "walk": return await Walk(new V2(F(w[1]), F(w[2])), w.Length > 3 ? (int)F(w[3]) : 15000, false);
             case "sneak": return await Walk(new V2(F(w[1]), F(w[2])), w.Length > 3 ? (int)F(w[3]) : 15000, true);
             case "perf" when w.Length > 1 && w[1] == "start": Perf.Start(GetViewport()); return "perf: recording";
+            case "perf" when w.Length > 1 && w[1] == "bench":
+            {
+                // How long the screens and views take just to construct (3 times each), and whether a GC landed.
+                var sb = new StringBuilder();
+                foreach (var (name, make) in new (string, Func<Node>)[] { ("RunScreen", () => new RunScreen()), ("CityScreen", () => new CityScreen()), ("RunView", () => new RunView()), ("CityView", () => new CityView()) })
+                for (int k = 0; k < 3; k++)
+                {
+                    int g = GC.CollectionCount(0) + GC.CollectionCount(1) + GC.CollectionCount(2);
+                    var sw = System.Diagnostics.Stopwatch.StartNew();
+                    Node n = make();
+                    double ms = sw.Elapsed.TotalMilliseconds;
+                    n.Free();
+                    sb.AppendLine($"  new {name,-10} {ms,7:0.00} ms{(GC.CollectionCount(0) + GC.CollectionCount(1) + GC.CollectionCount(2) > g ? "  (GC)" : "")}");
+                }
+                return sb.ToString();
+            }
+            case "perf" when w.Length > 2 && w[1] == "grime":
+                if (ScreenFx.Instance == null) return "no ScreenFx";
+                ScreenFx.Instance.Force = w[2] switch { "off" => 0, "light" => 1, "full" => 2, _ => -1 };
+                return $"grime forced {w[2]}";
             case "perf" when w.Length > 2 && w[1] == "toggle":
             {
                 // Hide or show a named layer (Lights, Fog, Glow, Entities, Top, TileLife, Decals, Fx, RunHud; Grime is the screen shader).

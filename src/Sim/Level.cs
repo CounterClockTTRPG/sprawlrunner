@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Sprawl;
 
@@ -52,7 +53,13 @@ public sealed class Level
         Set(b, Tile.Stairs);
         Stair[Idx(a.X, a.Y)] = Idx(b.X, b.Y);
         Stair[Idx(b.X, b.Y)] = Idx(a.X, a.Y);
+        if (_stairTo == null) { _stairTo = new int[W * H]; Array.Fill(_stairTo, -1); }
+        _stairTo[Idx(a.X, a.Y)] = Idx(b.X, b.Y);
+        _stairTo[Idx(b.X, b.Y)] = Idx(a.X, a.Y);
     }
+
+    /// <summary><see cref="Stair"/> as a flat array (-1: no stairs), for the path search.</summary>
+    private int[] _stairTo;
 
     public Pt PtOf(int i) => new(i % W, i / W);
 
@@ -348,28 +355,64 @@ public sealed class Level
         var dist = into ?? new ushort[W * H];
         Array.Fill(dist, Far);
         if (!In(from)) return dist;
-        var open = new PriorityQueue<int, int>();
-        dist[from.Y * W + from.X] = 0;
-        open.Enqueue(from.Y * W + from.X, 0);
-        int limit = maxDist * 10;
-        while (open.TryDequeue(out int i, out int d))
+        // Dijkstra with a bucket queue: every step costs 10 or 14, so a ring of
+        // 16 buckets by distance replaces the heap (same distances, far cheaper).
+        List<int>[] buckets = _buckets ??= Enumerable.Range(0, 16).Select(_ => new List<int>(64)).ToArray();
+        foreach (var b in buckets) b.Clear();
+        bool[] pass = flying ? FlyPass : WalkPass;
+        Tile[] t = T;
+        int[] stairTo = _stairTo;
+        int start = from.Y * W + from.X;
+        dist[start] = 0;
+        buckets[0].Add(start);
+        int pending = 1, limit = maxDist * 10;
+        for (int d = 0; pending > 0 && d <= limit; d++)
         {
-            if (d > dist[i]) continue;
-            if (d > limit) break;
-            int x = i % W, y = i / W;
-            for (int k = 0; k < 8; k++)
+            List<int> bucket = buckets[d & 15];
+            for (int bi = 0; bi < bucket.Count; bi++)
             {
-                Pt dir = Pt.Dirs8[k];
-                int nx = x + dir.X, ny = y + dir.Y;
-                if (!In(nx, ny) || !Walkable(nx, ny, flying)) continue;
-                if (k >= 4 && (!Walkable(x + dir.X, y, flying) || !Walkable(x, y + dir.Y, flying))) continue;
-                int nd = d + (k >= 4 ? 14 : 10);
-                int ni = ny * W + nx;
-                if (nd < dist[ni]) { dist[ni] = (ushort)Math.Min(nd, Far - 1); open.Enqueue(ni, nd); }
+                int i = bucket[bi];
+                if (dist[i] != d) continue;
+                int x = i % W, y = i / W;
+                for (int k = 0; k < 8; k++)
+                {
+                    Pt dir = Pt.Dirs8[k];
+                    int nx = x + dir.X, ny = y + dir.Y;
+                    if (nx < 0 || ny < 0 || nx >= W || ny >= H) continue;
+                    int ni = ny * W + nx;
+                    if (!pass[(int)t[ni]]) continue;
+                    if (k >= 4 && (!pass[(int)t[y * W + nx]] || !pass[(int)t[ny * W + x]])) continue;
+                    int nd = d + (k >= 4 ? 14 : 10);
+                    if (nd < dist[ni]) { dist[ni] = (ushort)Math.Min(nd, Far - 1); buckets[nd & 15].Add(ni); pending++; }
+                }
+                if (stairTo != null && stairTo[i] >= 0 && d + 10 < dist[stairTo[i]])
+                {
+                    int si = stairTo[i];
+                    dist[si] = (ushort)(d + 10);
+                    buckets[(d + 10) & 15].Add(si);
+                    pending++;
+                }
             }
-            if (Stair.TryGetValue(i, out int si) && d + 10 < dist[si]) { dist[si] = (ushort)(d + 10); open.Enqueue(si, d + 10); }
+            pending -= bucket.Count;
+            bucket.Clear();
         }
         return dist;
+    }
+
+    private List<int>[] _buckets;
+
+    /// <summary><see cref="Walkable"/> by tile type, for walkers and for fliers.</summary>
+    private static readonly bool[] WalkPass = PassTable(false), FlyPass = PassTable(true);
+
+    private static bool[] PassTable(bool flying)
+    {
+        var p = new bool[Defs.Length];
+        for (int k = 0; k < p.Length; k++)
+        {
+            TileDef d = Defs[k];
+            p[k] = (Tile)k == Tile.Door || !d.BlocksMove || flying && d.Low;
+        }
+        return p;
     }
 
     /// <summary>The neighbour of p that is closest to the field's source (or farthest, to flee).</summary>

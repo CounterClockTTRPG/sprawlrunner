@@ -20,6 +20,8 @@ public sealed class Profile
     public bool ScreenShake = true;
     /// <summary>The dirty-monitor effect (<see cref="ScreenFx"/>), 0 off .. 1 heavy.</summary>
     public float Grime = 0.6f;
+    /// <summary>The grime as a light overlay (no screen read-back, no fringing or grain) except during hits and glitches: for weaker GPUs.</summary>
+    public bool LightScreenFx;
     /// <summary>Off until the player turns it on in the settings.</summary>
     public bool SoundOn;
     /// <summary>Faction colours that colour-blind players can tell apart; all text a little larger.</summary>

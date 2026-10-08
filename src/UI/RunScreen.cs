@@ -104,7 +104,8 @@ public partial class RunScreen : Control
         m.Add(UITheme.Button("Settings", () => Settings.Open(m), 0, 44));
         m.Add(UITheme.Button("Bail out (job fails)", () =>
         {
-            m.QueueFree();
+            // Close (not QueueFree) so the run unpauses and goes on to the debrief.
+            m.Close();
             R.Aborted = true;
             R.Phase = RunPhase.Extracted;
         }, 0, 44, "Leave the site now. The job fails; what you found is kept."));
@@ -194,6 +195,16 @@ public partial class RunScreen : Control
                 Root.EndRun(R);
             }
         }
+        _hudDirty = true;
+    }
+
+    private bool _hudDirty;
+
+    /// <summary>The HUD repaints once a rendered frame, however many physics steps ran.</summary>
+    public override void _Process(double delta)
+    {
+        if (!_hudDirty) return;
+        _hudDirty = false;
         _hud.QueueRedraw();
     }
 
