@@ -1100,6 +1100,16 @@ public partial class SmokeTest
 {
     private void Towers()
     {
+        // On the board: the brief and the client are for the tower as built (Halcyon's, at threat 6).
+        {
+            City tcity = City.Generate(55);
+            Career tc = TestCareer();
+            tc.CityRef = tcity;
+            tc.Rep = 30;
+            var tw = Enumerable.Range(0, 400).Select(_ => tc.MakeJob(tcity)).Where(x => x != null && x.Floors > 0).ToList();
+            Check(tw.Count > 0 && tw.All(x => x.Client != (int)x.Faction), $"a tower's client is never its owner ({tw.Count} towers)");
+            Check(tw.Where(x => x.Threat >= 6 && x.Type is JobType.Eliminate or JobType.Retrieve or JobType.Datasteal).All(x => x.Brief.Contains(Tables.FactionNames[(int)Faction.Halcyon]) && (x.Brief.Contains("office") || x.Brief.Contains("lab"))), "and the brief names the tower's real owner and building");
+        }
         // The plan: a lobby and floors side by side, a core on every floor, stairs between, secure floors at the top.
         for (ulong seed = 1; seed <= 6; seed++)
         {

@@ -75,6 +75,12 @@ public sealed partial class Career
         else return;
         j.Pay = (int)(MathF.Round(j.Pay * (1 + 0.3f * j.Floors) / 50) * 50);
         j.Karma += j.Floors * 2;
+    }
+
+    /// <summary>The tower's lines in the brief, once the brief is written (for the building and owner <see cref="MakeTower"/> chose).</summary>
+    private void TowerBrief(Job j)
+    {
+        if (j.Floors <= 0) return;
         int secure = j.Floors >= 3 ? 2 : 1;
         j.Brief += $" It's a tower: {j.Floors} floors above the lobby, more guards on every one. Hack the elevator for the public floors; the top {secure} need a security pass -- override it in the Matrix, or fight your way up the stairs.";
         if (!j.Title.StartsWith("TOWER")) j.Title = $"TOWER: {j.Title}";

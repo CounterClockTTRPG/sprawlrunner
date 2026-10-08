@@ -422,10 +422,12 @@ public sealed partial class Career
         }
         // Done from the safehouse rig: the job's address is your own.
         if (type == JobType.Hack) j.Lot = city.Place(HasUpgrade("loft") ? "loft" : "home").Index;
+        // The building first (a tower is Halcyon's, an office or a lab), then who it's for and what the brief says.
+        MakeTower(j, city);
         Describe(j, city);
         PickClient(j);
         Voice(j);
-        MakeTower(j, city);
+        TowerBrief(j);
         foreach (RunMod m in j.Mods)
         {
             var (_, name, desc, _) = Tables.RunMods.First(x => x.mod == m);
