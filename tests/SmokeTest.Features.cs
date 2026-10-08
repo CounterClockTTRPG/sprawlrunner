@@ -595,4 +595,23 @@ public partial class SmokeTest
         p.Pickups.Add(new PickupSpawn { Kind = PickupKind.Objective, Pos = new V2(17.5f, 2.5f), Name = "the case" });
         return p;
     }
+
+    /// <summary>What ships: the bundled fonts load (each with its licence beside it) and the UI uses them; the display settings' defaults are among their choices.</summary>
+    private void Presentation()
+    {
+        var families = new (string file, string licence)[]
+        {
+            ("Barlow-Regular.ttf", "Barlow-OFL.txt"), ("BarlowCondensed-SemiBold.ttf", "Barlow-OFL.txt"), ("Inconsolata.ttf", "Inconsolata-OFL.txt"),
+            ("StardosStencil-Bold.ttf", "StardosStencil-OFL.txt"), ("ShareTechMono-Regular.ttf", "ShareTechMono-OFL.txt"),
+        };
+        foreach (var (file, licence) in families)
+        {
+            Check(Assets.Font(file) != null, $"the bundled font {file} loads");
+            Check(FileAccess.FileExists($"{Assets.FontDir}/{licence}") && FileAccess.GetFileAsString($"{Assets.FontDir}/{licence}").Contains("SIL OPEN FONT LICENSE"), $"{file} ships with its licence ({licence})");
+        }
+        Check(UITheme.Body is FontFile && UITheme.Mono is FontFile && UITheme.Stamp is FontFile && UITheme.Ocr is FontFile && UITheme.Heading is FontVariation { BaseFont: FontFile },
+            "the interface draws with the bundled fonts, not the system's");
+        var fresh = new Profile();
+        Check(Profile.WindowSizes.Contains((fresh.WindowW, fresh.WindowH)) && Profile.FpsCaps.Contains(fresh.FpsCap) && fresh.VSync && fresh.AutoPause, "the display settings start on one of their own choices");
+    }
 }

@@ -54,6 +54,14 @@ public partial class Root : Node
         ShowTitle();
     }
 
+    /// <summary>Switching away from the game pauses it (a run or a drive), unless the setting is off -- never for the agent or the checks.</summary>
+    public override void _Notification(int what)
+    {
+        if (what != NotificationApplicationFocusOut || !Profile.Current.AutoPause || AgentRunner.Active || Profile.Scratch) return;
+        if (RunScreen != null && IsInstanceValid(RunScreen)) RunScreen.PauseIfPlaying();
+        else if (CityScreen != null && IsInstanceValid(CityScreen)) CityScreen.PauseIfDriving();
+    }
+
     public override void _Input(InputEvent e)
     {
         if (e is InputEventKey { Pressed: true, Echo: false, Keycode: Key.F11 })

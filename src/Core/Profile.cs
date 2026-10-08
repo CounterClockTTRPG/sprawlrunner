@@ -17,6 +17,15 @@ public sealed class Profile
 {
     public float Master = 0.8f, MusicVolume = 0.5f, Effects = 0.8f;
     public bool Fullscreen;
+    /// <summary>The window's size when not full screen (one of <see cref="WindowSizes"/>), vsync, a frame-rate cap (0: none),
+    /// and whether the game pauses itself when the window loses focus.</summary>
+    public int WindowW = 1600, WindowH = 900;
+    public bool VSync = true;
+    public int FpsCap;
+    public bool AutoPause = true;
+
+    public static readonly (int w, int h)[] WindowSizes = { (1280, 720), (1600, 900), (1920, 1080), (2560, 1440) };
+    public static readonly int[] FpsCaps = { 0, 30, 60, 120, 144 };
     public bool ScreenShake = true;
     /// <summary>The dirty-monitor effect (<see cref="ScreenFx"/>), 0 off .. 1 heavy.</summary>
     public float Grime = 0.6f;
@@ -139,7 +148,23 @@ public sealed class Profile
         AudioBuses.SetVolume(AudioBuses.Sfx, Effects);
         ScreenFx.Instance?.Apply();
         if (DisplayServer.GetName() != "headless")
+        {
             DisplayServer.WindowSetMode(Fullscreen ? DisplayServer.WindowMode.Fullscreen : DisplayServer.WindowMode.Windowed);
+            DisplayServer.WindowSetVsyncMode(VSync ? DisplayServer.VSyncMode.Enabled : DisplayServer.VSyncMode.Disabled);
+            // The agent harness and the walkthrough keep their own 1600x900 window.
+            if (!Fullscreen && !Agent && !Scratch) SetWindow(WindowW, WindowH);
+        }
+        Engine.MaxFps = FpsCap;
+    }
+
+    /// <summary>Size the window (never past the screen's usable area) and centre it.</summary>
+    private static void SetWindow(int w, int h)
+    {
+        Rect2I usable = DisplayServer.ScreenGetUsableRect(DisplayServer.WindowGetCurrentScreen());
+        var size = new Vector2I(Math.Min(w, usable.Size.X), Math.Min(h, usable.Size.Y));
+        if (DisplayServer.WindowGetSize() == size) return;
+        DisplayServer.WindowSetSize(size);
+        DisplayServer.WindowSetPosition(usable.Position + (usable.Size - size) / 2);
     }
 
     // ---- the career ------------------------------------------------------------------

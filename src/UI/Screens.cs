@@ -151,6 +151,29 @@ public static partial class Settings
         var fs = new CheckBox { Text = "Fullscreen (F11)", ButtonPressed = p.Fullscreen };
         fs.Toggled += on => { p.Fullscreen = on; p.Apply(); };
         m.Add(fs);
+        // A setting with a few values: the button steps to the next one.
+        void Cycle(string name, Func<string> value, Action next)
+        {
+            var row = UITheme.HBox(12);
+            row.AddChild(UITheme.Grow(UITheme.Label(name, 18, UITheme.Text)));
+            Button b = null;
+            b = UITheme.Button(value(), () => { next(); p.Apply(); b.Text = value(); }, 220, 34);
+            row.AddChild(b);
+            m.Add(row);
+        }
+        Cycle("Window size", () => $"{p.WindowW} x {p.WindowH}", () =>
+        {
+            int k = Array.FindIndex(Profile.WindowSizes, s => s.w == p.WindowW && s.h == p.WindowH);
+            (p.WindowW, p.WindowH) = Profile.WindowSizes[(k + 1) % Profile.WindowSizes.Length];
+        });
+        Cycle("Frame-rate cap", () => p.FpsCap == 0 ? "none" : $"{p.FpsCap} fps", () =>
+            p.FpsCap = Profile.FpsCaps[(Array.IndexOf(Profile.FpsCaps, p.FpsCap) + 1) % Profile.FpsCaps.Length]);
+        var vsync = new CheckBox { Text = "VSync (no tearing; off can run smoother on a slow machine)", ButtonPressed = p.VSync };
+        vsync.Toggled += on => { p.VSync = on; p.Apply(); };
+        m.Add(vsync);
+        var pause = new CheckBox { Text = "Pause when the game window loses focus", ButtonPressed = p.AutoPause };
+        pause.Toggled += on => p.AutoPause = on;
+        m.Add(pause);
         var shake = new CheckBox { Text = "Screen shake", ButtonPressed = p.ScreenShake };
         shake.Toggled += on => p.ScreenShake = on;
         m.Add(shake);

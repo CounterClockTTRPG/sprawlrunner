@@ -501,9 +501,17 @@ Each screen is an object in the world (`Dressing`):
 - new-runner is a fake ID: photo box, serial, barcode, UNREGISTERED stamp;
 - shops hang paper price tags, and loyalty and trust are punch cards.
 
-The fonts are system fonts: Bahnschrift narrowed to its condensed width for
-headings, Stencil for stamps, OCR A for printed figures, Consolas for the
-terminal.
+The fonts ship with the game (`assets/fonts`, all under the SIL Open Font
+License, each licence beside it): Barlow Condensed SemiBold, spaced out, for
+headings; Barlow for body text; Stardos Stencil for stamps; Share Tech Mono for
+printed figures; Inconsolata for the terminal. A missing file falls back to the
+Windows fonts the game used before (Bahnschrift, Stencil, OCR A, Consolas).
+
+The picture scales to the window (`canvas_items` stretch, expand): 1600x900 is
+the design size, larger screens get a larger picture, not a smaller interface.
+Settings also offer the window size (1280x720 to 2560x1440, never past the
+screen), vsync, a frame-rate cap, and pausing when the window loses focus (a
+run or a drive goes to its pause menu; never in agent mode or the checks).
 
 Over everything sits a dirty monitor (`ScreenFx`): grain, scanlines, a
 vignette, colour fringing, a warm cast and a rare flicker. On a run it jolts

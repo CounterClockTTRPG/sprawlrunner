@@ -28,7 +28,18 @@ public static class Assets
     public static readonly string Root = FileAccess.FileExists("res://assets/art/manifest.txt") || OS.HasFeature("editor")
         ? "res://assets"
         : OS.GetExecutablePath().GetBaseDir() + "/assets";
-    public static readonly string ArtDir = Root + "/art", VoiceDir = Root + "/voice", VideoDir = Root + "/video";
+    public static readonly string ArtDir = Root + "/art", VoiceDir = Root + "/voice", VideoDir = Root + "/video", FontDir = Root + "/fonts";
+
+    private static readonly Dictionary<string, FontFile> _fonts = new();
+
+    /// <summary>A bundled font (<c>assets/fonts</c>, all OFL), or null when the file is missing.</summary>
+    public static FontFile Font(string file)
+    {
+        if (_fonts.TryGetValue(file, out FontFile f)) return f;
+        string path = $"{FontDir}/{file}";
+        f = FileAccess.FileExists(path) ? new FontFile { Data = FileAccess.GetFileAsBytes(path), Antialiasing = TextServer.FontAntialiasing.Gray } : null;
+        return _fonts[file] = f;
+    }
 
     /// <summary>A clip's path (Ogg Theora, played from the file), or null when it has not been generated.</summary>
     public static string Clip(string name)

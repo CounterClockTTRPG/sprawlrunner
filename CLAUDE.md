@@ -60,6 +60,8 @@ Sound is off until turned on in Settings. Settings live in `user://sprawlrunner.
   dirty-monitor shader; `Interfere`/`Jolt` from runs).
 - `src/Core` -- `Root` (screen flow, CLI flags), `Profile`, `Sfx`/`Music`/`AudioBuses`
   (all synthesised), `Assets` (the generated pictures and voices, read as bytes).
+- `assets/fonts/` -- the interface fonts (OFL, licences and a README beside them), read as bytes
+  by `Assets.Font`; a missing one falls back to the old system font.
 - `assets/` -- `art/*.webp` (portraits, briefing banners, intro backdrops), `voice/*.ogg`
   (contact greetings, story beats, the intro's narration) and `video/*.ogv` (the intro's
   opening shot, Theora), each with the `manifest.txt` that `scripts/assets.sh` generates

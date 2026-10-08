@@ -31,14 +31,17 @@ public static class UITheme
     private static Font _heading, _body, _mono, _stamp, _ocr;
     private static Godot.Theme _theme;
 
-    /// <summary>Bahnschrift narrowed to its condensed width and spaced out: stencilled kit markings.</summary>
-    public static Font Heading => _heading ??= Narrow(Make(new[] { "Bahnschrift", "Agency FB", "Segoe UI", "DejaVu Sans", "sans-serif" }, 700), 78, 700, 1);
-    public static Font Body => _body ??= Make(new[] { "Bahnschrift", "Segoe UI", "DejaVu Sans", "sans-serif" }, 400);
-    public static Font Mono => _mono ??= Make(new[] { "Consolas", "Cascadia Mono", "Lucida Console", "DejaVu Sans Mono", "monospace" }, 400);
+    // The fonts ship with the game (assets/fonts, all OFL: see its README); the system
+    // fonts named after each are only a fallback when the file is missing.
+
+    /// <summary>A condensed DIN, spaced out: stencilled kit markings.</summary>
+    public static Font Heading => _heading ??= Narrow(Make("BarlowCondensed-SemiBold.ttf", new[] { "Bahnschrift", "Agency FB", "Segoe UI", "DejaVu Sans", "sans-serif" }, 700), 78, 700, 1);
+    public static Font Body => _body ??= Make("Barlow-Regular.ttf", new[] { "Bahnschrift", "Segoe UI", "DejaVu Sans", "sans-serif" }, 400);
+    public static Font Mono => _mono ??= Make("Inconsolata.ttf", new[] { "Consolas", "Cascadia Mono", "Lucida Console", "DejaVu Sans Mono", "monospace" }, 400);
     /// <summary>Rubber stamps.</summary>
-    public static Font Stamp => _stamp ??= Make(new[] { "Stencil", "Impact", "Bahnschrift", "DejaVu Sans", "sans-serif" }, 700);
+    public static Font Stamp => _stamp ??= Make("StardosStencil-Bold.ttf", new[] { "Stencil", "Impact", "Bahnschrift", "DejaVu Sans", "sans-serif" }, 700);
     /// <summary>Printed figures: receipts, tags, IDs.</summary>
-    public static Font Ocr => _ocr ??= Make(new[] { "OCR A Extended", "Consolas", "DejaVu Sans Mono", "monospace" }, 400);
+    public static Font Ocr => _ocr ??= Make("ShareTechMono-Regular.ttf", new[] { "OCR A Extended", "Consolas", "DejaVu Sans Mono", "monospace" }, 400);
 
     /// <summary>
     /// A variable font pulled to another width (Bahnschrift runs 75..100) and
@@ -55,10 +58,13 @@ public static class UITheme
         };
     }
 
-    private static Font Make(string[] names, int weight)
+    /// <summary>The bundled font file, else the first of these system fonts there is; either way with Godot's own for missing glyphs.</summary>
+    private static Font Make(string file, string[] names, int weight)
     {
-        var f = new SystemFont { FontNames = names, FontWeight = weight, Antialiasing = TextServer.FontAntialiasing.Gray };
-        f.Fallbacks = new Godot.Collections.Array<Font> { ThemeDB.FallbackFont };
+        var sys = new SystemFont { FontNames = names, FontWeight = weight, Antialiasing = TextServer.FontAntialiasing.Gray };
+        sys.Fallbacks = new Godot.Collections.Array<Font> { ThemeDB.FallbackFont };
+        if (Assets.Font(file) is not FontFile f) return sys;
+        f.Fallbacks = new Godot.Collections.Array<Font> { sys };
         return f;
     }
 

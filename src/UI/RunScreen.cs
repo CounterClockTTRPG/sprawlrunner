@@ -94,6 +94,13 @@ public partial class RunScreen : Control
         }
     }
 
+    /// <summary>The pause menu, unless it is already up or the run is over.</summary>
+    public void PauseIfPlaying()
+    {
+        if (_paused || _ended || R == null || R.Phase != RunPhase.Playing || Modal.Open > 0) return;
+        Pause();
+    }
+
     private void Pause()
     {
         _paused = true;

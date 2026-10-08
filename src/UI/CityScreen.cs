@@ -132,6 +132,14 @@ public partial class CityScreen : Control
         GetViewport().SetInputAsHandled();
     }
 
+    /// <summary>The pause menu, unless something is already on screen (a place, a dialog, the PDA).</summary>
+    public void PauseIfDriving()
+    {
+        if (Paused || Root.CitySim == null) return;
+        Sfx.Instance?.Engine(0, 0);
+        PauseMenu();
+    }
+
     private void PauseMenu()
     {
         var m = new Modal("PAUSED", 420);

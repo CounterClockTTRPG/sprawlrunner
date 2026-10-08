@@ -12,7 +12,7 @@ config/features=PackedStringArray("4.7", "C#", "Mobile")
 
 window/size/viewport_width=1600
 window/size/viewport_height=900
-window/stretch/mode="disabled"
+window/stretch/mode="canvas_items"
 window/stretch/aspect="expand"
 
 [dotnet]

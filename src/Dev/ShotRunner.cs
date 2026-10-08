@@ -76,6 +76,11 @@ public partial class ShotRunner : Node
                 await Shot("02b_create_perks");
                 cs2.QueueFree();
                 Profile.Current.Legacy = had;
+                // The settings, every row on screen.
+                Modal settings = Settings.Open(Root.Screen);
+                await Frames(10);
+                await Shot("02c_settings");
+                settings.QueueFree();
             }
             if (Want("intro"))
             {
