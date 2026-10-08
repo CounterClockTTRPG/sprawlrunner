@@ -547,6 +547,9 @@ public partial class PlaceScreen : Control
         row.AddChild(cell);
     }
 
+    /// <summary>The job whose brief has typed out already, so a rebuild shows it whole.</summary>
+    private int _briefTyped = -1;
+
     private void BuildBriefing()
     {
         Job j = C.Active;
@@ -577,7 +580,10 @@ public partial class PlaceScreen : Control
         left.CustomMinimumSize = new Vector2(plans ? 640 : 700, 0);
         left.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         cols.AddChild(left);
-        left.AddChild(UITheme.TypeOut(UITheme.Label(j.Brief, 19, UITheme.Text), MathF.Min(1.6f, j.Brief.Length / 90f)));
+        Label brief = UITheme.Label(j.Brief, 19, UITheme.Text);
+        if (_briefTyped != j.Id) UITheme.TypeOut(brief, MathF.Min(1.6f, j.Brief.Length / 90f));
+        _briefTyped = j.Id;
+        left.AddChild(brief);
         // Who you will meet in there: every threat-5 site has a boss (LevelGen), and a hire comes along.
         var faces = UITheme.HBox(18);
         if (site && j.Threat >= 5) Face(faces, Assets.BossPicture(j.Faction), "In charge", Tables.BossOf(j.Faction).name, UITheme.Bad);
