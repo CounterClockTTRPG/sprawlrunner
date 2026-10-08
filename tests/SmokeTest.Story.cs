@@ -1287,8 +1287,13 @@ public partial class SmokeTest
         l.Buy(l.Offers("fixer").First(o => o.Kind == ShopKind.Property && o.Id == "noodles"));
         l.Day = 6;
         int cash = l.Cash;
+        Faction street = l.Holder("docks");
+        l.Grudge[street] = 0;
+        int standing = l.StandingOf(street);
         l.NextDay(city);
         Check(l.Cash > cash - l.RentDue, $"a business pays every week ({l.Cash - cash})");
+        Check(Career.Businesses.All(b => b.cost / b.week is >= 9 and <= 11), "and pays for itself in about ten weeks");
+        Check(l.StandingOf(street) == standing + 1, "and makes friends of whoever runs the street");
         l.Buy(l.Offers("fixer").First(o => o.Kind == ShopKind.Retainer && o.Id == "ox"));
         Check(l.Retained.Contains("ox") && l.CrewCut("ox") == 0, "Ox on retainer takes no cut");
         // Luxury: TraumaLink for less, and three karma a week.

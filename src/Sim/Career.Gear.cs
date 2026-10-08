@@ -187,10 +187,11 @@ public sealed partial class Career
 
     public static readonly (string id, string name, string desc, int cost, int week, string district)[] Businesses =
     {
-        ("noodles", "A noodle bar in the Docks", "Pays ¥1,500 a week. Mama Oyelaran runs it for a share.", 40000, 1500, "docks"),
-        ("garage", "A body shop in the Barrens", "Pays ¥3,000 a week, and fixes your car for free.", 80000, 3000, "barrens"),
-        ("club", "A club on the Neon Strip", "Pays ¥6,000 a week. The Lotus will notice.", 150000, 6000, "strip"),
-        ("node", "A data haven node in the Spire", "Pays ¥10,000 a week. Null keeps it running.", 250000, 10000, "spire"),
+        // Each pays for itself in about ten weeks.
+        ("noodles", "A noodle bar in the Docks", "Pays ¥4,000 a week. Mama Oyelaran runs it for a share.", 40000, 4000, "docks"),
+        ("garage", "A body shop in the Barrens", "Pays ¥8,000 a week, and fixes your car for free.", 80000, 8000, "barrens"),
+        ("club", "A club on the Neon Strip", "Pays ¥15,000 a week. The Lotus will notice.", 150000, 15000, "strip"),
+        ("node", "A data haven node in the Spire", "Pays ¥25,000 a week. Null keeps it running.", 250000, 25000, "spire"),
     };
 
     public static readonly Dictionary<string, int> Retainers = new() { ["ox"] = 2500, ["wisp"] = 3000, ["patch"] = 2000, ["ade"] = 1800, ["byte"] = 2200 };
@@ -205,11 +206,14 @@ public sealed partial class Career
         {
             var def = Businesses.First(x => x.id == b);
             // A business on a street your enemies hold pays them first.
-            bool leaned = Grudge.GetValueOrDefault(Holder(def.district)) >= 4;
+            Faction holder = Holder(def.district);
+            bool leaned = Grudge.GetValueOrDefault(holder) >= 4;
             int take = leaned ? def.week / 2 : def.week;
             Cash += take;
             Count("earned", take);
-            Say($"{def.name}: {M.Money(take)} this week{(leaned ? $" (the {Tables.FactionNames[(int)Holder(def.district)]} took their cut)" : "")}.");
+            // A business that pays its way on their street makes friends of whoever runs it.
+            if (!leaned) Standing[holder] = Math.Min(10, StandingOf(holder) + 1);
+            Say($"{def.name}: {M.Money(take)} this week{(leaned ? $" (the {Tables.FactionNames[(int)holder]} took their cut)" : $"; the {Tables.FactionNames[(int)holder]} like a neighbour who pays (standing +1)")}.");
         }
         foreach (string id in Retained.ToList())
         {

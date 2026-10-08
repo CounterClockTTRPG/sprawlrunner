@@ -894,7 +894,9 @@ acceleration), suspension (+5/10 % grip), plate (hull +25/50/100 %, top speed
 ### Money sinks
 Lifestyle (¥100/400/1,500/5,000/15,000 a week, squatter to luxury: healing,
 raids; luxury: TraumaLink -30 %, +3 karma a week), property (four businesses, ¥40k-250k, paying
-¥1,500-10,000 a week, half when your enemies hold the street), crew retainers
+¥4,000-25,000 a week -- paid back in about ten weeks -- and standing +1 a week
+with whoever holds the street; half, and no standing, when they hold a grudge of
+4+), crew retainers
 (¥1,800-3,000 a week instead of a cut, and at least ¥600 × the highest threat
 you are offered; the most trusted free one on retainer comes on every job but
 driving and hacks, and Juno can swap them for another hire), power focus ranks (x1.25/1.4/1.6),
