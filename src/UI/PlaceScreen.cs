@@ -611,7 +611,7 @@ public partial class PlaceScreen : Control
         bool schematics = j.Schematics || C.HasUpgrade("rig2");
         if (schematics) left.AddChild(UITheme.Label("You have the site schematics.", 16, UITheme.Cyan));
         else if (site && !plans) left.AddChild(UITheme.Label("Site layout:  ██████████ ███████ ████  (the fixer sells schematics)", 15, UITheme.Faint));
-        if (j.Hired != null) left.AddChild(UITheme.Label($"{Tables.Hires.First(h => h.id == j.Hired).name} is coming with you ({C.CrewCut(j.Hired) * 100:0} % of the pay; ¥300 if it goes wrong). If they go down, carry them out -- or lose them for good.", 16, UITheme.Good));
+        if (j.Hired != null) left.AddChild(UITheme.Label($"{Tables.Hires.First(h => h.id == j.Hired).name} is coming with you ({(C.Retained.Contains(j.Hired) ? "on retainer: no cut" : $"{C.CrewCut(j.Hired) * 100:0} % of the pay; ¥300 if it goes wrong")}). If they go down, carry them out -- or lose them for good.", 16, UITheme.Good));
         if (plans)
         {
             var right = UITheme.VBox(8);

@@ -1272,6 +1272,35 @@ public partial class SmokeTest
         Check(l.Cash > cash - l.RentDue, $"a business pays every week ({l.Cash - cash})");
         l.Buy(l.Offers("fixer").First(o => o.Kind == ShopKind.Retainer && o.Id == "ox"));
         Check(l.Retained.Contains("ox") && l.CrewCut("ox") == 0, "Ox on retainer takes no cut");
+        // Crew on retainer come on the job: the most trusted one free to.
+        Career rc = TestCareer();
+        rc.CityRef = city;
+        rc.RefreshBoard(city);
+        rc.Retained.Add("ox");
+        rc.Retained.Add("wisp");
+        rc.CrewOf("wisp").Trust = 2;
+        Job rj = rc.Board.First(b => !b.Driving && b.Type != JobType.Hack && !b.Johnson);
+        Accept(rc, rj);
+        Check(rj.Hired == "wisp", $"accept a job: the retainer comes along ({rj.Hired})");
+        var rrun = new Run(rj, rc, Site("#########", "#P......#", "#########"));
+        Check(rrun.Ally != null && rrun.Ally.Name == Tables.Hires.First(h => h.id == "wisp").name, "and is there on the run");
+        Check(rc.Offers("fixer").First(o => o.Kind == ShopKind.Hire && o.Id == "ox").Block == null, "another hire can still take their place");
+        rc.Buy(rc.Offers("fixer").First(o => o.Kind == ShopKind.Hire && o.Id == "ox"));
+        Check(rj.Hired == "ox", "and does");
+        rc.Drop();
+        rc.CrewOf("wisp").OutUntil = rc.Day + 3;
+        rc.Retained.Remove("ox");
+        Job rj2 = rc.Board.First(b => !b.Driving && b.Type != JobType.Hack && !b.Johnson && b.Hired == null);
+        Accept(rc, rj2);
+        Check(rj2.Hired == null, "a recovering retainee stays home");
+        rc.Drop();
+        rc.CrewOf("wisp").OutUntil = 0;
+        Job rd = rc.Board.FirstOrDefault(b => b.Driving) ?? rj2;
+        if (rd == rj2) { rj2.Type = JobType.Courier; }
+        rd.Hired = null;
+        rd.Johnson = false;
+        Accept(rc, rd);
+        Check(rd.Hired == null, "a driving job brings nobody");
         int oxWage = l.RetainerWage("ox");
         l.Rep = 30;
         Check(l.RetainerWage("ox") == Math.Max(oxWage, 600 * l.MaxThreat) && l.RetainerWage("ade") >= 3000, $"a retainer keeps up with the jobs you take ({l.RetainerWage("ade")} at threat {l.MaxThreat})");

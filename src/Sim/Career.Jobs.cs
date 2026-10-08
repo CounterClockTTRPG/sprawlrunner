@@ -555,6 +555,7 @@ public sealed partial class Career
         if (ActiveJob >= 0 && ActiveJob != j.Id) return "You already have a job on. Finish it first.";
         if (j.Johnson && !j.Negotiated) return "Mr. Johnson wants to talk terms first.";
         ActiveJob = j.Id;
+        BringRetained(j);
         // A gift from someone you once got out: the floor plans.
         if (Flag("freeschem") > 0 && j.Type is not (JobType.Courier or JobType.Race or JobType.Hub)) { j.Schematics = true; Set("freeschem", 0); }
         return null;
@@ -869,6 +870,7 @@ public sealed partial class Career
         Job back = Board.FirstOrDefault(b => b.Id == id - 1);
         if (back == null || ActiveJob >= 0) return;
         ActiveJob = back.Id;
+        BringRetained(back);
         Say($"Back to {back.Title}.");
     }
 
@@ -877,6 +879,7 @@ public sealed partial class Career
     {
         if (ActiveJob >= 0 && ActiveJob != j.Id) Set("onhold", ActiveJob + 1);
         ActiveJob = j.Id;
+        BringRetained(j);
         TargetLot = j.Lot;
     }
 

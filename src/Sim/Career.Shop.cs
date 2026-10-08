@@ -127,14 +127,17 @@ public sealed partial class Career
                     {
                         CrewState cs = Crew.GetValueOrDefault(h.id);
                         string perks = cs == null || cs.Perks.Count == 0 ? "" : " Knows: " + string.Join(", ", cs.Perks.Select(PerkName)) + ".";
-                        list.Add(new Offer { Kind = ShopKind.Hire, Id = h.id, Name = $"Hire {h.name} for {hj.Title}" + (cs?.Trust > 0 ? $"  (trust {cs.Trust})" : ""), Desc = $"{h.desc} Takes {CrewCut(h.id) * 100:0} % of the pay ({M.Money((int)(hj.Pay * CrewCut(h.id)))}); ¥300 retainer if the job fails.{perks}", Price = 0,
-                            Block = hj.Hired == h.id ? "Hired." : CrewBlock(h.id) ?? (hj.Hired != null ? "One hire per job." : Need(h.loyalty)), Owned = hj.Hired == h.id ? "hired" : cs?.Dead == true ? "dead" : null });
+                        string pay = Retained.Contains(h.id) ? "On retainer: no cut." : $"Takes {CrewCut(h.id) * 100:0} % of the pay ({M.Money((int)(hj.Pay * CrewCut(h.id)))}); ¥300 retainer if the job fails.";
+                        // One hire per job: hiring someone else sends the first one home.
+                        string swap = hj.Hired != null && hj.Hired != h.id ? $" Instead of {Tables.Hires.First(x => x.id == hj.Hired).name}." : "";
+                        list.Add(new Offer { Kind = ShopKind.Hire, Id = h.id, Name = $"Hire {h.name} for {hj.Title}" + (cs?.Trust > 0 ? $"  (trust {cs.Trust})" : ""), Desc = $"{h.desc} {pay}{swap}{perks}", Price = 0,
+                            Block = hj.Hired == h.id ? "Hired." : CrewBlock(h.id) ?? Need(h.loyalty), Owned = hj.Hired == h.id ? "hired" : cs?.Dead == true ? "dead" : null });
                     }
                 foreach (var h in Tables.Hires)
                 {
                     int wage = RetainerWage(h.id);
                     bool on = Retained.Contains(h.id);
-                    list.Add(new Offer { Kind = ShopKind.Retainer, Id = h.id, Name = on ? $"End {h.name}'s retainer" : $"Put {h.name} on retainer", Desc = on ? "Back to a cut of each job." : $"{M.Money(wage)} every week instead of a cut: they come on any job for nothing extra.", Price = 0, Block = on ? null : CrewBlock(h.id) ?? Need(h.loyalty + 1), Owned = on ? "retained" : null });
+                    list.Add(new Offer { Kind = ShopKind.Retainer, Id = h.id, Name = on ? $"End {h.name}'s retainer" : $"Put {h.name} on retainer", Desc = on ? "Back to a cut of each job." : $"{M.Money(wage)} every week instead of a cut. One comes at a time: the most trusted free one on retainer joins every job (not driving or hacks) for nothing extra.", Price = 0, Block = on ? null : CrewBlock(h.id) ?? Need(h.loyalty + 1), Owned = on ? "retained" : null });
                 }
                 foreach (var b in Businesses)
                     list.Add(new Offer { Kind = ShopKind.Property, Id = b.id, Name = $"Buy: {b.name}", Desc = b.desc + " If whoever runs that street hates you, they take half.", Price = b.cost, Block = Property.Contains(b.id) ? "Owned." : Need(b.cost >= 150000 ? 3 : 1), Owned = Property.Contains(b.id) ? "yours" : null });

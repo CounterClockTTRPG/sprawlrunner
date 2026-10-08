@@ -55,6 +55,16 @@ public sealed partial class Career
         return null;
     }
 
+    /// <summary>Crew on retainer come along: the most trusted one free to, when nobody is hired yet (not in a car, not on a hack).</summary>
+    public void BringRetained(Job j)
+    {
+        if (j == null || j.Hired != null || j.Driving || j.Type is JobType.Hack or JobType.Hub) return;
+        string best = null;
+        foreach (var h in Tables.Hires)
+            if (Retained.Contains(h.id) && CrewBlock(h.id) == null && (best == null || CrewTrust(h.id) > CrewTrust(best))) best = h.id;
+        if (best != null) j.Hired = best;
+    }
+
     /// <summary>Two upgrades on offer at trust 2 and again at trust 4: (perk id, what it does).</summary>
     public static readonly Dictionary<string, (string a, string ad, string b, string bd)[]> CrewUpgrades = new()
     {

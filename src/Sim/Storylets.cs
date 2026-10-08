@@ -657,7 +657,7 @@ public static partial class Storylets
                 Fx(new Choice("Be waiting", (c, m) =>
                 {
                     Job j = c.OfferRaid();
-                    if (j != null) c.ActiveJob = j.Id;
+                    if (j != null) { c.ActiveJob = j.Id; c.BringRetained(j); }
                     return j == null ? "They never come." : "It's your active job: go home and hold the place until they give up.";
                 }), "a defence at home, tonight"),
                 Fx(new Choice("Clear out for a few nights (¥2,000)", (c, m) => { c.Cash = Math.Max(0, c.Cash - 2000); c.Fame(-2); c.Set("raided", c.Day); return "You sleep in your car in a car park in the Docks. They kick your door in and find nothing worth taking. Awareness -2."; }), "-¥2,000, awareness -2"),

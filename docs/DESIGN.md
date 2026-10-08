@@ -892,7 +892,8 @@ Lifestyle (¥100/400/1,500/5,000/15,000 a week, squatter to luxury: healing,
 raids, TraumaLink price, karma), property (four businesses, ¥40k-250k, paying
 ¥1,500-10,000 a week, half when your enemies hold the street), crew retainers
 (¥1,800-3,000 a week instead of a cut, and at least ¥600 × the highest threat
-you are offered), power focus ranks (x1.25/1.4/1.6),
+you are offered; the most trusted free one on retainer comes on every job but
+driving and hacks, and Juno can swap them for another hire), power focus ranks (x1.25/1.4/1.6),
 spell ranks (+15 % a rank, karma), loadout kits.
 
 ### UX

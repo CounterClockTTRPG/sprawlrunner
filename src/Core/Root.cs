@@ -210,6 +210,7 @@ public partial class Root : Node
     {
         CitySim?.SaveCar();
         Career.InRun = job.Id;
+        Career.BringRetained(job);
         using var _e = Perf.Event("start run");
         using (Perf.Event("  save career")) Profile.SaveCareer(Career);
         using (Perf.Event("  clear")) Clear();
