@@ -158,6 +158,8 @@ public static class Tables
     public const float GunfireScatter = 10;
     /// <summary>Crackdown checkpoints: how many, kept this far from doors you need, how near one sees a hot car, where you stop, how long the look takes.</summary>
     public const int Roadblocks = 5;
+    /// <summary>Saved this much, a runner can walk away a success whenever they like (as after a finished campaign).</summary>
+    public const int RetireSavings = 250_000;
     /// <summary>Faction standing (0-10): safe passage, their own jobs on the board (paying this much more), the faction item.</summary>
     public const int StandingSafe = 3, StandingJobs = 4, StandingItem = 5;
     public const float FavourPay = 1.25f;

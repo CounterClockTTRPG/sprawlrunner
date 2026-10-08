@@ -339,8 +339,12 @@ public partial class Root : Node
         Profile.Current.CheckAchievements(Career);
         Profile.Current.Save();
         Profile.DeleteCareer();
-        var epilogue = (Career.Epilogue.Count > 0 ? Career.Epilogue : Career.Ending()).Prepend($"{Career.Name} sells the car, buys a ticket out of Kessler Bay, and is never heard from again. The street remembers the name.");
-        var m = CareerReceipt(Career, "A LEGEND RETIRES", epilogue, died: false);
+        bool legend = Career.RetiresALegend;
+        string last = legend
+            ? $"{Career.Name} sells the car, buys a ticket out of Kessler Bay, and is never heard from again. The street remembers the name."
+            : $"{Career.Name} sells the car, pays off the people who need paying, and takes the morning train south with the money. Nobody writes songs about it. Nobody has to.";
+        var epilogue = (Career.Epilogue.Count > 0 ? Career.Epilogue : Career.Ending()).Prepend(last);
+        var m = CareerReceipt(Career, legend ? "A LEGEND RETIRES" : "OUT OF THE GAME", epilogue, died: false);
         m.Closed = ShowTitle;
         (CityScreen ?? (Node)Screen).AddChild(m);
     }

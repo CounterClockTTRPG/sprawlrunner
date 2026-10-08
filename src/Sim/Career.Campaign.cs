@@ -437,4 +437,30 @@ public sealed partial class Career
         }
         return e;
     }
+
+    /// <summary>The campaigns whose end is a story to retire on, with how the receipt says it.</summary>
+    private static readonly (string flag, string why)[] Endings =
+    {
+        ("story:won", "The Iron Spire fell."),
+        ("tide:won", "The Toxic Tide is turned."),
+        ("cut:won", "Kade Marrow is finished."),
+        ("wyrm:won", "The dragon knows your name, and let you go."),
+        ("lamp:won", "The Lamplighter's business is settled."),
+        ("past:won", "Your past is paid off."),
+    };
+
+    /// <summary>
+    /// Why this career could end now, by choice, or null: a campaign finished, or enough
+    /// saved to live on. A runner with neither keeps running (or dies trying).
+    /// </summary>
+    public string RetireReason()
+    {
+        if (Retired || Dead) return null;
+        var why = Endings.Where(e => Flag(e.flag) > 0).Select(e => e.why).ToList();
+        if (Cash >= Tables.RetireSavings) why.Add($"{M.Money(Cash)} put away.");
+        return why.Count == 0 ? null : string.Join(" ", why);
+    }
+
+    /// <summary>A legend (the Spire, or any campaign) or simply someone who got out.</summary>
+    public bool RetiresALegend => Flag("story:won") > 0 || Endings.Any(e => Flag(e.flag) > 0);
 }
