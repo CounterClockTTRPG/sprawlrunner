@@ -18,7 +18,7 @@ public partial class SmokeTest
     private void Balance()
     {
         int[] marks = { 20, 40, 70 };
-        GD.Print("    balance: archetype seed | day 20 | day 40 | day 70   (cash, spent so far / karma earned / notoriety / awareness)");
+        GD.Print("    balance: archetype seed | day 20 | day 40 | day 70   (cash, spent so far / karma earned / notoriety / awareness; income from jobs + from everything else; grudge Vipers/Halcyon/Lotus)");
         var endCash = new Dictionary<string, List<int>>();
         foreach (var (arch, _, _) in Career.Archetypes)
         {
@@ -31,6 +31,7 @@ public partial class SmokeTest
                 c.RefreshBoard(city);
                 var r = new Rng(seed * 7 + 1);
                 var row = new List<string>();
+                int startCash = c.Cash;
                 string[] places = Tables.Contacts.Select(k => k.Id).Append("home").ToArray();
                 for (int day = 0; day < 70 && !c.Dead && !c.Retired; day++)
                 {
@@ -53,7 +54,12 @@ public partial class SmokeTest
                     }
                     if (c.Day >= 1 && c.Active == null) c.NextDay(city, rested: true);
                     if (row.Count < marks.Length && c.Day >= marks[row.Count])
-                        row.Add($"¥{c.Cash / 1000,4}k ¥{c.Stat("spent") / 1000,4}k/{c.KarmaEarned}/{c.Notoriety}/{c.Awareness}");
+                    {
+                        // Everything that came in, less what the jobs paid: services, storylets, property, the fence.
+                        int income = c.Cash - startCash + c.Stat("spent"), jobs = c.Stat("jobpay");
+                        string g = string.Join("/", Enum.GetValues<Faction>().Select(f => c.Grudge.GetValueOrDefault(f)));
+                        row.Add($"¥{c.Cash / 1000,4}k ¥{c.Stat("spent") / 1000,4}k/{c.KarmaEarned}/{c.Notoriety}/{c.Awareness} +{jobs / 1000}k+{Math.Max(0, income - jobs) / 1000}k g{g}");
+                    }
                     Check(c.Cash >= 0, $"{arch} {seed} day {c.Day}: no debt");
                 }
                 endCash[arch].Add(c.Cash);

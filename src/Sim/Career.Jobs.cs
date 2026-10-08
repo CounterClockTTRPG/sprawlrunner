@@ -771,6 +771,7 @@ public sealed partial class Career
             int pay = j.Stiff ? 0 : (int)(j.Pay * r.PayMul);
             Count($"done.{j.Type}");
             Count("earned", pay + r.Cash);
+            Count("jobpay", pay + r.Cash);
             if (!r.Alarm && !j.Driving) { Count("noalarm"); Count("noalarm." + j.Type); }
             if (r.Kills == 0 && !j.Driving) Count("nokill");
             if (r.Twist != null) Count("twist");
@@ -784,6 +785,7 @@ public sealed partial class Career
                 int bonus = pay / 4;
                 Cash += bonus;
                 Count("earned", bonus);
+                Count("jobpay", bonus);
                 d.Lines.Insert(1, ("Ghost bonus (no alarm)", M.Money(bonus)));
             }
             if (r.Kills == 0 && NoKillPays(j) && r.Seconds > 0)
@@ -791,6 +793,7 @@ public sealed partial class Career
                 int clean = pay * (j.JohnsonId == "vale" ? 30 : 15) / 100;
                 Cash += clean;
                 Count("earned", clean);
+                Count("jobpay", clean);
                 d.Lines.Insert(1, ("No-kill bonus", M.Money(clean)));
             }
             Karma += j.Karma;
