@@ -54,7 +54,7 @@ public sealed partial class Run
         {
             _dirtAsked = true;
             Ask("dirt", "There's a second folder in the paydata: your Johnson's own payroll for a black site. You could pull it too.",
-                "Leave it", "Pull it (deal with it after)");
+                "Leave it", "Pull it (it has a tripwire: security +1)");
         }
     }
 
@@ -78,7 +78,9 @@ public sealed partial class Run
                 Say($"{Job.Target} goes quiet.");
                 break;
             case "dirt" when pick == 1:
-                Say("Folder pulled. You'll have to decide what to do with it.");
+                // The Johnson's own files are watched: pulling them trips a trace.
+                RaiseSecurity(1);
+                Say("Folder pulled -- and something in it phoned home. Security +1. You'll have to decide what to do with it.");
                 break;
         }
     }

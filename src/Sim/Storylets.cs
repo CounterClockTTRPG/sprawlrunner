@@ -196,7 +196,7 @@ public static partial class Storylets
                     return $"An hour, a scanner, {M.Money(cash)}. Nobody ever knows. Notoriety +1.";
                 }), "+{¥cash}, notoriety +1, maybe trust -1"),
                 Past("corp", "Quote his own non-disclosure terms back at him", (c, m) => { c.Cash += 2000; c.Count("earned", 2000); return "He pays ¥2,000 for your silence and doesn't get to look. Corporates understand corporates."; }),
-                Talk("Corporate", "Ask who he works for", (c, m) => { c.Set("lead:collector"); return "'Sorensen-Aoki,' he says after a while, 'though you didn't hear it from me.' He pays ¥500 for your discretion anyway."; }),
+                Talk("Corporate", "Ask who he works for", (c, m) => { c.Set("lead:collector"); c.Cash += 500; c.Count("earned", 500); return "'Sorensen-Aoki,' he says after a while, 'though you didn't hear it from me.' He pays ¥500 for your discretion anyway."; }),
             },
             Call: true,
             Bind: c => V(("item", c.Last.Job.Item ?? "package"), ("cash", ((int)(c.Last.Pay * 0.6f / 50) * 50).ToString()), ("caught", (c.Last.Job.Seed >> 13) % 4 == 0 ? "1" : "0")));
@@ -381,14 +381,25 @@ public static partial class Storylets
         yield return new("juno-fight", Hook.Place, Juno, "A scene at the bar", "Two men are about to start something at the Rusty Halo's bar. Juno doesn't look up from her drink. 'If you sort that out, the next round is on me.'",
             c => c.Day >= 4, new[]
             {
-                new Choice("Sort it out", (c, m) => { c.Befriend("fixer"); return "One look and they find somewhere else to be. Juno raises her glass. Trust +1 (if not already high)."; }),
+                // One of them might not take the hint (the scene's own draw, not the career's).
+                Fx(new Choice("Sort it out", (c, m) =>
+                {
+                    c.Befriend("fixer");
+                    if (new Rng(c.Seed ^ (ulong)c.Day * 0xF16E7UL).Chance(1 / 3f) && c.Injuries < 3)
+                    {
+                        c.Injuries++;
+                        return "The big one swings first. You win, but you'll feel that bottle for a while. Juno raises her glass anyway. Trust +1 (if not already high), injury +1.";
+                    }
+                    return "One look and they find somewhere else to be. Juno raises her glass. Trust +1 (if not already high).";
+                }), "trust +1; one in three, a bottle (injury +1)"),
                 Talk("Street", "Talk them down", (c, m) => { c.Befriend("fixer"); c.Karma += 1; c.KarmaEarned += 1; return "A few words in the right accent, and they're buying each other drinks. Juno is impressed. Trust +1, karma +1."; }),
                 Ok("Not my business"),
             }, Place: "fixer");
         yield return new("sal-supplier", Hook.Place, Sal, "A bad crate", "Sal is shouting at a delivery man over a crate of rifles with filed-off serials -- and fresh Halcyon stamps under the paint. 'Stolen from Halcyon, sold to me as clean. Do I look clean?'",
             c => c.Day >= 6, new[]
             {
-                new Choice("Help him dump the crate", (c, m) => { c.Spent["arms"] = c.Spent.GetValueOrDefault("arms") + 2000; return "You drive it to the bay with him and tip it in. Sal swears you're family now (it counts towards his loyalty, like ¥2,000 spent)."; }),
+                // A car full of stolen Halcyon rifles: somebody saw the plate.
+                Fx(new Choice("Help him dump the crate", (c, m) => { c.Spent["arms"] = c.Spent.GetValueOrDefault("arms") + 2000; c.Heat = MathF.Min(5, c.Heat + 1); return "You drive it to the bay with him and tip it in -- past a Lone Star cruiser that takes a long look at your plate. Sal swears you're family now (it counts towards his loyalty, like ¥2,000 spent). Heat +1."; }), "towards Sal's loyalty, heat +1"),
                 Talk("Security", "Tell him how Halcyon tracks its crates", (c, m) => { c.Grenades["emp"] = Math.Min(c.GrenadeCap, c.Grenades.GetValueOrDefault("emp") + 1); return "Tracker in the false bottom. Sal crushes it and hands you an EMP grenade for your trouble."; }),
                 Ok("Leave him to it"),
             }, Place: "arms");
@@ -660,7 +671,8 @@ public static partial class Storylets
                     if (j != null) { c.ActiveJob = j.Id; c.BringRetained(j); }
                     return j == null ? "They never come." : "It's your active job: go home and hold the place until they give up.";
                 }), "a defence at home, tonight"),
-                Fx(new Choice("Clear out for a few nights (¥2,000)", (c, m) => { c.Cash = Math.Max(0, c.Cash - 2000); c.Fame(-2); c.Set("raided", c.Day); return "You sleep in your car in a car park in the Docks. They kick your door in and find nothing worth taking. Awareness -2."; }), "-¥2,000, awareness -2"),
+                Fx(new Choice("Clear out for a few nights (¥2,000)", (c, m) => { c.Cash -= 2000; c.Count("spent", 2000); c.Fame(-2); c.Set("raided", c.Day); return "You sleep in your car in a car park in the Docks. They kick your door in and find nothing worth taking. Awareness -2."; },
+                    (c, m) => c.Cash < 2000 ? "Needs ¥2,000." : null), "-¥2,000, awareness -2"),
             },
             Bind: c => V(("who", c.Flag("block:lookout") > 0 ? Pip : c.Flag("dace") > 0 ? Dace : Juno)),
             Fire: (c, m) => c.Set("raided", c.Day), Call: true);

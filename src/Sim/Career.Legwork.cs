@@ -28,7 +28,8 @@ public sealed partial class Career
         list.Add(("routes", "Buy the patrol routes", "Everyone on site shows on your screen for the first 15 seconds.", routes, Had("routes") ?? (Cash < routes ? $"Needs {M.Money(routes)}." : null)));
         int power = S(Skill.Electronics) >= 2 ? 0 : 250 * j.Threat;
         list.Add(("power", "Cut the power at the substation", $"A blackout: no cameras, everyone sees less (you too).{(power == 0 ? " (Electronics 2: you do it yourself, free.)" : "")}", power, Had("power") ?? (j.Has(RunMod.Blackout) ? "Already dark." : Cash < power ? $"Needs {M.Money(power)}." : null)));
-        list.Add(("door", "A cleaner on the inside", "Juno's cleaner leaves every locked door unlocked.", 0, Had("door") ?? (Loyalty.GetValueOrDefault("fixer") < 3 ? "Needs trust 3 with Juno." : null)));
+        int cleaner = 200 * j.Threat;
+        list.Add(("door", "A cleaner on the inside", "Juno's cleaner leaves every locked door unlocked.", cleaner, Had("door") ?? (Loyalty.GetValueOrDefault("fixer") < 3 ? "Needs trust 3 with Juno." : Cash < cleaner ? $"Needs {M.Money(cleaner)}." : null)));
         return list;
     }
 

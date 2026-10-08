@@ -546,6 +546,13 @@ public partial class SmokeTest
         x.ActiveJob = x.OfferRaid().Id;
         x.NextDay(city);
         Eq(x.Cash, 2000 - x.DailyRent, "nobody home: they take it anyway");
+        Career y = TestCareer();
+        y.CityRef = city;
+        y.Awareness = 7;
+        y.Day = 22;
+        y.Cash = 500;
+        Mail ym = y.Send("raid");
+        Check(y.Choose(ym, 1) != null && y.Cash == 500 && y.Awareness == 7, "no ¥2,000, no clearing out");
     }
 
     private void Campaign()
@@ -796,6 +803,7 @@ public partial class SmokeTest
         Check(offers.Any(o => o.id == "bribe") && offers.First(o => o.id == "door").block != null, "legwork on sale; the inside man needs Juno's trust");
         Check(lc.BuyLegwork(lj, "bribe") == null && lc.BuyLegwork(lj, "routes") == null && lj.Legwork.Count == 2 && lc.Cash < 10000, "bought");
         Check(lc.BuyLegwork(lj, "bribe") != null, "once");
+        Check(offers.First(o => o.id == "door").price == 200 * lj.Threat, "Juno's cleaner wants paying too");
         var lp = Site(rows);
         var lr = new Run(lj, lc, lp);
         lr.AddEnemy(EnemyKind.Guard, new V2(8.5f, 2.5f), 0);

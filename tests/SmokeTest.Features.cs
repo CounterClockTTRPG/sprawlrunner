@@ -566,6 +566,16 @@ public partial class SmokeTest
         m.Rival.Losses = 2;
         Check(Sprawl.Storylets.ById("rival-offer").When(m), "after two beatings their boss makes an offer");
         Mail offer = m.Send("rival-offer");
+        int remind = Array.FindIndex(Sprawl.Storylets.ById("rival-offer").Choices, ch => ch.Text.StartsWith("Remind"));
+        Check(remind >= 0 && m.Choose(offer, remind) != null && offer.Answer < 0, "without mercy shown, no handshake on the strength of it");
+        m.Rival.Spared = 2;
+        Career mp = TestCareer();
+        mp.CityRef = city;
+        mp.MeetRival();
+        mp.Rival.Losses = 2;
+        mp.Rival.Spared = 2;
+        Mail po = mp.Send("rival-offer");
+        Check(mp.Choose(po, remind) == null && mp.Rival.Fate == "peace", "spare two of them and they'll split the city, no etiquette needed");
         m.Cash = 100000;
         Check(m.Choose(offer, 0) == null && m.Rival.Fate == "paid" && !m.Rival.Active, "paid, they leave town");
 

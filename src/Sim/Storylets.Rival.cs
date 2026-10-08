@@ -54,6 +54,12 @@ public static partial class Storylets
                     if (c.Rival != null) c.Rival.Fate = "peace";
                     return $"A handshake over the phone, as much as that means. {Crew(c)} stay off your jobs -- and now and then, {Boss(c)} sends something useful.";
                 }),
+                // Mercy is remembered: knock two of them out and leave them breathing, and they'll trust a handshake.
+                Fx(new Choice("Remind them who you let walk away", (c, m) =>
+                {
+                    if (c.Rival != null) c.Rival.Fate = "peace";
+                    return $"A pause on the line. 'You could have finished my people. Twice.' {Crew(c)} stay off your jobs -- and now and then, {Boss(c)} sends something useful.";
+                }, (c, m) => c.Rival?.Spared >= 2 ? null : $"You've spared {c.Rival?.Spared ?? 0} of them; it takes 2."), "split the city (you spared 2 of them)"),
                 Fx(new Choice("No deal", (c, m) =>
                 {
                     if (c.Rival != null) c.Rival.Tier = Math.Min(3, c.Rival.Tier + 1);

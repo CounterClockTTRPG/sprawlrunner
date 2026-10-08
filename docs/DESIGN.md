@@ -704,7 +704,7 @@ The three hires keep a **trust** (0-5): +1 for each job finished together.
 | Defend | held for `75 + 12 x threat` s against waves from the edges (pay x1.1); nobody inside at the start; whoever is left runs |
 
 The **safehouse raid** is a Defend at home, offered (as a call) when
-Awareness is 6+: be waiting, or clear out for ¥2,000 (Awareness -2). Lose it,
+Awareness is 6+: be waiting, or clear out for ¥2,000 if you have it (Awareness -2). Lose it,
 or sleep through it, and the raiders take a third of your cash; hold it and
 Awareness drops by 3.
 
@@ -749,7 +749,7 @@ The briefing sells help before the run (not for driving, hacks or defences):
 bribe a guard (¥150 x threat, half with Security etiquette: two of the rank
 and file are gone), the patrol routes (¥100 x threat: everyone shows for 15 s),
 cut the power (¥250 x threat, free with Electronics 2: a blackout), and
-Juno's cleaner on the inside (trust 3: every locked door unlocked).
+Juno's cleaner on the inside (¥200 x threat, trust 3: every locked door unlocked).
 
 ### TraumaLink, the rest
 - **HTR teams**: on threat 4-5 Halcyon sites, half the time the first guard
@@ -929,7 +929,7 @@ Decker: spoof a radio, loop the patrol rota from a console. Rigger: the getaway.
 - **Choices on the run** (`Run.Choices.cs`; the clock stops until you press 1
   or 2): a third of rescued hostages beg to be let go a few steps from the
   exit (the job fails; karma +3, a friend, their fate "rescued"); a third of
-  datasteals find the Johnson's own dirt (pull it and Null's call follows); a
+  datasteals find the Johnson's own dirt (pull it -- security +1, it phones home -- and Null's call follows); a
   guard below 25 % health rolls once to surrender (15 %): spared, he sends a
   floor plan later; shot, +1 notoriety each.
 - **Brief voices**: each employer opens a brief their own way (three lines
@@ -1169,7 +1169,8 @@ they fight the guards and you, take the item and run for their exit, jack the
 mainframe (22 s), or go for the target (their kill pays you half); a carrier who goes
 down drops it. They escalate (a drone, a sniper, chrome) with every contest. The
 career remembers the dead by name; the debrief and the PDA say how it stands. After
-two beatings their boss calls: pay them to leave, split the city (Street; they then
+two beatings their boss calls: pay them to leave, split the city (Street, or having
+knocked out and spared two of theirs; they then
 send floor plans), or refuse. With two of theirs dead, Juno finds their hideout:
 clear it, or kill them all, and they're finished.
 

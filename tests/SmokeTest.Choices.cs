@@ -48,6 +48,7 @@ public partial class SmokeTest
         Check(dr.Pending?.Id == "dirt", "the paydata has a second folder");
         dr.Step(new RunInput { Slot = 1, Aim = dr.Player.Pos + new V2(1, 0) });
         Check(dr.Decided.Contains("dirt:1"), "pulled");
+        Check(dr.SecurityLevel >= 1, "and the Johnson's files phone home (security +1)");
         var last = new LastRun { Job = dj, Success = true, Choices = new List<string>(dr.Decided) };
         Check(last.Picked("dirt:1") && last.Asked("dirt") && !last.Asked("begs"), "the debrief knows what was asked and picked");
         Career dc = TestCareer();
