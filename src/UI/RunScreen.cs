@@ -13,16 +13,41 @@ namespace Sprawl;
 public partial class RunScreen : Control
 {
     /// <summary>How wide a HUD string is drawn, at the player's text size.</summary>
-    public static float TextW(string t, int size, bool heading = false, bool mono = false) =>
-        (mono ? UITheme.Mono : heading ? UITheme.Heading : UITheme.Body).GetStringSize(t, HorizontalAlignment.Left, -1, UITheme.Scaled(size)).X;
+    /// <summary>A string's width in a HUD font; remembered, since the HUD measures the same few strings every frame.</summary>
+    public static float TextW(string t, int size, bool heading = false, bool mono = false)
+    {
+        Font f = mono ? UITheme.Mono : heading ? UITheme.Heading : UITheme.Body;
+        int px = UITheme.Scaled(size);
+        if (_widths.TryGetValue((t, px, f), out float w)) return w;
+        if (_widths.Count > 512) _widths.Clear();
+        return _widths[(t, px, f)] = f.GetStringSize(t, HorizontalAlignment.Left, -1, px).X;
+    }
+
+    private static readonly System.Collections.Generic.Dictionary<(string, int, Font), float> _widths = new();
 
     /// <summary>The run's prompts name the default keys ("Hold E", "Shift+E"); show the ones actually bound.</summary>
     public static string Keyed(string prompt)
     {
         if (prompt == null) return null;
         string e = Controls.KeyName(Act.Interact), sh = Controls.KeyName(Act.Sneak);
-        return System.Text.RegularExpressions.Regex.Replace(prompt.Replace("Shift+", sh + "+"), @"\bE\b(?=[:\s,)]|$)", e);
+        // The same prompt, frame after frame: rewrite it only when it or the keys change.
+        if (prompt == _keyedFrom && e == _keyedE && sh == _keyedSh) return _keyed;
+        _keyedFrom = prompt; _keyedE = e; _keyedSh = sh;
+        return _keyed = System.Text.RegularExpressions.Regex.Replace(prompt.Replace("Shift+", sh + "+"), @"\bE\b(?=[:\s,)]|$)", e);
     }
+
+    private static string _keyedFrom, _keyedE, _keyedSh, _keyed;
+
+    /// <summary>Upper case, remembered (names on the HUD and over heads, every frame).</summary>
+    public static string Caps(string s)
+    {
+        if (s == null) return null;
+        if (_caps.TryGetValue(s, out string c)) return c;
+        if (_caps.Count > 512) _caps.Clear();
+        return _caps[s] = s.ToUpperInvariant();
+    }
+
+    private static readonly System.Collections.Generic.Dictionary<string, string> _caps = new();
 
     public Root Root;
     public Run R;
@@ -205,6 +230,26 @@ public partial class RunScreen : Control
         _hudDirty = true;
     }
 
+    private Run _chipsFor;
+    private readonly System.Collections.Generic.List<(string name, string what, Color c)> _chips = new();
+
+    /// <summary>The run's conditions as chips (the weather, the job's mods, the district, the site's rule, legwork): fixed for the run, so made once.</summary>
+    private System.Collections.Generic.List<(string name, string what, Color c)> Chips(Run r)
+    {
+        if (_chipsFor == r) return _chips;
+        _chipsFor = r;
+        var chips = _chips;
+        chips.Clear();
+        if (r.C.Weather != Career.Sky.Clear)
+            chips.Add((r.C.Weather.ToString().ToUpper(), r.C.Weather == Career.Sky.Fog ? "everyone sees less" : "masks footsteps, shorter sight", UITheme.Cyan));
+        foreach (RunMod m in r.Job.Mods)
+            chips.Add((Tables.RunMods.First(x => x.mod == m).name.ToUpper(), m switch { RunMod.Blackout => "no cameras, dark", RunMod.ShiftChange => "double patrols", RunMod.Deadline => "on the clock", RunMod.Elite => "tougher guards", _ => "fewer guards" }, m is RunMod.Skeleton or RunMod.Blackout ? UITheme.Good : UITheme.Bad));
+        if (r.C.On("grid", r.Job.District) && !r.Job.Has(RunMod.Blackout)) chips.Add(("GRID DOWN", "the district is dark", UITheme.Good));
+        if (r.StyleRule is var (sname, swhat)) chips.Add((sname, swhat, UITheme.Amber));
+        foreach (string lw in r.Job.Legwork) chips.Add(("LEGWORK", Career.LegworkName(lw), UITheme.Good));
+        return chips;
+    }
+
     private bool _hudDirty;
 
     /// <summary>The HUD repaints once a rendered frame, however many physics steps ran.</summary>
@@ -222,6 +267,9 @@ public partial class RunScreen : Control
         public RunScreen S;
 
         public override void _Ready() => MouseFilter = MouseFilterEnum.Ignore;
+
+        /// <summary>The prompt's width in its font (remembered: the same prompt shows for many frames).</summary>
+        private static float PromptW(string t) => TextW(t, 17, heading: true);
 
         public override void _Draw()
         {
@@ -253,8 +301,8 @@ public partial class RunScreen : Control
             var hb = new Rect2(24, size.Y - 74, 320, 22);
             Panel(new Rect2(14, size.Y - 112, 420, 98));
             // Laid out from the text's measured widths, so a larger text size pushes things along instead of piling them up.
-            UITheme.Write(this, new Vector2(24, size.Y - 84), r.C.Name.ToUpper(), 18, UITheme.Cyan, heading: true);
-            float nameEnd = 24 + TextW(r.C.Name.ToUpper(), 18, true) + 14;
+            UITheme.Write(this, new Vector2(24, size.Y - 84), Caps(r.C.Name), 18, UITheme.Cyan, heading: true);
+            float nameEnd = 24 + TextW(Caps(r.C.Name), 18, true) + 14;
             float hp = p.Hp / p.MaxHp;
             UITheme.DrawSegBar(this, hb, hp, hp > 0.5f ? UITheme.Good : hp > 0.25f ? UITheme.Yellow : UITheme.Bad, 24);
             DrawRect(hb, UITheme.PanelEdge, false, 1);
@@ -287,12 +335,13 @@ public partial class RunScreen : Control
             UITheme.Write(this, new Vector2(14, size.Y - 84), $"[{Controls.KeyName(Act.Whistle)}] whistle", 13, r.WhistleCd > 0 ? UITheme.Faint : UITheme.Dim, HorizontalAlignment.Right, 410);
             if (r.CashFound > 0) UITheme.Write(this, new Vector2(dashX + TextW(dashT, 15) + 22, size.Y - 28), $"+{M.Money(r.CashFound)}", 15, UITheme.Yellow);
 
+            V2? objective = r.ObjectivePos();
             if (r.Peaceful)
             {
-                Minimap(r, size);
+                Minimap(r, size, objective);
                 if (r.Prompt != null)
                 {
-                    float pw = MathF.Max(440, UITheme.Heading.GetStringSize(Keyed(r.Prompt), HorizontalAlignment.Left, -1, 17).X + 40);
+                    float pw = MathF.Max(440, PromptW(Keyed(r.Prompt)) + 40);
                     var pr = new Rect2(size.X / 2 - pw / 2, size.Y / 2 + 70, pw, 40);
                     Panel(pr);
                     UITheme.Write(this, pr.Position + new Vector2(0, 26), Keyed(r.Prompt), 17, UITheme.Cyan, HorizontalAlignment.Center, pr.Size.X, heading: true);
@@ -347,7 +396,7 @@ public partial class RunScreen : Control
             var ob = new Rect2(size.X / 2 - 330, 14, 660, r.Peaceful ? 64 : 84);
             if (r.Alarm) UITheme.DrawPanel(this, ob, UITheme.Bad with { A = 0.8f }, 0.84f, hazard: true);
             else Panel(ob);
-            UITheme.Write(this, ob.Position + new Vector2(0, 26), r.ObjectiveText() + (r.FloorNote() is string fn ? "  " + fn : ""), 18, r.ObjectiveDone ? UITheme.Good : r.ObjectiveLost ? UITheme.Bad : UITheme.Text, HorizontalAlignment.Center, ob.Size.X, heading: true);
+            UITheme.Write(this, ob.Position + new Vector2(0, 26), r.ObjectiveText() + (r.FloorNote(objective) is string fn ? "  " + fn : ""), 18, r.ObjectiveDone ? UITheme.Good : r.ObjectiveLost ? UITheme.Bad : UITheme.Text, HorizontalAlignment.Center, ob.Size.X, heading: true);
             if (r.Peaceful) UITheme.Write(this, ob.Position + new Vector2(0, 52), "ON FOOT -- weapons holstered", 14, UITheme.Cyan, HorizontalAlignment.Center, ob.Size.X);
             else
             {
@@ -376,14 +425,7 @@ public partial class RunScreen : Control
                 UITheme.Write(this, ob.Position + new Vector2(0, ob.Size.Y + 24), tl > 0 ? $"DEADLINE  {TimeSpan.FromSeconds(tl):m\\:ss}" : "DEADLINE PASSED", 18, tl < 30 && MathF.Sin(r.Time * 8) > 0 ? UITheme.Bad : UITheme.Yellow, HorizontalAlignment.Center, ob.Size.X, heading: true);
             }
             // Conditions as chips: what they are, and in a few words what they do.
-            var chips = new System.Collections.Generic.List<(string name, string what, Color c)>();
-            if (r.C.Weather != Career.Sky.Clear)
-                chips.Add((r.C.Weather.ToString().ToUpper(), r.C.Weather == Career.Sky.Fog ? "everyone sees less" : "masks footsteps, shorter sight", UITheme.Cyan));
-            foreach (RunMod m in r.Job.Mods)
-                chips.Add((Tables.RunMods.First(x => x.mod == m).name.ToUpper(), m switch { RunMod.Blackout => "no cameras, dark", RunMod.ShiftChange => "double patrols", RunMod.Deadline => "on the clock", RunMod.Elite => "tougher guards", _ => "fewer guards" }, m is RunMod.Skeleton or RunMod.Blackout ? UITheme.Good : UITheme.Bad));
-            if (r.C.On("grid", r.Job.District) && !r.Job.Has(RunMod.Blackout)) chips.Add(("GRID DOWN", "the district is dark", UITheme.Good));
-            if (r.StyleRule is var (sname, swhat)) chips.Add((sname, swhat, UITheme.Amber));
-            foreach (string lw in r.Job.Legwork) chips.Add(("LEGWORK", Career.LegworkName(lw), UITheme.Good));
+            var chips = S.Chips(r);
             float cx = 24, cy = 64;
             foreach (var (name, what, cc) in chips)
             {
@@ -400,7 +442,7 @@ public partial class RunScreen : Control
             if (r.Rigging && r.Drone != null)
             {
                 DrawRect(new Rect2(Vector2.Zero, size), new Color(0.2f, 1f, 0.6f, 0.05f));
-                UITheme.Write(this, new Vector2(0, size.Y / 2 - 200), $"RIGGING: {r.Drone.Name.ToUpper()}  ·  hull {r.Drone.Hp:0}/{r.Drone.MaxHp:0}  ·  signal {r.DroneSignal * 100:0} %  ·  T to come back", 17, r.DroneSignal < 0.2f ? UITheme.Bad : UITheme.Term, HorizontalAlignment.Center, size.X, heading: true);
+                UITheme.Write(this, new Vector2(0, size.Y / 2 - 200), $"RIGGING: {Caps(r.Drone.Name)}  ·  hull {r.Drone.Hp:0}/{r.Drone.MaxHp:0}  ·  signal {r.DroneSignal * 100:0} %  ·  T to come back", 17, r.DroneSignal < 0.2f ? UITheme.Bad : UITheme.Term, HorizontalAlignment.Center, size.X, heading: true);
             }
             else if (r.Drone != null && !r.Drone.Dead) UITheme.Write(this, new Vector2(14, size.Y - 100), $"[{Controls.KeyName(Act.Rig)}] drone", 13, UITheme.Term, HorizontalAlignment.Right, 410);
             if (r.FloorLabel is string fl && !r.Plan.Tower) UITheme.Write(this, new Vector2(24, 76 + (cond.Length > 0 ? 20 : 0)), fl, 16, UITheme.Yellow, heading: true);
@@ -431,14 +473,14 @@ public partial class RunScreen : Control
             // Prompt.
             if (r.Prompt != null && r.Phase == RunPhase.Playing)
             {
-                float pw = MathF.Max(440, UITheme.Heading.GetStringSize(Keyed(r.Prompt), HorizontalAlignment.Left, -1, 17).X + 40);
+                float pw = MathF.Max(440, PromptW(Keyed(r.Prompt)) + 40);
                 var pr = new Rect2(size.X / 2 - pw / 2, size.Y - 168, pw, 40);
                 Panel(pr);
                 UITheme.Write(this, pr.Position + new Vector2(0, 26), Keyed(r.Prompt), 17, UITheme.Cyan, HorizontalAlignment.Center, pr.Size.X, heading: true);
                 if (r.PromptProgress >= 0) DrawRect(new Rect2(pr.Position.X, pr.End.Y - 4, pr.Size.X * MathF.Min(1, r.PromptProgress), 4), UITheme.Cyan);
             }
 
-            Minimap(r, size);
+            Minimap(r, size, objective);
             // Someone off screen has seen you.
             foreach (var (id, t) in S._spotted)
             {
@@ -466,11 +508,11 @@ public partial class RunScreen : Control
                 DrawRect(bb, new Color(0, 0, 0, 0.7f));
                 UITheme.DrawSegBar(this, bb, r.Boss.Hp / r.Boss.MaxHp, UITheme.Yellow, 30);
                 DrawRect(bb, UITheme.Yellow, false, 1);
-                UITheme.Write(this, bb.Position + new Vector2(0, -4), r.Boss.Name.ToUpperInvariant(), 15, UITheme.Yellow, HorizontalAlignment.Center, bb.Size.X, heading: true);
+                UITheme.Write(this, bb.Position + new Vector2(0, -4), Caps(r.Boss.Name), 15, UITheme.Yellow, HorizontalAlignment.Center, bb.Size.X, heading: true);
             }
 
             // Arrow to the objective when it is off screen.
-            V2? goal = r.NavTarget();
+            V2? goal = r.NavTarget(objective);
             if (goal is V2 gpos) EdgeArrow(gpos, r.ObjectiveDone || r.ObjectiveLost ? UITheme.Good : UITheme.Magenta, size);
 
             if (r.Matrix != null) DrawMatrix(r.Matrix, size, r.Time);
@@ -528,7 +570,9 @@ public partial class RunScreen : Control
         private float _mapT;
 
         /// <summary>What you have explored, top right: walls, you, the way out, the objective, and who you can see.</summary>
-        private void Minimap(Run r, Vector2 size)
+        private int _mapFov = -1, _mapVersion = -1;
+
+        private void Minimap(Run r, Vector2 size, V2? objective)
         {
             Level L = r.L;
             if (_mapImg == null)
@@ -538,9 +582,12 @@ public partial class RunScreen : Control
                 _mapTex = ImageTexture.CreateFromImage(_mapImg);
                 TextureFilter = TextureFilterEnum.Nearest;
             }
-            if ((_mapT -= (float)GetProcessDeltaTime()) <= 0)
+            // A few times a second, and only when something on it can have changed (what you see, the tiles).
+            if ((_mapT -= (float)GetProcessDeltaTime()) <= 0 && (r.FovVersion != _mapFov || L.Version != _mapVersion))
             {
                 _mapT = 0.25f;
+                _mapFov = r.FovVersion;
+                _mapVersion = L.Version;
                 for (int i = 0; i < L.W * L.H; i++)
                 {
                     Color c;
@@ -579,7 +626,7 @@ public partial class RunScreen : Control
                 UITheme.Write(this, at + new Vector2(bm.X, bm.Y - 1) * s, "BASEMENT", 11, UITheme.Yellow, HorizontalAlignment.Left, bm.W * s);
                 foreach (var kv in r.L.Stair) DrawCircle(at + Art.G(r.L.PtOf(kv.Key).Centre) * s, 2.5f, UITheme.Yellow);
             }
-            if (r.ObjectivePos() is V2 o && !(r.ObjectiveDone || r.ObjectiveLost) && L.Explored[L.Idx((int)o.X, (int)o.Y)] && On(o))
+            if (objective is V2 o && !(r.ObjectiveDone || r.ObjectiveLost) && L.Explored[L.Idx((int)o.X, (int)o.Y)] && On(o))
                 DrawCircle(at + Art.G(o) * s, 3.5f, UITheme.Magenta);
             if (r.Plan.Tower) DrawRect(new Rect2(at + new Vector2(r.Plan.Lifts[r.PlayerFloor].X, r.Plan.Lifts[r.PlayerFloor].Y) * s, new Vector2(s, s)), UITheme.Cyan);
             foreach (Actor a in r.Actors)

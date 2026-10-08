@@ -13,11 +13,18 @@ namespace Sprawl;
 /// </summary>
 public partial class RunView : Node2D
 {
-    /// <summary>What a stolen uniform looks like on you: a guard of the site's faction.</summary>
     /// <summary>The rival crew: lime on black, so you can tell them from the site's people at a glance.</summary>
     private static readonly Color RivalColour = new(0.65f, 1f, 0.2f);
     private static readonly Art.Look RivalLook = new() { Body = new Color(0.1f, 0.11f, 0.12f), Trim = new Color(0.65f, 1f, 0.2f), Skin = new Color(0.7f, 0.55f, 0.45f), Hair = new Color(0.15f, 0.12f, 0.1f) };
+    /// <summary>A TraumaLink medic: white and green.</summary>
+    private static readonly Art.Look MedicLook = new() { Body = new Color(0.85f, 0.88f, 0.86f), Trim = new Color(0.15f, 0.75f, 0.4f), Skin = new Color(0.75f, 0.6f, 0.5f), Hair = new Color(0.2f, 0.2f, 0.2f), Heavy = true };
+    /// <summary>What a stolen uniform looks like on you: a guard of the site's faction.</summary>
     private static readonly Actor DisguiseLook = new() { Def = Tables.Enemy(EnemyKind.Guard) };
+
+    /// <summary>How someone is dressed: you (or your stolen uniform), the rival crew, a medic, or the site's own people.</summary>
+    private static Art.Look LookOf(Actor a, Run r) =>
+        a.IsPlayer ? (r.Disguised ? Art.LookFor(DisguiseLook, r.Job.Faction) : Art.PlayerLook(r.C.Archetype, r.C.Has("eyes")))
+        : a.Rival ? RivalLook : a.IsMedic ? MedicLook : Art.LookFor(a, r.Job.Faction);
     public const int T = LevelArt.T;
     public Run R;
     public Camera2D Cam;
@@ -671,13 +678,16 @@ public partial class RunView : Node2D
     /// <summary>Blood, scorch marks and the fallen. Only ever added to.</summary>
     private partial class DecalLayer : Node2D
     {
-        private readonly List<(Vector2 p, float r, Color c)> _spots = new();
+        /// <summary>The newest spots, oldest first from <see cref="_spotHead"/>: a ring, so the 602nd drops the first without shifting the rest.</summary>
+        private const int MaxSpots = 601;
+        private readonly (Vector2 p, float r, Color c)[] _spots = new (Vector2, float, Color)[MaxSpots];
+        private int _spotHead, _spotCount;
         private readonly List<(Actor a, Faction f, float facing)> _bodies = new();
 
         public void Add(Vector2 p, float r, Color c)
         {
-            if (_spots.Count > 600) _spots.RemoveAt(0);
-            _spots.Add((p, r, c));
+            if (_spotCount < MaxSpots) _spots[(_spotHead + _spotCount++) % MaxSpots] = (p, r, c);
+            else { _spots[_spotHead] = (p, r, c); _spotHead = (_spotHead + 1) % MaxSpots; }
             _dirty = true;
         }
 
@@ -700,12 +710,16 @@ public partial class RunView : Node2D
         public override void _Draw()
         {
             using var _perf = Perf.Time("run.draw.decals");
-            foreach (var (p, r, c) in _spots) DrawCircle(p, r, c);
+            for (int k = 0; k < _spotCount; k++)
+            {
+                var (p, r, c) = _spots[(_spotHead + k) % MaxSpots];
+                DrawCircle(p, r, c);
+            }
             foreach (var (a, f, facing) in _bodies)
             {
                 Vector2 p = Art.G(a.Pos, T);
                 float rad = a.Radius * T;
-            if (a.Is(EnemyKind.Drone)) { Art.Drone(this, p, facing, rad, new Color(0.2f, 0.2f, 0.2f), 0); continue; }
+                if (a.Is(EnemyKind.Drone)) { Art.Drone(this, p, facing, rad, new Color(0.2f, 0.2f, 0.2f), 0); continue; }
                 if (a.Is(EnemyKind.Turret)) { Art.Turret(this, p, facing, rad, new Color(0.2f, 0.2f, 0.2f)); continue; }
                 if (a.Is(EnemyKind.Camera)) continue;
                 Art.Look l = Art.LookFor(a, f);
@@ -891,7 +905,7 @@ public partial class RunView : Node2D
                 float half = a.Is(EnemyKind.Camera) ? 0.62f : a.Is(EnemyKind.Turret) ? 1.05f : 0.96f;
                 Color cc = a.Detect > 0.3f ? new Color(1, 0.75f, 0.2f, 0.10f + a.Detect * 0.12f) : new Color(0.8f, 0.9f, 1f, 0.06f);
                 if (a.Is(EnemyKind.Camera)) cc = new Color(1, 0.2f, 0.2f, 0.10f + a.Detect * 0.15f);
-                Cone(Art.G(a.Pos, T), a.Facing, half, range, cc, r);
+                Cone(a, Art.G(a.Pos, T), a.Facing, half, range, cc, r);
             }
             // Telegraphs: laser sights and gathering fire.
             foreach (Actor a in r.Actors)
@@ -920,15 +934,14 @@ public partial class RunView : Node2D
                 if (!a.Dead || a.Escaped || a.IsPlayer || a.Def == null || a.IsAlly && a.Summoned || a.Is(EnemyKind.Drone) || a.Is(EnemyKind.Turret) || a.Is(EnemyKind.Camera) || a.Is(EnemyKind.Spirit)) continue;
                 if (!r.Seen(a.Pos) && !r.L.Explored[r.L.Idx((int)a.Pos.X, (int)a.Pos.Y)]) continue;
                 Vector2 bp = Art.G(a.Pos, T);
-                Art.Look l = a.IsPlayer ? (r.Disguised ? Art.LookFor(DisguiseLook, r.Job.Faction) : Art.PlayerLook(r.C.Archetype, r.C.Has("eyes"))) : a.Rival ? RivalLook : a.IsMedic ? new Art.Look { Body = new Color(0.85f, 0.88f, 0.86f), Trim = new Color(0.15f, 0.75f, 0.4f), Skin = new Color(0.75f, 0.6f, 0.5f), Hair = new Color(0.2f, 0.2f, 0.2f), Heavy = true } : Art.LookFor(a, r.Job.Faction);
+                Art.Look l = LookOf(a, r);
                 float lie = a.Facing + (Art.Hash(a.Id, 7) - 0.5f) * 1.6f + MathF.PI;
                 Art.Corpse(this, bp, lie, a.Radius * T * 1.1f, l, a.Kind, a.KO, a.Id);
                 if (a.KO && r.Seen(a.Pos)) UITheme.Write(this, bp + new Vector2(6, -8 - MathF.Sin(time * 2) * 2), "z", 13, UITheme.Cyan with { A = 0.8f }, heading: true);
             }
             // Fixtures already used.
-            for (int y = 0; y < r.L.H; y++)
-            for (int x = 0; x < r.L.W; x++)
-                if (r.Used(new Pt(x, y)) && r.SeenTile(new Pt(x, y))) DrawRect(new Rect2(x * T + 4, y * T + 4, T - 8, T - 8), UITheme.Good with { A = 0.5f }, false, 2);
+            foreach (Pt u in r.UsedFixtures)
+                if (r.SeenTile(u)) DrawRect(new Rect2(u.X * T + 4, u.Y * T + 4, T - 8, T - 8), UITheme.Good with { A = 0.5f }, false, 2);
             // Night cleaners' carts, under everyone: pushed ahead while they work, left where they stood once they run for the phone.
             if (_cartRun != r) { _carts.Clear(); _cartRun = r; }
             foreach (Actor a in r.Actors)
@@ -942,10 +955,11 @@ public partial class RunView : Node2D
                 }
                 if (_carts.TryGetValue(a.Id, out var cart) && r.Seen(Art.S(cart.at / T))) Art.CleanerCart(this, cart.at, cart.facing, cr);
             }
-            // People and machines.
-            foreach (Actor a in r.Actors.OrderBy(a => a.Flying ? 1 : 0))
+            // People and machines: those on the ground, then whatever flies over them.
+            for (int pass = 0; pass < 2; pass++)
+            foreach (Actor a in r.Actors)
             {
-                if (a.Dead || !r.Shown(a)) continue;
+                if (a.Flying != (pass == 1) || a.Dead || !r.Shown(a)) continue;
                 DrawActor(a, r, time);
                 Vector2 ap = Art.G(a.Pos, T);
                 // A cleaner on the phone; a drinker carries the bottle.
@@ -1061,20 +1075,43 @@ public partial class RunView : Node2D
             }
         }
 
-        private void Cone(Vector2 p, float facing, float half, float range, Color c, Run r)
+        /// <summary>A vision cone's outline, as cast from where the actor stood (to a pixel and a sliver of a degree) and what blocked sight then.</summary>
+        private sealed class ConeShape
         {
-            // Clip each ray against walls so the cone shows what is actually covered.
-            const int n = 14;
-            var pts = new Vector2[n + 2];
-            pts[0] = p;
-            V2 from = Art.S(p) / T;
-            for (int i = 0; i <= n; i++)
+            public readonly Vector2[] Pts = new Vector2[ConeRays + 2];
+            public int Qx, Qy, Qf, Sight = -1;
+            public float Half, Range;
+            public Vector2 At;
+        }
+
+        private const int ConeRays = 14;
+        private readonly Dictionary<int, ConeShape> _cones = new();
+        private readonly Vector2[] _conePts = new Vector2[ConeRays + 2];
+        private Run _coneRun;
+
+        private void Cone(Actor who, Vector2 p, float facing, float half, float range, Color c, Run r)
+        {
+            if (_coneRun != r) { _cones.Clear(); _coneRun = r; }
+            if (!_cones.TryGetValue(who.Id, out ConeShape cone)) _cones[who.Id] = cone = new ConeShape();
+            int qx = (int)MathF.Round(p.X), qy = (int)MathF.Round(p.Y), qf = (int)MathF.Round(facing * 512);
+            if (cone.Qx != qx || cone.Qy != qy || cone.Qf != qf || cone.Sight != r.L.SightVersion || cone.Half != half || cone.Range != range)
             {
-                float a = facing - half + 2 * half * i / n;
-                V2 end = from + M.Dir(a) * (range / T);
-                pts[i + 1] = Art.G(r.L.FirstSightBlock(from, end), T);
+                // Clip each ray against walls so the cone shows what is actually covered.
+                cone.Qx = qx; cone.Qy = qy; cone.Qf = qf; cone.Sight = r.L.SightVersion; cone.Half = half; cone.Range = range;
+                cone.At = p;
+                cone.Pts[0] = p;
+                V2 from = Art.S(p) / T;
+                for (int i = 0; i <= ConeRays; i++)
+                {
+                    float a = facing - half + 2 * half * i / ConeRays;
+                    V2 end = from + M.Dir(a) * (range / T);
+                    cone.Pts[i + 1] = Art.G(r.L.FirstSightBlock(from, end), T);
+                }
             }
-            DrawColoredPolygon(pts, c);
+            // Moved less than a pixel since: the same outline, carried along.
+            Vector2 shift = p - cone.At;
+            for (int i = 0; i < _conePts.Length; i++) _conePts[i] = cone.Pts[i] + shift;
+            DrawColoredPolygon(_conePts, c);
         }
 
         private void DrawActor(Actor a, Run r, float time)
@@ -1120,12 +1157,12 @@ public partial class RunView : Node2D
                 var l = a.Cleaner ? Art.CleanerLook(a.Id) : new Art.Look { Body = Color.FromHsv(h1, 0.5f, 0.45f), Trim = Color.FromHsv(h2, 0.8f, 1f), Skin = new Color(0.5f + h2 * 0.4f, 0.4f + h2 * 0.25f, 0.3f + h2 * 0.2f), Hair = Color.FromHsv(h2, 0.6f, 0.5f), Coat = h1 > 0.5f };
                 Art.Person(this, p, a.Facing, rad * 1.1f, l, null, 0, time * a.Speed * 2.2f);
                 if (a.Cleaner) Art.CleanerKit(this, p, a.Facing, rad * 1.1f, a.CallT > 0, time);
-                if (a.Vendor != null) UITheme.Write(this, p + new Vector2(-70, -rad - 12), a.Name.ToUpperInvariant(), 11, UITheme.Yellow, HorizontalAlignment.Center, 140, heading: true);
+                if (a.Vendor != null) UITheme.Write(this, p + new Vector2(-70, -rad - 12), RunScreen.Caps(a.Name), 11, UITheme.Yellow, HorizontalAlignment.Center, 140, heading: true);
                 else if (a.PanicT > 0) UITheme.Write(this, p + new Vector2(-20, -rad - 8 - MathF.Abs(MathF.Sin(time * 9 + a.Id)) * 3), "!", 15, UITheme.Yellow, HorizontalAlignment.Center, 40, heading: true);
             }
             else
             {
-                Art.Look l = a.IsPlayer ? (r.Disguised ? Art.LookFor(DisguiseLook, r.Job.Faction) : Art.PlayerLook(r.C.Archetype, r.C.Has("eyes"))) : a.Rival ? RivalLook : a.IsMedic ? new Art.Look { Body = new Color(0.85f, 0.88f, 0.86f), Trim = new Color(0.15f, 0.75f, 0.4f), Skin = new Color(0.75f, 0.6f, 0.5f), Hair = new Color(0.2f, 0.2f, 0.2f), Heavy = true } : Art.LookFor(a, r.Job.Faction);
+                Art.Look l = LookOf(a, r);
                 WeaponClass? wc = a.IsPlayer ? r.CurrentWeapon?.Class : a.Gun?.Def.Class;
                 if (a.IsHostage && a.State == AiState.Tied) wc = null;
                 float walk = a.IsPlayer ? r.Player.Vel.Length() * time * 2.2f : time * a.Speed * 2.2f;
@@ -1183,7 +1220,7 @@ public partial class RunView : Node2D
                 }
                 if (a.Is(EnemyKind.Firebug)) DrawCircle(p + new Vector2(MathF.Cos(a.Facing + 0.6f), MathF.Sin(a.Facing + 0.6f)) * rad * 1.1f, 3, new Color(1f, 0.6f, 0.1f));
                 if (a.Is(EnemyKind.Rigger)) DrawLine(p, p - new Vector2(MathF.Cos(a.Facing), MathF.Sin(a.Facing)) * rad * 1.2f + new Vector2(0, -rad * 1.4f), UITheme.Cyan, 1.5f);
-                if (a.Is(EnemyKind.Boss) || a.Is(EnemyKind.Bulwark)) UITheme.Write(this, p + new Vector2(-70, -rad - 16), a.Name.ToUpperInvariant(), 12, UITheme.Yellow, HorizontalAlignment.Center, 140, heading: true);
+                if (a.Is(EnemyKind.Boss) || a.Is(EnemyKind.Bulwark)) UITheme.Write(this, p + new Vector2(-70, -rad - 16), RunScreen.Caps(a.Name), 12, UITheme.Yellow, HorizontalAlignment.Center, 140, heading: true);
                 if (a.IsHostage && a.State == AiState.Tied) DrawArc(p, rad * 1.1f, 0, MathF.Tau, 16, new Color(0.8f, 0.7f, 0.4f), 2);
                 if (a.IsPlayer && r.DashT > 0) DrawArc(p, rad * 1.6f, 0, MathF.Tau, 20, UITheme.Cyan with { A = 0.6f }, 2);
             }
@@ -1209,10 +1246,10 @@ public partial class RunView : Node2D
             }
             if (a.Surrendered && !a.Dead) UITheme.Write(this, p + new Vector2(-60, -rad - 10), "HANDS UP", 11, UITheme.Text, HorizontalAlignment.Center, 120, heading: true);
             if (a.IsMedic && !a.Dead) UITheme.Write(this, p + new Vector2(-60, -rad - 10), "TRAUMALINK", 11, a.Team == 2 ? new Color(0.3f, 0.95f, 0.5f) : UITheme.Bad, HorizontalAlignment.Center, 120, heading: true);
-            if (a.IsAlly) UITheme.Write(this, p + new Vector2(-50, -rad - 10), a.Name.ToUpperInvariant(), 11, UITheme.Good, HorizontalAlignment.Center, 100, heading: true);
+            if (a.IsAlly) UITheme.Write(this, p + new Vector2(-50, -rad - 10), RunScreen.Caps(a.Name), 11, UITheme.Good, HorizontalAlignment.Center, 100, heading: true);
             else if (a.Rival && !a.Dead)
             {
-                UITheme.Write(this, p + new Vector2(-60, -rad - 10), (a == r.RivalCarrier ? a.Name + " -- HAS IT" : a.Name).ToUpperInvariant(), 11, RivalColour, HorizontalAlignment.Center, 120, heading: true);
+                UITheme.Write(this, p + new Vector2(-60, -rad - 10), a == r.RivalCarrier ? RunScreen.Caps(a.Name) + " -- HAS IT" : RunScreen.Caps(a.Name), 11, RivalColour, HorizontalAlignment.Center, 120, heading: true);
                 DrawArc(p, rad + 4, 0, MathF.Tau, 16, RivalColour with { A = 0.8f }, 1.5f);
             }
             else if (a.Team == 0 && a.Def != null) DrawArc(p, rad + 4, 0, MathF.Tau, 16, UITheme.Violet, 1.5f);

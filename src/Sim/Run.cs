@@ -466,9 +466,12 @@ public sealed partial class Run
     /// Where to steer: the objective itself when it is on your floor, else the
     /// stairs on your floor that lead to it.
     /// </summary>
-    public V2? NavTarget()
+    public V2? NavTarget() => NavTarget(ObjectivePos());
+
+    /// <summary><see cref="NavTarget()"/> from an <see cref="ObjectivePos"/> already worked out this frame.</summary>
+    public V2? NavTarget(V2? objective)
     {
-        if (ObjectivePos() is not V2 o) return null;
+        if (objective is not V2 o) return null;
         if (Plan.Tower)
         {
             int fo = FloorOf(o), fp = FloorOf(Player.Pos);
@@ -484,9 +487,11 @@ public sealed partial class Run
     }
 
     /// <summary>A note for the HUD when the objective is on the other floor.</summary>
-    public string FloorNote() => Plan.Tower
-        ? ObjectivePos() is V2 to && FloorOf(to) != FloorOf(Player.Pos) ? $"It's on {Plan.FloorName(FloorOf(to))} -- take the stairs{(LiftHacked && Served(FloorOf(to)) ? " or the elevator" : "")}." : null
-        : ObjectivePos() is V2 o && Below(o) != Below(Player.Pos)
+    public string FloorNote() => FloorNote(ObjectivePos());
+
+    public string FloorNote(V2? objective) => Plan.Tower
+        ? objective is V2 to && FloorOf(to) != FloorOf(Player.Pos) ? $"It's on {Plan.FloorName(FloorOf(to))} -- take the stairs{(LiftHacked && Served(FloorOf(to)) ? " or the elevator" : "")}." : null
+        : objective is V2 o && Below(o) != Below(Player.Pos)
         ? (Below(o) ? "It's in the BASEMENT -- take the stairs (^)." : "It's UPSTAIRS -- take the stairs (^).") : null;
 
     public V2? ObjectivePos()
