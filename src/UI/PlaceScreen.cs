@@ -554,33 +554,43 @@ public partial class PlaceScreen : Control
         UITheme.Fill(centre);
         AddChild(centre);
         var body = UITheme.VBox(10);
-        body.CustomMinimumSize = new Vector2(700, 0);
-        centre.AddChild(UITheme.Panel(body, 26));
         bool site = j.Type is not (JobType.Courier or JobType.Race or JobType.Hub or JobType.Hack);
+        // The site itself, for the map and its ways in (the same plan the run will build).
+        LevelPlan plan = site ? LevelGen.Generate(j) : null;
+        bool plans = plan != null && plan.Entries.Count > 0;
+        body.CustomMinimumSize = new Vector2(plans ? 1080 : 700, 0);
+        centre.AddChild(UITheme.Panel(body, 26));
         // The fixer's file on the job: a file number, a stamp, the site photo taped in.
         var file = UITheme.HBox(10);
         file.AddChild(UITheme.Grow(UITheme.Label($"FILE {j.Id:0000}  ·  {Tables.District(j.District).Name.ToUpperInvariant()}  ·  FOR {C.Name.ToUpperInvariant()} ONLY", 14, UITheme.Dim, wrap: false, mono: true)));
         file.AddChild(new Stamp { Text = "EYES ONLY", FontSize = 22, CustomMinimumSize = new Vector2(170, 34), Angle = -0.06f });
         body.AddChild(file);
         if (site && Assets.Picture(Assets.SitePicture(j.Style)) is Texture2D banner)
-            body.AddChild(new Photo { Texture = banner, Seed = j.Id, CustomMinimumSize = new Vector2(700, 180) });
+            body.AddChild(new Photo { Texture = banner, Seed = j.Id, CustomMinimumSize = new Vector2(plans ? 1080 : 700, plans ? 120 : 180) });
         body.AddChild(UITheme.Label(j.Title.ToUpperInvariant(), 34, UITheme.Magenta, HorizontalAlignment.Center, heading: true));
         body.AddChild(UITheme.Label($"{Tables.District(j.District).Name}  ·  {Tables.FactionNames[(int)j.Faction]}  ·  threat {j.Skulls}  ·  {M.Money(j.Pay)}  ·  karma +{j.Karma}", 17, UITheme.Dim, HorizontalAlignment.Center));
         body.AddChild(UITheme.Rule());
-        body.AddChild(UITheme.TypeOut(UITheme.Label(j.Brief, 19, UITheme.Text), MathF.Min(1.6f, j.Brief.Length / 90f)));
+        // The brief and what you know on the left; the site plan and the ways in on the right.
+        var cols = UITheme.HBox(22);
+        body.AddChild(cols);
+        var left = UITheme.VBox(10);
+        left.CustomMinimumSize = new Vector2(plans ? 640 : 700, 0);
+        left.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        cols.AddChild(left);
+        left.AddChild(UITheme.TypeOut(UITheme.Label(j.Brief, 19, UITheme.Text), MathF.Min(1.6f, j.Brief.Length / 90f)));
         // Who you will meet in there: every threat-5 site has a boss (LevelGen), and a hire comes along.
         var faces = UITheme.HBox(18);
         if (site && j.Threat >= 5) Face(faces, Assets.BossPicture(j.Faction), "In charge", Tables.BossOf(j.Faction).name, UITheme.Bad);
         if (j.Hired != null) Face(faces, Assets.HirePicture(j.Hired), "With you", Tables.Hires.First(h => h.id == j.Hired).name, UITheme.Good);
-        if (faces.GetChildCount() > 0) body.AddChild(faces);
-        body.AddChild(UITheme.Label("Go in quiet: no alarm pays a quarter extra. Loot you carry out is yours. Leaving before the job is done fails it.", 16, UITheme.Dim));
-        if (C.TraumaLinks == 0) body.AddChild(UITheme.Label("No TraumaLink on file. If you go down in there, you stay down -- the career ends.", 16, UITheme.Bad));
-        else body.AddChild(UITheme.Label($"TraumaLink: {C.TraumaLinks} pick-up(s) on file.", 16, UITheme.Good));
+        if (faces.GetChildCount() > 0) left.AddChild(faces);
+        left.AddChild(UITheme.Label("Go in quiet: no alarm pays a quarter extra. Loot you carry out is yours. Leaving before the job is done fails it.", 16, UITheme.Dim));
+        if (C.TraumaLinks == 0) left.AddChild(UITheme.Label("No TraumaLink on file. If you go down in there, you stay down -- the career ends.", 16, UITheme.Bad));
+        else left.AddChild(UITheme.Label($"TraumaLink: {C.TraumaLinks} pick-up(s) on file.", 16, UITheme.Good));
         // Legwork: what a little money and the right friends buy before you go in.
         var legwork = C.LegworkOffers(j);
         if (legwork.Count > 0)
         {
-            body.AddChild(UITheme.Label("LEGWORK", 14, UITheme.Dim));
+            left.AddChild(UITheme.Label("LEGWORK", 14, UITheme.Dim));
             var flow = new HFlowContainer();
             foreach (var (id, name, desc, price, block) in legwork)
             {
@@ -591,23 +601,56 @@ public partial class PlaceScreen : Control
                     if (err != null) { Sfx.Instance?.Play(Sound.Error); return; }
                     Sfx.Instance?.Play(Sound.Coin);
                     Profile.SaveCareer(C);
-                    foreach (Node n in GetChildren()) if (n is not ColorRect) n.QueueFree();
-                    BuildBriefing();
+                    Rebuild();
                 }, 0, 32, block ?? desc);
                 b.Disabled = block != null;
                 flow.AddChild(b);
             }
-            body.AddChild(flow);
+            left.AddChild(flow);
         }
-        if (j.Schematics || C.HasUpgrade("rig2")) body.AddChild(UITheme.Label("You have the site schematics.", 16, UITheme.Cyan));
-        else if (site) body.AddChild(UITheme.Label("Site layout:  ██████████ ███████ ████  (the fixer sells schematics)", 15, UITheme.Faint));
-        if (j.Hired != null) body.AddChild(UITheme.Label($"{Tables.Hires.First(h => h.id == j.Hired).name} is coming with you ({C.CrewCut(j.Hired) * 100:0} % of the pay; ¥300 if it goes wrong). If they go down, carry them out -- or lose them for good.", 16, UITheme.Good));
+        bool schematics = j.Schematics || C.HasUpgrade("rig2");
+        if (schematics) left.AddChild(UITheme.Label("You have the site schematics.", 16, UITheme.Cyan));
+        else if (site && !plans) left.AddChild(UITheme.Label("Site layout:  ██████████ ███████ ████  (the fixer sells schematics)", 15, UITheme.Faint));
+        if (j.Hired != null) left.AddChild(UITheme.Label($"{Tables.Hires.First(h => h.id == j.Hired).name} is coming with you ({C.CrewCut(j.Hired) * 100:0} % of the pay; ¥300 if it goes wrong). If they go down, carry them out -- or lose them for good.", 16, UITheme.Good));
+        if (plans)
+        {
+            var right = UITheme.VBox(8);
+            right.CustomMinimumSize = new Vector2(400, 0);
+            cols.AddChild(right);
+            right.AddChild(UITheme.Label(schematics ? "SITE PLAN" : "SITE PLAN  (the fixer sells schematics)", 14, UITheme.Dim));
+            right.AddChild(new SitePlan { Plan = plan, Job = j, Schematics = schematics, Chosen = j.Entry, CustomMinimumSize = new Vector2(400, 250) });
+            right.AddChild(UITheme.Label("WAY IN", 14, UITheme.Dim));
+            for (int k = 0; k < plan.Entries.Count; k++)
+            {
+                EntryPoint e = plan.Entries[k];
+                bool on = (j.Entry ?? "front") == e.Id;
+                string block = e.Id == "roof" && !C.OwnsHeli ? "Needs a helicopter (the Kite)." : null;
+                var b = UITheme.Button($"{k + 1}  {e.Name}{(on ? "  ✓" : "")}", () =>
+                {
+                    j.Entry = e.Id == "front" ? null : e.Id;
+                    Sfx.Instance?.Play(Sound.UiSelect);
+                    Profile.SaveCareer(C);
+                    Rebuild();
+                }, 0, 32, block ?? e.Risk);
+                b.Disabled = block != null;
+                b.Alignment = HorizontalAlignment.Left;
+                right.AddChild(b);
+                if (on) right.AddChild(UITheme.Label(e.Risk, 14, UITheme.Amber));
+            }
+        }
         body.AddChild(UITheme.Label("WASD move · Shift sneak · mouse aim, LMB fire · RMB throw · 1/2/3 weapons · G grenade · R reload · Space dash · Q/F abilities · E use · H medkit", 14, UITheme.Dim, HorizontalAlignment.Center));
         var row = UITheme.HBox(14);
         row.Alignment = BoxContainer.AlignmentMode.Center;
         row.AddChild(UITheme.Button("Go in", () => { QueueFree(); _root.StartRun(j); }, 200, 48));
         row.AddChild(UITheme.Button("Not yet", Leave, 160, 48));
         body.AddChild(row);
+    }
+
+    /// <summary>Lay the briefing out again (legwork bought, a way in chosen).</summary>
+    private void Rebuild()
+    {
+        foreach (Node n in GetChildren()) if (n is not ColorRect) n.QueueFree();
+        BuildBriefing();
     }
 }
 

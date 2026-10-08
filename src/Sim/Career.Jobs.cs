@@ -49,6 +49,8 @@ public sealed class Job
     public bool Has(RunMod m) => Mods.Contains(m);
     /// <summary>A tower: how many floors above the lobby (0: an ordinary site).</summary>
     public int Floors;
+    /// <summary>The way in chosen on the briefing map (an <see cref="EntryPoint"/> id; null: the front gate).</summary>
+    public string Entry;
     /// <summary>A bounty that is a hive: a queen, her egg sacs and her workers (prestige, the Industrial district).</summary>
     public bool Hive;
     /// <summary>Legwork bought in the briefing (Career.Legwork ids).</summary>

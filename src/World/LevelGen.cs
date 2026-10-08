@@ -39,6 +39,9 @@ public sealed class PickupSpawn
     public string Name, Id;
 }
 
+/// <summary>A way in, chosen on the briefing map: where you start, and what it costs you.</summary>
+public sealed record EntryPoint(string Id, string Name, string Risk, Pt At);
+
 /// <summary>Everything a run starts from: the map and what is on it.</summary>
 public sealed class LevelPlan
 {
@@ -59,6 +62,8 @@ public sealed class LevelPlan
     /// <summary>Hubs: people about, with the vendor they are (or null for the crowd).</summary>
     public List<(V2 pos, string vendor)> Npcs = new();
     public Rect Building;
+    /// <summary>The ways in (the front first); the job's choice picks one (see <see cref="Job.Entry"/>).</summary>
+    public List<EntryPoint> Entries = new();
     /// <summary>The panic room the target runs to when the alarm goes (W 0: none).</summary>
     public Rect PanicRoom;
     /// <summary>A lab's clean room (entering without a suit trips its sensors), and a warehouse's second way out through the loading dock (W 0: none).</summary>
@@ -240,6 +245,7 @@ public sealed class LevelGen
         EnsureReachable();
         Lights(b);
         Defenders();
+        Entries();
         Loot();
         if (_job.Style == SiteStyle.Club)
         {
@@ -1667,6 +1673,58 @@ public sealed class LevelGen
             }
         }
         if (P.Reinforce.Count == 0) P.Reinforce.Add(YardSpot());
+    }
+
+    /// <summary>
+    /// The ways in besides the front gate: a fence cut on another side, the
+    /// loading dock's doors, a sewer hatch that comes up inside, the roof of a
+    /// tower. Each starts clear of every guard's post; the way out stays where it is.
+    /// </summary>
+    private void Entries()
+    {
+        P.Entries.Add(new EntryPoint("front", "Front gate", "the way they expect you to come", P.Entry));
+        if (_job.Type is JobType.Defend or JobType.Hub or JobType.Hack || _job.Tutorial || _job.Driving) return;
+        var posts = P.Enemies.Where(e => e.Kind is not (EnemyKind.Camera or EnemyKind.Turret)).Select(e => e.Pos).ToList();
+        bool Clear(Pt p, float d) => posts.All(q => V2.Distance(q, p.Centre) >= d);
+        bool[] reach = Reach();
+        bool Reached(Pt p) => L.In(p) && reach[L.Idx(p.X, p.Y)];
+        // A fence cut on another side of the yard: a longer, more open walk.
+        for (int tries = 0; tries < 40; tries++)
+        {
+            int side = _k.Int(4);
+            Pt p = side switch
+            {
+                0 => new Pt(2, _k.Range(3, L.H - 4)), 1 => new Pt(P.MainW - 3, _k.Range(3, L.H - 4)),
+                2 => new Pt(_k.Range(3, P.MainW - 4), 2), _ => new Pt(_k.Range(3, P.MainW - 4), L.H - 3),
+            };
+            if (L[p] != Tile.Floor || p.Chebyshev(P.Entry) < 18 || !Clear(p, 10) || !Reached(p)) continue;
+            P.Entries.Add(new EntryPoint("fence", "Cut the fence", "a long way round, in the open yard", p));
+            break;
+        }
+        // The loading dock's roller doors, straight into the hall.
+        if (P.BackDoor.W > 0)
+        {
+            Pt d = new(P.BackDoor.X + 1, P.BackDoor.Y + 1);
+            if (Reached(d) && Clear(d, 6)) P.Entries.Add(new EntryPoint("dock", "Loading dock", "straight into the hall -- whoever is working there", d));
+        }
+        // A sewer hatch in a quiet room: inside from the start, nowhere to back off to.
+        if (_job.Style is SiteStyle.Den or SiteStyle.Warehouse or SiteStyle.Lab && _job.Threat >= 2 && !P.Tower)
+        {
+            var rooms = P.Rooms.Where(r => r.Kind == RoomKind.Plain && !r.Vault && r.Depth >= 1 && r.R.Area >= 9).OrderBy(_ => _k.Next()).ToList();
+            foreach (Room r in rooms)
+            {
+                Pt p = Pt.Of(FreeSpot(r));
+                if (L[p] != Tile.Floor || !Clear(p, 7) || !Reached(p)) continue;
+                P.Entries.Add(new EntryPoint("sewer", "Sewer hatch", "you come up inside -- found, you're cornered", p));
+                break;
+            }
+        }
+        // A tower's roof, if you can get a helicopter over it.
+        if (P.Tower && P.LiftSpots.Count > 0)
+        {
+            Pt top = Pt.Of(P.LiftSpots[^1]);
+            P.Entries.Add(new EntryPoint("roof", "The roof, by the Kite", "the top floor first, its guards between you and the stairs", top));
+        }
     }
 
     /// <summary>The spider sits at a console, as far from the way in as there is one.</summary>

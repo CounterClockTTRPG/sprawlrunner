@@ -132,6 +132,8 @@ public struct RunInput
 public sealed partial class Run
 {
     public readonly Job Job;
+    /// <summary>The way in taken, when it wasn't the front gate.</summary>
+    public EntryPoint Entry;
     public readonly Career C;
     public readonly LevelPlan Plan;
     public Level L => Plan.L;
@@ -172,6 +174,12 @@ public sealed partial class Run
             Id = _nextId++, IsPlayer = true, Team = 0, Name = c.Name, Pos = Plan.Entry.Centre, Radius = 0.3f,
             MaxHp = c.MaxHp, Hp = c.MaxHp, Armor = c.ArmorValue, Speed = c.MoveSpeed,
         };
+        // The way in chosen on the briefing map (the roof only with the Kite).
+        if (job.Entry != null && Plan.Entries.FirstOrDefault(e => e.Id == job.Entry) is EntryPoint ep && (ep.Id != "roof" || c.OwnsHeli))
+        {
+            Player.Pos = ep.At.Centre;
+            Entry = ep;
+        }
         Player.Facing = M.Angle(Plan.Building.Centre.Centre - Player.Pos);
         Actors.Add(Player);
         SetupKit();

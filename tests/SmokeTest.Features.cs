@@ -434,4 +434,53 @@ public partial class SmokeTest
         LevelPlan lp = LevelGen.Generate(labj);
         Check(lp.CleanRoom.W == 0 || lp.Pickups.Any(k => k.Kind == PickupKind.Suit), "a lab with a clean room has a suit somewhere");
     }
+
+    /// <summary>Ways in: chosen on the briefing map, each reachable and clear of the guards' posts; the run starts there.</summary>
+    private void EntryPoints()
+    {
+        var kinds = new System.Collections.Generic.HashSet<string>();
+        int sites = 0, choices = 0;
+        foreach (SiteStyle st in Enum.GetValues<SiteStyle>())
+        for (ulong seed = 1; seed <= 6; seed++)
+        {
+            var job = new Job { Id = 1, Type = JobType.Retrieve, Style = st, Threat = 1 + (int)seed % 5, Seed = seed * 97 + (ulong)st, Faction = st == SiteStyle.Den ? Faction.Vipers : Faction.Halcyon, Count = 2, Target = "T", Item = "I", Title = "entries" };
+            LevelPlan p = LevelGen.Generate(job);
+            sites++;
+            Check(p.Entries.Count >= 1 && p.Entries[0].Id == "front" && p.Entries[0].At == p.Entry, $"{st} {seed}: the front gate is the first way in");
+            if (p.Entries.Count > 1) choices++;
+            foreach (EntryPoint e in p.Entries)
+            {
+                kinds.Add(e.Id);
+                Check(LevelGen.Reachable(p, e.At), $"{st} {seed}: {e.Name} can be walked from");
+                if (e.Id is "fence" or "sewer")
+                    Check(p.Enemies.Where(x => x.Kind is not (EnemyKind.Camera or EnemyKind.Turret)).All(x => V2.Distance(x.Pos, e.At.Centre) >= 6.9f), $"{st} {seed}: {e.Name} starts clear of the guards");
+            }
+        }
+        Check(choices > sites / 2, $"most sites offer a choice of way in ({choices}/{sites})");
+        foreach (string k in new[] { "fence", "sewer", "dock" }) Check(kinds.Contains(k), $"some site has a way in by the {k}");
+
+        // The run starts where you chose; the roof only with a helicopter.
+        Job pick = null;
+        LevelPlan pp = null;
+        for (ulong seed = 1; seed < 40 && pick == null; seed++)
+        {
+            var job = new Job { Id = 1, Type = JobType.Retrieve, Style = SiteStyle.Den, Threat = 3, Seed = seed * 31, Faction = Faction.Vipers, Count = 2, Target = "T", Item = "I", Title = "sewer" };
+            LevelPlan p = LevelGen.Generate(job);
+            if (p.Entries.Any(e => e.Id == "sewer")) { pick = job; pp = p; }
+        }
+        Check(pick != null, "a den with a sewer hatch");
+        if (pick != null)
+        {
+            pick.Entry = "sewer";
+            Run r = new Run(pick, TestCareer(), LevelGen.Generate(pick));
+            Check(Pt.Of(r.Player.Pos) == pp.Entries.First(e => e.Id == "sewer").At && r.Entry?.Id == "sewer", "the run starts at the hatch");
+            Check(!r.InExtraction(r.Player.Pos), "and the way out is still outside");
+        }
+        var tower = new Job { Id = 1, Type = JobType.Datasteal, Style = SiteStyle.Office, Threat = 5, Seed = 21, Floors = 3, Faction = Faction.Halcyon, Count = 2, Target = "T", Item = "I", Title = "tower" };
+        LevelPlan tp = LevelGen.Generate(tower);
+        Check(tp.Entries.Any(e => e.Id == "roof"), "a tower can be entered from the roof");
+        tower.Entry = "roof";
+        Run walk = new Run(tower, TestCareer(), LevelGen.Generate(tower));
+        Check(Pt.Of(walk.Player.Pos) == tp.Entry, "without a helicopter, you go in at the front");
+    }
 }
