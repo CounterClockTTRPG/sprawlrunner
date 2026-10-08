@@ -234,6 +234,82 @@ public static class Art
             ci.DrawArc(p, r * 1.35f, 0, MathF.Tau, 20, UITheme.Violet with { A = 0.35f * alpha }, 2);
     }
 
+    /// <summary>An office's night cleaner: teal coveralls with a hi-vis stripe, their own face and hair.</summary>
+    public static Look CleanerLook(int seed)
+    {
+        float h = Hash(seed, 5);
+        return new Look { Body = new Color(0.2f, 0.34f, 0.36f), Trim = new Color(0.38f, 0.56f, 0.56f), Skin = new Color(0.45f + h * 0.45f, 0.33f + h * 0.32f, 0.25f + h * 0.27f), Hair = Color.FromHsv(0.05f + h * 0.06f, 0.5f, 0.12f + Hash(seed, 9) * 0.35f) };
+    }
+
+    /// <summary>
+    /// What the cleaner adds over <see cref="Person"/>: the hi-vis stripe across
+    /// the back, a cap and its peak, and, calling, a lit phone at the ear.
+    /// </summary>
+    public static void CleanerKit(CanvasItem ci, Vector2 p, float facing, float r, bool calling, float t)
+    {
+        Vector2 f = new(MathF.Cos(facing), MathF.Sin(facing));
+        Vector2 side = new(-f.Y, f.X);
+        Color vis = new(0.85f, 0.95f, 0.3f);
+        ci.DrawLine(p - f * r * 0.36f + side * r * 0.86f, p - f * r * 0.36f - side * r * 0.86f, vis, r * 0.24f);
+        ci.DrawCircle(p - f * r * 0.06f, r * 0.41f, new Color(0.16f, 0.27f, 0.29f));
+        ci.DrawColoredPolygon(new[] { p + f * r * 0.2f + side * r * 0.32f, p + f * r * 0.62f + side * r * 0.2f, p + f * r * 0.62f - side * r * 0.2f, p + f * r * 0.2f - side * r * 0.32f }, new Color(0.12f, 0.21f, 0.23f));
+        if (!calling) return;
+        Vector2 ear = p + side * r * 0.5f + f * r * 0.1f;
+        ci.DrawRect(new Rect2(ear - new Vector2(r * 0.15f, r * 0.24f), new Vector2(r * 0.3f, r * 0.48f)), new Color(0.06f, 0.07f, 0.08f));
+        ci.DrawRect(new Rect2(ear - new Vector2(r * 0.1f, r * 0.17f), new Vector2(r * 0.2f, r * 0.3f)), new Color(0.5f, 1f, 0.8f));
+        DrawGlow(ci, ear, r * (1.4f + 0.3f * MathF.Sin(t * 10)), new Color(0.4f, 1f, 0.75f, 0.45f));
+    }
+
+    /// <summary>
+    /// A janitor's cart seen from above, its handle toward <paramref name="facing"/>
+    /// reversed (the pusher's hands): castors, a steel frame, a yellow mop
+    /// bucket with grey water and the mop in it, a black bin bag, a spray
+    /// bottle. <paramref name="r"/> is the pusher's figure radius.
+    /// </summary>
+    public static void CleanerCart(CanvasItem ci, Vector2 c, float facing, float r, float alpha = 1)
+    {
+        Vector2 f = new(MathF.Cos(facing), MathF.Sin(facing));
+        Vector2 s = new(-f.Y, f.X);
+        float hl = r * 0.62f, hw = r * 0.78f;
+        Vector2 Q(float along, float across) => c + f * along + s * across;
+        ci.DrawTextureRect(Glow, new Rect2(c + new Vector2(2, 3) - Vector2.One * r * 1.6f, Vector2.One * r * 3.2f), false, new Color(0, 0, 0, 0.55f * alpha));
+        // Castors at the corners, just outside the frame.
+        foreach (float a in new[] { -1f, 1f })
+        foreach (float b in new[] { -1f, 1f })
+            ci.DrawCircle(Q(a * hl * 0.8f, b * hw * 1.02f), r * 0.15f, new Color(0.04f, 0.04f, 0.05f, alpha));
+        // The frame: dark steel, a lighter rim, a divider between bucket and bag.
+        Vector2[] frame = { Q(hl, hw), Q(hl, -hw), Q(-hl, -hw), Q(-hl, hw) };
+        ci.DrawColoredPolygon(frame, new Color(0.19f, 0.22f, 0.27f, alpha));
+        ci.DrawPolyline(new[] { frame[0], frame[1], frame[2], frame[3], frame[0] }, new Color(0.5f, 0.55f, 0.62f, alpha), 1.3f);
+        ci.DrawLine(Q(hl * 0.95f, 0), Q(-hl * 0.95f, 0), new Color(0.32f, 0.36f, 0.42f, alpha), 1f);
+        // The handle the cleaner pushes, on struts off the back edge.
+        ci.DrawLine(Q(-hl, hw * 0.7f), Q(-hl - r * 0.22f, hw * 0.7f), new Color(0.55f, 0.6f, 0.66f, alpha), 1.5f);
+        ci.DrawLine(Q(-hl, -hw * 0.7f), Q(-hl - r * 0.22f, -hw * 0.7f), new Color(0.55f, 0.6f, 0.66f, alpha), 1.5f);
+        ci.DrawLine(Q(-hl - r * 0.22f, hw * 0.82f), Q(-hl - r * 0.22f, -hw * 0.82f), new Color(0.78f, 0.82f, 0.88f, alpha), 2.2f);
+        // The bin bag, tied off, catching the light on one side.
+        Vector2 bag = Q(-hl * 0.05f, -hw * 0.48f);
+        ci.DrawCircle(bag, r * 0.4f, new Color(0.06f, 0.06f, 0.08f, alpha));
+        ci.DrawArc(bag, r * 0.3f, -2.4f, -0.9f, 8, new Color(0.38f, 0.42f, 0.5f, 0.8f * alpha), 1.3f);
+        ci.DrawCircle(bag + f * r * 0.05f, r * 0.09f, new Color(0.2f, 0.21f, 0.24f, alpha));
+        // The spray bottle in the corner.
+        Vector2 spray = Q(hl * 0.62f, -hw * 0.7f);
+        ci.DrawCircle(spray, r * 0.13f, new Color(0.25f, 0.6f, 0.95f, alpha));
+        ci.DrawCircle(spray, r * 0.05f, new Color(0.95f, 0.95f, 0.95f, alpha));
+        // The mop bucket: yellow, grey water, the mop head in it and the handle leaning back over the cart.
+        Vector2 bucket = Q(hl * 0.18f, hw * 0.46f);
+        ci.DrawCircle(bucket, r * 0.4f, new Color(0.95f, 0.75f, 0.12f, alpha));
+        ci.DrawArc(bucket, r * 0.4f, 0, MathF.Tau, 16, new Color(0.55f, 0.4f, 0.05f, alpha), 1.2f);
+        ci.DrawCircle(bucket, r * 0.28f, new Color(0.3f, 0.42f, 0.42f, 0.95f * alpha));
+        for (int k = 0; k < 7; k++)
+        {
+            float a = k / 7f * MathF.Tau + 0.3f;
+            Vector2 d = new(MathF.Cos(a), MathF.Sin(a));
+            ci.DrawLine(bucket + d * r * 0.06f, bucket + d * r * 0.24f, new Color(0.82f, 0.8f, 0.72f, alpha), 1.2f);
+        }
+        ci.DrawLine(bucket, Q(hl + r * 0.2f, hw * 1.05f), new Color(0.7f, 0.56f, 0.34f, alpha), 1.8f);
+        ci.DrawCircle(Q(hl + r * 0.2f, hw * 1.05f), r * 0.09f, new Color(0.2f, 0.45f, 0.75f, alpha));
+    }
+
     /// <summary>
     /// Someone down: lying flat along <paramref name="dir"/>, limbs splayed,
     /// colour drained, in a pool of blood (none when only knocked out). Hounds

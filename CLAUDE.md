@@ -16,7 +16,7 @@ Godot and `dotnet.exe` driven from WSL. Design and every number:
     ./play.sh --check           headless self-check -- run after every change
     ./play.sh --check --only X  just the sections whose name contains X (Bot plays whole jobs)
     ./play.sh --shots [X]       windowed walkthrough, writes shots/*.png -- look at them
-                                (X: title, city, terminal, place, map, run, rooms, rivals, or a job type)
+                                (X: title, city, terminal, place, map, run, rooms, rivals, cleaner, or a job type)
     bash scripts/assets.sh      generate missing portraits/banners/voices via ../assetgen
                                 (and the intro clip in assets/video); --list, --force NAME;
                                 needs its Replicate token

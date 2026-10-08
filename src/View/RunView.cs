@@ -810,6 +810,9 @@ public partial class RunView : Node2D
     private partial class Entities : Node2D
     {
         public RunView V;
+        /// <summary>Where each night cleaner's cart stands, by actor id (view-only: it stays put once they run).</summary>
+        private readonly Dictionary<int, (Vector2 at, float facing)> _carts = new();
+        private Run _cartRun;
 
         public override void _Draw()
         {
@@ -914,20 +917,29 @@ public partial class RunView : Node2D
             for (int y = 0; y < r.L.H; y++)
             for (int x = 0; x < r.L.W; x++)
                 if (r.Used(new Pt(x, y)) && r.SeenTile(new Pt(x, y))) DrawRect(new Rect2(x * T + 4, y * T + 4, T - 8, T - 8), UITheme.Good with { A = 0.5f }, false, 2);
+            // Night cleaners' carts, under everyone: pushed ahead while they work, left where they stood once they run for the phone.
+            if (_cartRun != r) { _carts.Clear(); _cartRun = r; }
+            foreach (Actor a in r.Actors)
+            {
+                if (!a.Cleaner) continue;
+                float cr = a.Radius * T * 1.1f;
+                if (!a.Dead && a.CallT == 0 && a.PanicT <= 0)
+                {
+                    float face = _carts.TryGetValue(a.Id, out var was) ? Mathf.LerpAngle(was.facing, a.Facing, 0.2f) : a.Facing;
+                    _carts[a.Id] = (Art.G(a.Pos, T) + new Vector2(MathF.Cos(face), MathF.Sin(face)) * cr * 1.75f, face);
+                }
+                if (_carts.TryGetValue(a.Id, out var cart) && r.Seen(Art.S(cart.at / T))) Art.CleanerCart(this, cart.at, cart.facing, cr);
+            }
             // People and machines.
             foreach (Actor a in r.Actors.OrderBy(a => a.Flying ? 1 : 0))
             {
                 if (a.Dead || !r.Shown(a)) continue;
                 DrawActor(a, r, time);
                 Vector2 ap = Art.G(a.Pos, T);
-                // A cleaner pushes a cart; a drinker carries the bottle.
+                // A cleaner on the phone; a drinker carries the bottle.
                 if (a.Cleaner)
                 {
-                    Vector2 back = ap - new Vector2(MathF.Cos(a.Facing), MathF.Sin(a.Facing)) * -11;
-                    DrawRect(new Rect2(back - new Vector2(6, 5), new Vector2(12, 10)), new Color(0.25f, 0.45f, 0.6f));
-                    DrawRect(new Rect2(back - new Vector2(6, 5), new Vector2(12, 10)), new Color(0.12f, 0.2f, 0.28f), false, 1);
-                    DrawLine(back + new Vector2(-3, -5), back + new Vector2(-6, -14), new Color(0.75f, 0.65f, 0.4f), 1.5f);
-                    if (a.CallT > 0) UITheme.Write(this, ap + new Vector2(-30, -14), "CALLING", 11, UITheme.Bad, HorizontalAlignment.Center, 60, heading: true);
+                    if (a.CallT > 0) UITheme.Write(this, ap + new Vector2(-40, -a.Radius * T - 24), "CALLING", 11, UITheme.Bad, HorizontalAlignment.Center, 80, heading: true);
                 }
                 else if (a.Drunk && !a.KO)
                 {
@@ -1101,8 +1113,9 @@ public partial class RunView : Node2D
             else if (a.IsNpc)
             {
                 float h1 = Art.Hash(a.Id, 3), h2 = Art.Hash(a.Id, 5);
-                var l = new Art.Look { Body = Color.FromHsv(h1, 0.5f, 0.45f), Trim = Color.FromHsv(h2, 0.8f, 1f), Skin = new Color(0.5f + h2 * 0.4f, 0.4f + h2 * 0.25f, 0.3f + h2 * 0.2f), Hair = Color.FromHsv(h2, 0.6f, 0.5f), Coat = h1 > 0.5f };
+                var l = a.Cleaner ? Art.CleanerLook(a.Id) : new Art.Look { Body = Color.FromHsv(h1, 0.5f, 0.45f), Trim = Color.FromHsv(h2, 0.8f, 1f), Skin = new Color(0.5f + h2 * 0.4f, 0.4f + h2 * 0.25f, 0.3f + h2 * 0.2f), Hair = Color.FromHsv(h2, 0.6f, 0.5f), Coat = h1 > 0.5f };
                 Art.Person(this, p, a.Facing, rad * 1.1f, l, null, 0, time * a.Speed * 2.2f);
+                if (a.Cleaner) Art.CleanerKit(this, p, a.Facing, rad * 1.1f, a.CallT > 0, time);
                 if (a.Vendor != null) UITheme.Write(this, p + new Vector2(-70, -rad - 12), a.Name.ToUpperInvariant(), 11, UITheme.Yellow, HorizontalAlignment.Center, 140, heading: true);
                 else if (a.PanicT > 0) UITheme.Write(this, p + new Vector2(-20, -rad - 8 - MathF.Abs(MathF.Sin(time * 9 + a.Id)) * 3), "!", 15, UITheme.Yellow, HorizontalAlignment.Center, 40, heading: true);
             }

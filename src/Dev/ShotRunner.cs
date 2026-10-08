@@ -585,6 +585,37 @@ public partial class ShotRunner : Node
                     }
                 }
             }
+            if (Want("run") || Want("cleaner"))
+            {
+                // An office's night cleaners up close: one wheeling the cart, one running for the phone.
+                Root.EnterCity();
+                await Frames(5);
+                var cj = new Job { Id = 956, Type = JobType.Retrieve, Style = SiteStyle.Office, Threat = 2, Seed = 4242, Faction = Faction.Halcyon, District = "spire", Target = "x", Item = "case", Title = "Night shift", Lot = -1, Schematics = true };
+                Root.StartRun(cj);
+                await Frames(10);
+                Sprawl.Run cr = Root.RunScreen.R;
+                cr.Player.MaxHp = cr.Player.Hp = 1e6f;
+                foreach (Actor a in cr.Actors.Where(a => a.Hostile)) a.Pos = new V2(-50, -50);
+                var cleaners = cr.Actors.Where(a => a.Cleaner).ToList();
+                // The free floor nearest a point.
+                V2 Floor(V2 near) => Enumerable.Range(0, cr.L.W * cr.L.H).Select(cr.L.PtOf).Where(q => cr.L.Walkable(q.X, q.Y)).OrderBy(q => V2.Distance(q.Centre, near)).First().Centre;
+                if (cleaners.Count > 0)
+                {
+                    V2 at = cleaners[0].Pos;
+                    cr.Player.Pos = Floor(at + new V2(-2.5f, 0.5f));
+                    for (int k = 1; k < cleaners.Count; k++) cleaners[k].Pos = Floor(at + new V2(-1f, -3f));
+                    Root.RunView.Cam.Zoom = new Vector2(3f, 3f);
+                    for (int i = 0; i < 40; i++)
+                    {
+                        if (cleaners.Count > 1 && i >= 20) { cleaners[1].CallT = 2.5f; cleaners[1].PanicT = 8; cleaners[1].PanicFrom = cr.Player.Pos; }
+                        cr.Step(new RunInput { Slot = -1, Aim = at });
+                        Root.RunView.Frame(1 / 60f);
+                        cr.Events.Clear();
+                        await Frames(1);
+                    }
+                    await Shot("13p_cleaner");
+                }
+            }
             if (Want("run") || Want("rivals"))
             {
                 // The other crew in the same building: in lime, three ways with the guards.
