@@ -16,7 +16,7 @@ Godot and `dotnet.exe` driven from WSL. Design and every number:
     ./play.sh --check           headless self-check -- run after every change
     ./play.sh --check --only X  just the sections whose name contains X (Bot plays whole jobs)
     ./play.sh --shots [X]       windowed walkthrough, writes shots/*.png -- look at them
-                                (X: title, city, terminal, place, map, run, or a job type)
+                                (X: title, city, terminal, place, map, run, rooms, rivals, or a job type)
     bash scripts/assets.sh      generate missing portraits/banners/voices via ../assetgen
                                 (and the intro clip in assets/video); --list, --force NAME;
                                 needs its Replicate token
@@ -32,6 +32,8 @@ Godot and `dotnet.exe` driven from WSL. Design and every number:
                                 Entities, RunHud, grime...) hides a layer to see what it costs;
                                 `perf grime full|light|off` forces the screen shader; `perf bench`
                                 times constructing the screens.
+                                In the city, `drive street` / `drive fare` go to an encounter or a
+                                drop-off; `drive PLACE street` stops when an encounter turns up.
 
 Machine paths default in `scripts/common.sh`; override in `.env` (see `.env.example`).
 Sound is off until turned on in Settings. Settings live in `user://sprawlrunner.json`, the career in `user://career.json`.
@@ -66,6 +68,10 @@ Sound is off until turned on in Settings. Settings live in `user://sprawlrunner.
 - `tests/SmokeTest*.cs` -- the self-check, including a bot that plays generated jobs and
   a balance report (`SmokeTest.Balance.cs`, printed every run).
   `src/Dev/ShotRunner.cs` -- the walkthrough.
+- The site: `World/SetPieces.cs` (room kinds and their hand-drawn pieces), `Run.Rooms.cs` (gas,
+  moods, the panic room, each style's rules), `Level.LightAt` (lamps, shadows), `LevelPlan.Entries`
+  and `UI/SitePlan.cs` (ways in, the briefing map). The other crew: `Career.Rival`, `Run.Rival`.
+  The street from the car: `CitySim.Street` (encounters, fares).
 - Story and the living city: `Sim/Story.cs` (the storylet engine: hooks, mail, calls, scenes,
   choices), `Sim/Storylets*.cs` (every storylet, by theme), `Career.World` (turf, faction clocks,
   happenings, rent, fame, the aftermath of a job), `Career.Crew`, `Career.Campaign` (the Spire

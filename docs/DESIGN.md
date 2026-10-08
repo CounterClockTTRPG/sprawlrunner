@@ -1069,3 +1069,90 @@ wearing a different borrowed face every 2.6 seconds.
 - **Sold**: ¥25,000, Halcyon's grudge -3, and streetlights that go out on your road.
 - The Lamplighter has its own voice (calm, too even); its opener and Null's
   discovery are voiced.
+
+## Eighth pass: the site, the street, the other crew
+
+From `docs/NEXT2.md` (2.2, 2.3, 2.4's entry points and map, light from 3, 4.1, 4.6)
+and `docs/EXPANSION.md` (the Drive hook). Runs stay at night: no day runs. Every
+number is in `Tables.cs`.
+
+### Light (`Level.LightAt`)
+Each lamp lights what it can see (walls cast shadows) over its radius, full near
+it, soft at the edge, on top of an `Ambient`: the night (0.08) on generated sites,
+full light on the checks' hand-drawn ones. Detection runs from x0.65 in the dark to
+x1.15 under a lamp, the same for every observer. At night most rooms have their
+lights off (offices 45 % lit, labs and warehouses 60 %, dens 70 %, clubs 80 %; a hash
+of the room, not the site's stream), and big halls hang a lamp every 8 tiles: 18-52 %
+of the floor is dark, by style. A shot of yours aimed at a lamp puts it out (glass,
+a little noise); blasts take out the lamps near them. The HUD says LIT, DIM or DARK.
+
+### Rooms with a purpose (`Room.Kind`, `World/SetPieces.cs`)
+Rooms get a kind by style, from their own random stream: server room, break room,
+barracks, armoury, manager's office, security office, panic room, ritual room, lab
+bay, loading dock, VIP booth (never a corridor). 23 hand-drawn set pieces, in the
+`Site()` text format, turn and mirror to fit; plain rooms keep the style's furniture.
+One thing each:
+
+| Room | What it does |
+|---|---|
+| Server room | coolant pipes: rupture one for a freezing cloud (guards in it can't act, you're slowed, nobody sees through it) |
+| Break room, security office | guards off duty: half the sight, half as quick to notice, until something's up |
+| Barracks | sleepers: blind; wake to a loud noise within 0.6 of its reach, a quiet one within 1.6 tiles, or the alarm |
+| Armoury | locked doors, a locker of kit, a grenade |
+| Manager's office | a desk, a safe -- and often the target, working late |
+| Panic room | armoured walls; on the alarm the target runs there and seals it (hack or blow the door) |
+| Ritual room | a chalk circle with a spirit bound to it: it can't leave |
+
+Off-duty and sleeping guards come out of the site's guard budget. Objectives
+sometimes move into a room that fits (the target in the office or the booth, paydata
+in the server room, the item in the armoury, evidence on the manager's desk). The
+runner hears a line on walking into each room with a purpose.
+
+### Sites that play differently (`Run.Rooms.cs`)
+| Style | Its rules |
+|---|---|
+| Lab | a breached vat lets out toxic gas (9 a second; a den's drug vat still burns); sprinklers drown fires x3; walk into the clean room without the suit hung somewhere on site and security goes up a level |
+| Office | 1 + threat/3 badge-reader doors deeper in open at a swipe of the keycard one guard carries (dropped when he goes down; hacks and charges still work); two night cleaners -- one who sees a gun runs for a phone, and in 3 s security goes up a level unless you stop them |
+| Warehouse | push a row of shelving over (E beside it): whoever is in the next aisle takes 45 and is stunned 2.5 s, and everyone hears it; the loading dock's roller doors are a second way out |
+| Den | dogs smell you through walls within 4.5 tiles (rain cuts it to 60 %) and come to look; 35 % of the gangers are drunk (x0.8 pace, x1.6 spread, x0.75 noticing) |
+| Club | a gunshot on the dance floor carries 0.45 as far (not in a blackout); a VIP booth by the floor |
+
+A chip on the run HUD names the site's rules.
+
+### Ways in (`LevelPlan.Entries`, `UI/SitePlan.cs`)
+The front gate, plus: a fence cut on another side of the yard (18+ tiles from the
+gate, 10 from any guard's post), the dock doors, a sewer hatch into a quiet room
+(dens, warehouses, labs from threat 2; 7 from any post), a tower's roof (with the
+Kite only). The way out stays where it is; `Job.Entry` keeps the choice. The
+briefing is two columns: the brief and legwork, and a site plan -- the footprint, or
+with schematics the blueprint with the rooms' purposes and the clean room named;
+with the patrol routes, the guards, their routes and the cameras' cones; the ways in
+numbered, each a button with its risk.
+
+### The street (`CitySim.Street.cs`, `Storylets.Street.cs`)
+A `Drive` hook: on a real drive with nobody on you (from day 2, at most twice a day,
+a look every 140 s of driving), something waits on a kerb ahead -- someone waving, a
+wreck with its hazards on, a Viper toll across the lane on Viper streets. Stop beside
+it and press E; closing the scene is driving on. Six of them: a hurt woman to drive
+to Ichikawa, a wreck to help or rob, the toll (pay, Gang etiquette, or floor it and
+have bikes after you), a kid filming your plates, a stranded runner with a job tip,
+a hot package for the Docks. A passenger or package aboard (`Career.Passenger`) pays
+when you stop at its kerb, and gets out overnight.
+
+### The other crew (`Career.Rival.cs`, `Run.Rival.cs`, `Storylets.Rival.cs`)
+A named crew (a boss and three runners) arrives once you have four jobs done, from
+day 5. They bid on a quarter of the Retrieve, Datasteal and Eliminate jobs (R on the
+board; those wait three days at most) and take the ones you let lapse. On a
+contested job they come in 30-70 s into the run from the far edge as a third side:
+they fight the guards and you, take the item and run for their exit, jack the
+mainframe (22 s), or go for the target (their kill pays you half); a carrier who goes
+down drops it. They escalate (a drone, a sniper, chrome) with every contest. The
+career remembers the dead by name; the debrief and the PDA say how it stands. After
+two beatings their boss calls: pay them to leave, split the city (Street; they then
+send floor plans), or refuse. With two of theirs dead, Juno finds their hideout:
+clear it, or kill them all, and they're finished.
+
+### Retiring
+The safehouse offers "Retire..." once a campaign is won or `Tables.RetireSavings`
+(¥250,000) is put away, with no job on: the receipt and the legacy, as a legend after
+a campaign, quietly otherwise.

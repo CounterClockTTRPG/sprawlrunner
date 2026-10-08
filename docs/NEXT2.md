@@ -3,7 +3,11 @@
 > **Status.** Built so far: the quick fixes (section 1) and the security
 > ladder with proper searching (2.1, and the searching part of 3) -- see
 > `docs/DESIGN.md`, "Seventh pass". Also added on request: the Lamplighter
-> campaign. Next in the suggested order: room kinds and set pieces (2.2).
+> campaign. The eighth pass (DESIGN.md) built room kinds and set pieces (2.2),
+> site styles that play differently (2.3), entry points and the briefing map
+> (2.4, not casing the site from the street), light that matters (3), the
+> rival crew (4.1) and retiring any time (4.6). Day runs stay out: runs are
+> at night.
 
 The sixth pass made the career layer deep and legible. This analysis looks at
 what is now the weakest part of the game: **the runs themselves**. Systems on top
