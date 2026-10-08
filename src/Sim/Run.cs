@@ -67,6 +67,9 @@ public sealed class Actor
     public bool Jumpy;
     /// <summary>Off duty, asleep, or bound to a circle (see <see cref="Sprawl.Mood"/>).</summary>
     public Mood Mood;
+    /// <summary>Had a few (a den's ganger); carries the keycard; a night cleaner, and how long until they reach a phone (0: not calling).</summary>
+    public bool Drunk, Badge, Cleaner;
+    public float CallT;
     public EnemyKind Kind => Def?.Kind ?? EnemyKind.Ganger;
     public bool Hostile => Team == 1 && !Dead;
     public bool Is(EnemyKind k) => Def != null && Def.Kind == k;
@@ -177,6 +180,8 @@ public sealed partial class Run
         {
             Actor e = AddEnemy(s.Kind, s.Pos, s.Facing, s.Patrol, s.Bodyguard);
             e.Mood = s.Mood;
+            e.Drunk = s.Drunk;
+            e.Badge = s.Badge;
             // Bound to the chalk: it can't leave the circle.
             if (s.Mood == Mood.Bound) e.Static = true;
         }
@@ -214,8 +219,10 @@ public sealed partial class Run
         if (!Peaceful) SetupDrone();
         foreach (var (pos, vendor) in Plan.Npcs)
         {
-            var n = new Actor { Id = _nextId++, IsNpc = true, Team = 2, Vendor = vendor, Pos = pos, Home = pos, Radius = 0.3f, MaxHp = 50, Hp = 50, Speed = R.Range(0.8f, 1.5f), Static = vendor != null, Facing = MathF.PI / 2 };
-            n.Name = vendor != null ? HubGen.Vendors.First(v => v.id == vendor).name : "passer-by";
+            // An office's night cleaner wanders with a cart, and isn't a vendor.
+            bool cleaner = vendor == "cleaner";
+            var n = new Actor { Id = _nextId++, IsNpc = true, Team = 2, Vendor = cleaner ? null : vendor, Cleaner = cleaner, Pos = pos, Home = pos, Radius = 0.3f, MaxHp = 50, Hp = 50, Speed = R.Range(0.8f, 1.5f), Static = vendor != null && !cleaner, Facing = MathF.PI / 2 };
+            n.Name = cleaner ? "night cleaner" : vendor != null ? HubGen.Vendors.First(v => v.id == vendor).name : "passer-by";
             Actors.Add(n);
         }
         foreach (PickupSpawn p in Plan.Pickups) Pickups.Add(new Pickup { Kind = p.Kind, Pos = p.Pos, Amount = p.Amount, Name = p.Name, Id = p.Id });
@@ -433,7 +440,7 @@ public sealed partial class Run
 
     public V2? ObjectivePos()
     {
-        if (ObjectiveDone || ObjectiveLost) return new V2(Plan.Extraction.X + Plan.Extraction.W / 2f, Plan.Extraction.Y + Plan.Extraction.H / 2f);
+        if (ObjectiveDone || ObjectiveLost) return ExitCentre;
         switch (Job.Type)
         {
             case JobType.Retrieve:
@@ -443,7 +450,7 @@ public sealed partial class Run
             // Intel: where the target was last seen -- their spot until you have eyes on them.
             case JobType.Eliminate:
                 if (Vip2 != null && Vip != null && Vip.Dead) return Vip2.Pos;
-                if (Twist == Twist.Alive && TwistFired && Vip != null && Vip.KO && CarriedBody == Vip) return new V2(Plan.Extraction.X + Plan.Extraction.W / 2f, Plan.Extraction.Y + Plan.Extraction.H / 2f);
+                if (Twist == Twist.Alive && TwistFired && Vip != null && Vip.KO && CarriedBody == Vip) return ExitCentre;
                 return Vip == null ? null : Shown(Vip) || Vip.Dead ? Vip.Pos : Vip.Home;
             case JobType.Rescue: return Hostage.Pos;
             case JobType.Investigate:
@@ -453,7 +460,7 @@ public sealed partial class Run
             case JobType.Hack: return Plan.Mainframe.Centre;
             case JobType.Kidnap:
                 if (Vip == null) return null;
-                if (Vip.KO && CarriedBody == Vip) return new V2(Plan.Extraction.X + Plan.Extraction.W / 2f, Plan.Extraction.Y + Plan.Extraction.H / 2f);
+                if (Vip.KO && CarriedBody == Vip) return ExitCentre;
                 return Shown(Vip) || Vip.Dead ? Vip.Pos : Vip.Home;
             case JobType.Destroy:
                 Pt t = Plan.Targets.Where(p => L[p] is Tile.Rack or Tile.Vat).OrderBy(p => V2.Distance(p.Centre, Player.Pos)).FirstOrDefault(new Pt(-1, -1));
@@ -560,7 +567,19 @@ public sealed partial class Run
     }
 
     /// <summary>The way out: the extraction zone -- or, in a tower, your own helicopter on the roof above the top floor's core.</summary>
-    public bool InExtraction(V2 p) => Plan.Extraction.Contains(p) || RoofPickup && FloorOf(p) == FloorCount - 1 && V2.Distance(p, Plan.LiftSpots[^1]) < 2.2f;
+    /// <summary>The way out nearer to the runner: the extraction, or the loading dock's roller doors.</summary>
+    public V2 ExitCentre
+    {
+        get
+        {
+            V2 a = new(Plan.Extraction.X + Plan.Extraction.W / 2f, Plan.Extraction.Y + Plan.Extraction.H / 2f);
+            if (Plan.BackDoor.W == 0) return a;
+            V2 b = new(Plan.BackDoor.X + Plan.BackDoor.W / 2f, Plan.BackDoor.Y + Plan.BackDoor.H / 2f);
+            return V2.Distance(a, Player.Pos) <= V2.Distance(b, Player.Pos) ? a : b;
+        }
+    }
+
+    public bool InExtraction(V2 p) => Plan.Extraction.Contains(p) || Plan.BackDoor.W > 0 && Plan.BackDoor.Contains(p) || RoofPickup && FloorOf(p) == FloorCount - 1 && V2.Distance(p, Plan.LiftSpots[^1]) < 2.2f;
     public bool RoofPickup => _roof ??= Plan.Tower && C.OwnsHeli;
     private bool? _roof;
 

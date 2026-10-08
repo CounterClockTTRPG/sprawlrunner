@@ -375,6 +375,7 @@ public partial class RunScreen : Control
             foreach (RunMod m in r.Job.Mods)
                 chips.Add((Tables.RunMods.First(x => x.mod == m).name.ToUpper(), m switch { RunMod.Blackout => "no cameras, dark", RunMod.ShiftChange => "double patrols", RunMod.Deadline => "on the clock", RunMod.Elite => "tougher guards", _ => "fewer guards" }, m is RunMod.Skeleton or RunMod.Blackout ? UITheme.Good : UITheme.Bad));
             if (r.C.On("grid", r.Job.District) && !r.Job.Has(RunMod.Blackout)) chips.Add(("GRID DOWN", "the district is dark", UITheme.Good));
+            if (r.StyleRule is var (sname, swhat)) chips.Add((sname, swhat, UITheme.Amber));
             foreach (string lw in r.Job.Legwork) chips.Add(("LEGWORK", Career.LegworkName(lw), UITheme.Good));
             float cx = 24, cy = 64;
             foreach (var (name, what, cc) in chips)
@@ -563,6 +564,7 @@ public partial class RunScreen : Control
             bool On(V2 p) => p.X >= rx0 && p.X < rx1;
             Rect ex = r.Plan.Extraction;
             DrawRect(new Rect2(at + new Vector2(ex.X, ex.Y) * s, new Vector2(ex.W, ex.H) * s), UITheme.Good, false, 1.5f);
+            if (r.Plan.BackDoor.W > 0) { Rect bd = r.Plan.BackDoor; DrawRect(new Rect2(at + new Vector2(bd.X, bd.Y) * s, new Vector2(bd.W, bd.H) * s), UITheme.Good, false, 1.5f); }
             if (r.Plan.Basement.W > 0)
             {
                 Rect bm = r.Plan.Basement;

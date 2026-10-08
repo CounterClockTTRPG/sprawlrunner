@@ -233,6 +233,7 @@ public sealed partial class Run
         if (by != null && by.Team == 0 && !ko) Kills++;
         if (ko) KnockOuts++;
         if (a == Vip) Say(ko ? $"{Job.Target} is out cold. That will do." : $"{Job.Target} is down.");
+        if (a.Badge) { a.Badge = false; Pickups.Add(new Pickup { Kind = PickupKind.Badge, Pos = a.Pos + new V2(0.25f, -0.2f), Amount = 1, Name = "a keycard" }); }
         if (a.Def.Cash > 0 && R.Chance(0.45f))
             Pickups.Add(new Pickup { Kind = PickupKind.Cash, Pos = a.Pos, Amount = (int)(a.Def.Cash * R.Range(0.5f, 1.5f) * (1 + 0.3f * Job.Threat)) });
         else if (R.Chance(0.06f))
@@ -257,7 +258,8 @@ public sealed partial class Run
         if (was == Tile.Barrel) _blasts.Enqueue((p.Centre, 2.6f, 70, GrenadeKind.Frag, 0, 2f));
         if (was is Tile.Rack or Tile.Vat && Job.Type == JobType.Destroy)
             Events.Add(new RunEvent(Ev.Objective, p.Centre, Text: $"{Job.Item}: {TargetsLeft} left"));
-        if (was == Tile.Vat) Ignite(p.Centre, 1.2f, 4);
+        if (was == Tile.Vat && Job.Style == SiteStyle.Lab) Gas(p.Centre, GasKind.Toxic, Tables.ToxicRadius, Tables.ToxicLife);
+        else if (was == Tile.Vat) Ignite(p.Centre, 1.2f, 4);
         if (was == Tile.Pipe) Gas(p.Centre, GasKind.Coolant, Tables.CoolantRadius, Tables.CoolantLife);
         return true;
     }
@@ -440,9 +442,10 @@ public sealed partial class Run
         _fireSpread += dt;
         bool spread = _fireSpread > 0.5f;
         if (spread) _fireSpread = 0;
+        float drown = FireMul();
         foreach (int i in Fire.Keys.ToList())
         {
-            float left = Fire[i] - dt;
+            float left = Fire[i] - dt * drown;
             var p = new Pt(i % L.W, i / L.W);
             if (Level.Def(L[p]).Flammable)
             {
@@ -496,6 +499,7 @@ public sealed partial class Run
     /// </summary>
     public void Noise(V2 pos, float radius, bool byPlayer, bool quiet = false)
     {
+        if (byPlayer && !quiet) radius *= MusicMul(pos);
         if (radius <= 0.5f) return;
         // Bystanders hear it too: a gunshot or a blast sends them running (a silenced shot only right beside them).
         // Quiet sounds -- footsteps, a whistle, a blade -- don't.

@@ -5,7 +5,7 @@ using System.Linq;
 namespace Sprawl;
 
 /// <summary>What a room is for: its furniture, and the one thing in it worth knowing about.</summary>
-public enum RoomKind { Plain, Server, Break, Barracks, Armoury, Manager, Panic, Ritual, Security, LabBay, Dock }
+public enum RoomKind { Plain, Server, Break, Barracks, Armoury, Manager, Panic, Ritual, Security, LabBay, Dock, Booth }
 
 /// <summary>How a defender starts: as usual, off duty (cards at the break-room table), asleep in a bunk, or bound to a circle.</summary>
 public enum Mood { None, OffDuty, Asleep, Bound }
@@ -43,6 +43,8 @@ public static class SetPieces
         (RoomKind.LabBay, new[] { "v.v.v", ".....", "DD*DD" }),
         (RoomKind.LabBay, new[] { "vv..vv", "...*..", ".DDDD." }),
         (RoomKind.Dock, new[] { "cc.w.cc", "cc...cc", "...*..." }),
+        (RoomKind.Booth, new[] { "DDDD", ".*..", "D..D" }),
+        (RoomKind.Booth, new[] { "DD.", "D*.", "DD." }),
     };
 
     /// <summary>A piece turned by quarter turns (0-3) and maybe mirrored.</summary>
@@ -101,7 +103,8 @@ public static class SetPieces
         RoomKind.Ritual => "A ritual circle. Something is bound to it -- it can't leave the chalk.",
         RoomKind.Security => "Security. The console runs the cameras.",
         RoomKind.LabBay => "A lab bay. The vats are under pressure.",
-        RoomKind.Dock => "The loading dock.",
+        RoomKind.Dock => "The loading dock. The roller doors are a way out too.",
+        RoomKind.Booth => "The VIP booth: velvet, a view of the floor, and whoever matters tonight.",
         _ => null,
     };
 
@@ -109,6 +112,6 @@ public static class SetPieces
     {
         RoomKind.Server => "server room", RoomKind.Break => "break room", RoomKind.Barracks => "barracks", RoomKind.Armoury => "armoury",
         RoomKind.Manager => "manager's office", RoomKind.Panic => "panic room", RoomKind.Ritual => "ritual room", RoomKind.Security => "security office",
-        RoomKind.LabBay => "lab bay", RoomKind.Dock => "loading dock", _ => "room",
+        RoomKind.LabBay => "lab bay", RoomKind.Dock => "loading dock", RoomKind.Booth => "VIP booth", _ => "room",
     };
 }

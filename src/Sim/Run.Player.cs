@@ -590,10 +590,22 @@ public sealed partial class Run
             Pt q = Pt.Of(p.Pos) + new Pt(dx, dy);
             if (L[q] == Tile.LockedDoor && V2.Distance(q.Centre, p.Pos) < 1.3f) { near = q; break; }
         }
+        if (near.X >= 0 && HasBadge && L.Keycards.Contains(L.Idx(near.X, near.Y)))
+        {
+            Prompt = "E: swipe the keycard";
+            if (pressed)
+            {
+                L.Set(near, Tile.Door);
+                L.Keycards.Remove(L.Idx(near.X, near.Y));
+                Events.Add(new RunEvent(Ev.Door, near.Centre));
+                Say("The reader blinks green.");
+            }
+            return;
+        }
         if (near.X >= 0)
         {
             if (near != HackTarget) { HackTarget = near; HackProgress = 0; }
-            Prompt = "Hold E: bypass the maglock";
+            Prompt = L.Keycards.Contains(L.Idx(near.X, near.Y)) ? "Hold E: bypass the badge reader (or find the keycard)" : "Hold E: bypass the maglock";
             if (held)
             {
                 HackProgress += dt * HackRate / 4f;
@@ -606,6 +618,13 @@ public sealed partial class Run
                     HackProgress = 0;
                 }
             }
+            return;
+        }
+        // A warehouse's shelving: push a row over onto whoever is in the next aisle.
+        if (Job.Style == SiteStyle.Warehouse && ShelfAt(p.Pos) is var (row, dir) && row.Count > 0)
+        {
+            Prompt = "E: push the shelving over";
+            if (pressed) Topple(row, dir);
             return;
         }
         // Site furniture: the security console, safes, lockers.
@@ -758,6 +777,51 @@ public sealed partial class Run
         }
     }
 
+    public bool HasSuit, HasBadge;
+
+    /// <summary>
+    /// A row of shelving beside the runner (three crates or more in a line) and
+    /// the way it falls (away from them), or an empty row.
+    /// </summary>
+    public (List<Pt> row, Pt dir) ShelfAt(V2 at)
+    {
+        foreach (Pt d in Pt.Dirs4)
+        {
+            Pt c = Pt.Of(at) + d;
+            if (L[c] != Tile.Crate) continue;
+            foreach (Pt axis in new[] { new Pt(1, 0), new Pt(0, 1) })
+            {
+                // Pushing along the row moves nothing; push across it.
+                if (axis.X != 0 && d.Y == 0 || axis.Y != 0 && d.X == 0) continue;
+                var row = new List<Pt> { c };
+                for (int k = 1; k < 7 && L[c + new Pt(axis.X * k, axis.Y * k)] == Tile.Crate; k++) row.Add(c + new Pt(axis.X * k, axis.Y * k));
+                for (int k = 1; k < 7 && L[c - new Pt(axis.X * k, axis.Y * k)] == Tile.Crate; k++) row.Add(c - new Pt(axis.X * k, axis.Y * k));
+                if (row.Count >= 3) return (row, d);
+            }
+        }
+        return (new List<Pt>(), default);
+    }
+
+    /// <summary>Over it goes: the row comes down, anyone in the aisle beyond is crushed and stunned, and everyone hears it.</summary>
+    public void Topple(List<Pt> row, Pt dir)
+    {
+        foreach (Pt t in row)
+        {
+            Pt fall = t + dir;
+            L.Set(t, Tile.Rubble);
+            Events.Add(new RunEvent(Ev.Broken, t.Centre, default, 0, (int)Tile.Crate));
+            if (L[fall] == Tile.Floor) L.Set(fall, Tile.Rubble);
+            foreach (Actor a in Actors.ToList())
+            {
+                if (a.Dead || a.IsPlayer || a.Flying || V2.Distance(a.Pos, fall.Centre) > 0.9f) continue;
+                Hurt(a, Tables.ToppleHurt, Player, false);
+                if (!a.Dead && a.Def != null) a.Stun = MathF.Max(a.Stun, Tables.ToppleStun);
+            }
+        }
+        Noise(row[0].Centre, 13, true);
+        Say("The shelving goes over with a crash.");
+    }
+
     public bool Used(Pt t) => _used.Contains(t);
 
     private void TakePickups()
@@ -777,6 +841,8 @@ public sealed partial class Run
                     break;
                 case PickupKind.Loot: LootFound.Add(new LootItem { Name = k.Name, Value = k.Amount }); text = $"Found: {k.Name}"; break;
                 case PickupKind.Clue: CluesFound++; text = $"Evidence {CluesFound}/{ClueCount}: {k.Name}."; break;
+                case PickupKind.Suit: HasSuit = true; text = "A clean-room suit: the sensors will take you for staff."; break;
+                case PickupKind.Badge: HasBadge = true; text = "A keycard: the badge readers will open for it."; break;
                 default: Carrying = true; text = $"Got {(k.Name.Contains('\'') || k.Name.StartsWith("her ") ? k.Name : "the " + k.Name)}!"; break;
             }
             k.Taken = true;

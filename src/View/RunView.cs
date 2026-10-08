@@ -765,6 +765,27 @@ public partial class RunView : Node2D
             DrawRect(rect, c with { A = 0.08f + 0.06f * pulse });
             DrawRect(rect, c with { A = 0.5f + 0.4f * pulse }, false, 2);
             UITheme.Write(this, rect.Position + new Vector2(-30, -6), r.Peaceful ? "YOUR CAR" : "EXTRACTION", 13, c, HorizontalAlignment.Center, rect.Size.X + 60, heading: true);
+            // The loading dock's way out.
+            if (r.Plan.BackDoor.W > 0)
+            {
+                Rect bd = r.Plan.BackDoor;
+                var br = new Rect2(bd.X * T, bd.Y * T, bd.W * T, bd.H * T);
+                DrawRect(br, c with { A = 0.08f + 0.06f * pulse });
+                DrawRect(br, c with { A = 0.5f + 0.4f * pulse }, false, 2);
+                UITheme.Write(this, br.Position + new Vector2(-40, -6), "DOCK EXIT", 13, c, HorizontalAlignment.Center, br.Size.X + 80, heading: true);
+            }
+            // A lab's clean room: the sensors' line on the floor.
+            if (r.Plan.CleanRoom.W > 0 && !r.HasSuit)
+            {
+                Rect cr = r.Plan.CleanRoom;
+                if (r.L.Explored[r.L.Idx(cr.X + cr.W / 2, cr.Y + cr.H / 2)])
+                {
+                    var crr = new Rect2(cr.X * T + 3, cr.Y * T + 3, cr.W * T - 6, cr.H * T - 6);
+                    DrawDashedLine(crr.Position, crr.Position + new Vector2(crr.Size.X, 0), UITheme.Cyan with { A = 0.55f }, 1.5f, 8);
+                    DrawDashedLine(crr.End, crr.End - new Vector2(crr.Size.X, 0), UITheme.Cyan with { A = 0.55f }, 1.5f, 8);
+                    UITheme.Write(this, crr.Position + new Vector2(0, -4), "CLEAN ROOM -- SUIT ONLY", 11, UITheme.Cyan with { A = 0.8f }, HorizontalAlignment.Center, crr.Size.X, heading: true);
+                }
+            }
             // Reticle.
             Vector2 m = Art.G(V.Aim, T);
             Color rc = UITheme.Cyan;
@@ -801,7 +822,7 @@ public partial class RunView : Node2D
                 Color c = k.Kind switch
                 {
                     PickupKind.Cash => UITheme.Yellow, PickupKind.Medkit => UITheme.Good, PickupKind.Grenade => new Color(0.6f, 0.8f, 0.4f),
-                    PickupKind.Loot => UITheme.Violet, _ => UITheme.Magenta,
+                    PickupKind.Loot => UITheme.Violet, PickupKind.Suit => UITheme.Cyan, PickupKind.Badge => new Color(0.4f, 0.7f, 1f), _ => UITheme.Magenta,
                 };
                 Art.DrawGlow(this, p, 18, c with { A = 0.3f });
                 switch (k.Kind)
@@ -817,6 +838,17 @@ public partial class RunView : Node2D
                         break;
                     case PickupKind.Grenade:
                         DrawCircle(p + new Vector2(0, bob), 5, new Color(0.3f, 0.4f, 0.2f));
+                        break;
+                    case PickupKind.Suit:
+                        // A folded white suit, the hood on top.
+                        DrawRect(new Rect2(p + new Vector2(-7, -5 + bob), new Vector2(14, 10)), new Color(0.9f, 0.92f, 0.95f));
+                        DrawCircle(p + new Vector2(0, -6 + bob), 4, new Color(0.85f, 0.9f, 0.95f));
+                        DrawRect(new Rect2(p + new Vector2(-3, -8 + bob), new Vector2(6, 3)), new Color(0.3f, 0.6f, 0.8f));
+                        break;
+                    case PickupKind.Badge:
+                        DrawRect(new Rect2(p + new Vector2(-6, -4 + bob), new Vector2(12, 8)), new Color(0.85f, 0.88f, 0.92f));
+                        DrawRect(new Rect2(p + new Vector2(-6, -4 + bob), new Vector2(12, 3)), new Color(0.3f, 0.55f, 0.9f));
+                        DrawRect(new Rect2(p + new Vector2(-4, 0 + bob), new Vector2(4, 3)), new Color(0.6f, 0.6f, 0.65f));
                         break;
                     default:
                         DrawRect(new Rect2(p + new Vector2(-6, -6 + bob), new Vector2(12, 12)), new Color(0.1f, 0.1f, 0.14f));
@@ -884,6 +916,21 @@ public partial class RunView : Node2D
             {
                 if (a.Dead || !r.Shown(a)) continue;
                 DrawActor(a, r, time);
+                Vector2 ap = Art.G(a.Pos, T);
+                // A cleaner pushes a cart; a drinker carries the bottle.
+                if (a.Cleaner)
+                {
+                    Vector2 back = ap - new Vector2(MathF.Cos(a.Facing), MathF.Sin(a.Facing)) * -11;
+                    DrawRect(new Rect2(back - new Vector2(6, 5), new Vector2(12, 10)), new Color(0.25f, 0.45f, 0.6f));
+                    DrawRect(new Rect2(back - new Vector2(6, 5), new Vector2(12, 10)), new Color(0.12f, 0.2f, 0.28f), false, 1);
+                    DrawLine(back + new Vector2(-3, -5), back + new Vector2(-6, -14), new Color(0.75f, 0.65f, 0.4f), 1.5f);
+                    if (a.CallT > 0) UITheme.Write(this, ap + new Vector2(-30, -14), "CALLING", 11, UITheme.Bad, HorizontalAlignment.Center, 60, heading: true);
+                }
+                else if (a.Drunk && !a.KO)
+                {
+                    Vector2 hand = ap + new Vector2(MathF.Cos(a.Facing + 1.2f), MathF.Sin(a.Facing + 1.2f)) * 9;
+                    DrawRect(new Rect2(hand - new Vector2(1.5f, 3.5f), new Vector2(3, 7)), new Color(0.25f, 0.45f, 0.2f, 0.9f));
+                }
                 // Asleep in a bunk: the z's drift up.
                 if (a.Mood == Mood.Asleep)
                     for (int k = 0; k < 2; k++)

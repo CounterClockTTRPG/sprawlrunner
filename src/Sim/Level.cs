@@ -189,6 +189,8 @@ public sealed class Level
 
     // ---- light -----------------------------------------------------------------
 
+    /// <summary>Locked doors with a badge reader (an office's keycard doors), by tile index.</summary>
+    public readonly HashSet<int> Keycards = new();
     /// <summary>The light everywhere before the lamps: 1 on a hand-drawn site (no lighting at all), the night on a generated one.</summary>
     public float Ambient = 1;
     /// <summary>Lamps shot out (by index into <see cref="Lights"/>).</summary>

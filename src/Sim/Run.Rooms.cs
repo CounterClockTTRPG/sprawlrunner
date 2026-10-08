@@ -49,7 +49,7 @@ public sealed partial class Run
             GasCloud c = Clouds[i];
             c.T += dt;
             if (c.T > c.Life) { Clouds.RemoveAt(i); continue; }
-            foreach (Actor a in Actors)
+            foreach (Actor a in Actors.ToList())
             {
                 if (a.Dead || a.IsGhost || a.Def != null && (a.Def.Kind is EnemyKind.Camera or EnemyKind.Turret or EnemyKind.Drone or EnemyKind.Spirit)) continue;
                 if (V2.Distance(a.Pos, c.Pos) >= c.Reach) continue;
@@ -81,7 +81,68 @@ public sealed partial class Run
             if (i >= 0 && i < Plan.Rooms.Count && _announced.Add(i) && SetPieces.Line(Plan.Rooms[i].Kind) is string line) Say(line);
         }
         StepPanic();
+        StepStyle();
     }
+
+    private bool _cleanTripped, _sprinklers;
+
+    /// <summary>
+    /// The site's own rules: a lab's clean room logs whoever walks in without a
+    /// suit; an office's night cleaner who sees a gun runs for a phone (stop
+    /// them before they get there); a dog smells you through walls (Perceive).
+    /// </summary>
+    private void StepStyle()
+    {
+        if (Plan.CleanRoom.W > 0 && !_cleanTripped && !HasSuit && !Disguised && Plan.CleanRoom.Contains(Pt.Of(Player.Pos)))
+        {
+            _cleanTripped = true;
+            RaiseSecurity(1);
+            Say("Contamination sensors: the clean room logs an intruder. Security is on edge.");
+        }
+        for (int i = 0; i < Actors.Count; i++)
+        {
+            Actor a = Actors[i];
+            if (!a.Cleaner || a.Dead) continue;
+            if (a.CallT > 0)
+            {
+                a.CallT -= Dt;
+                if (a.CallT <= 0) { a.CallT = -1; RaiseSecurity(1); Say("The cleaner got through to security."); }
+                continue;
+            }
+            if (a.CallT < 0) continue;
+            // A gun in hand, in plain sight, close enough to see it's a gun.
+            float d = V2.Distance(a.Pos, Player.Pos);
+            if (CurrentGun != null && d < 7 && L.Los(a.Pos, Player.Pos) && MathF.Abs(M.AngleDiff(a.Facing, M.Angle(Player.Pos - a.Pos))) < 1.2f && !Disguised)
+            {
+                a.CallT = Tables.CleanerCall;
+                a.PanicT = 8;
+                a.PanicFrom = Player.Pos;
+                Say("A night cleaner saw your gun and is running for a phone. Stop them.");
+            }
+        }
+    }
+
+    /// <summary>What this site's style does, in a few words (null on a peaceful site).</summary>
+    public (string name, string what)? StyleRule => Peaceful || Job.Type is JobType.Defend or JobType.Hack ? null : Job.Style switch
+    {
+        SiteStyle.Lab => ("LAB", Plan.CleanRoom.W > 0 ? "toxic vats, sprinklers, a clean room" : "toxic vats, sprinklers"),
+        SiteStyle.Office => ("OFFICE", L.Keycards.Count > 0 || HasBadge ? "night cleaners, keycard doors" : "night cleaners"),
+        SiteStyle.Warehouse => ("WAREHOUSE", Plan.BackDoor.W > 0 ? "shelving you can push over, a dock exit" : "shelving you can push over"),
+        SiteStyle.Den => ("DEN", "dogs smell you, some are drunk"),
+        SiteStyle.Club => ("CLUB", "the music hides shots on the floor"),
+        _ => null,
+    };
+
+    /// <summary>A lab's sprinklers drown a fire fast (the first time, they say so).</summary>
+    public float FireMul()
+    {
+        if (Job.Style != SiteStyle.Lab || Fire.Count == 0) return 1;
+        if (!_sprinklers) { _sprinklers = true; Say("Sprinklers come on."); }
+        return Tables.Sprinklers;
+    }
+
+    /// <summary>A shot on a club's dance floor is lost in the music (while the power's on).</summary>
+    public float MusicMul(V2 at) => Job.Style == SiteStyle.Club && !Job.Has(RunMod.Blackout) && L.In(Pt.Of(at)) && L.F[L.Idx((int)at.X, (int)at.Y)] == Floor.Dance ? Tables.MusicMask : 1;
 
     /// <summary>
     /// The target, once the alarm is up (or they've seen you), runs for the

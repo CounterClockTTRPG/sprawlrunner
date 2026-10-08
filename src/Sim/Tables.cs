@@ -171,6 +171,13 @@ public static class Tables
     public const float OffDutySight = 0.5f, OffDutyDetect = 0.5f, WakeQuiet = 1.6f, WakeLoud = 0.6f;
     public const float CoolantRadius = 2.6f, CoolantLife = 9, CoolantHurt = 3, CoolantHurtYou = 4, CoolantSlow = 0.55f;
     public const float ToxicRadius = 2.8f, ToxicLife = 10, ToxicHurt = 9, ToxicHurtYou = 7;
+    /// <summary>Site styles: how many night cleaners an office has, and how long one takes to reach a phone; the share of a den's gangers who are drunk
+    /// (their pace, aim spread and noticing, of a sober one's); how far a dog smells you through walls (rain cuts it) and how fast;
+    /// how far the club's music carries a gunshot on its floor (of the usual); how fast a lab's sprinklers drown a fire;
+    /// what pushed-over shelving does to whoever is under it.</summary>
+    public const int Cleaners = 2;
+    public const float CleanerCall = 3f, DrunkShare = 0.35f, DrunkPace = 0.8f, DrunkAim = 1.6f, DrunkNotice = 0.75f, Smell = 4.5f, SmellRate = 0.6f;
+    public const float MusicMask = 0.45f, Sprinklers = 3f, ToppleHurt = 45, ToppleStun = 2.5f;
     /// <summary>Street encounters: seconds of driving before the first look and between looks, at most this many a day,
     /// how long one waits on its kerb, and how far past it you can be before it's gone.</summary>
     public const float StreetFirst = 60, StreetEvery = 140, StreetLife = 60, StreetGone = 45;

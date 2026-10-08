@@ -544,6 +544,8 @@ public partial class ShotRunner : Node
                     (RoomKind.Server, SiteStyle.Office, Faction.Halcyon, "13h_room_server"), (RoomKind.Barracks, SiteStyle.Den, Faction.Vipers, "13i_room_barracks"),
                     (RoomKind.Break, SiteStyle.Office, Faction.Halcyon, "13j_room_break"), (RoomKind.Armoury, SiteStyle.Den, Faction.Vipers, "13k_room_armoury"),
                     (RoomKind.Ritual, SiteStyle.Den, Faction.Vipers, "13l_room_ritual"),
+                    (RoomKind.Dock, SiteStyle.Warehouse, Faction.Vipers, "13m_room_dock"), (RoomKind.LabBay, SiteStyle.Lab, Faction.Halcyon, "13n_room_lab"),
+                    (RoomKind.Booth, SiteStyle.Club, Faction.Lotus, "13o_room_booth"),
                 };
                 foreach (var (kind, style, f, name) in wanted)
                 {

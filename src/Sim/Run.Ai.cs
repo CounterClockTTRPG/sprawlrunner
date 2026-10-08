@@ -82,7 +82,7 @@ public sealed partial class Run
             a.Detect = MathF.Max(a.Detect, 0.4f);
         }
         if (!a.Alert && !a.Static) CheckBodies(a, dt);
-        float speed = a.Speed * (a.FrenzyT > 0 ? 1.3f : 1);
+        float speed = a.Speed * (a.FrenzyT > 0 ? 1.3f : 1) * (a.Drunk ? Tables.DrunkPace : 1);
         switch (a.State)
         {
             case AiState.Idle: Idle(a, dt); break;
@@ -156,7 +156,7 @@ public sealed partial class Run
             float rate = dist < 2 ? 4f : 1.6f * (1.25f - dist / vision);
             // In their uniform you're one of them -- until they get a close look.
             if (Disguised) rate *= dist < 2.2f ? 0.6f : 0.2f;
-            rate = MathF.Max(0.25f, rate) * C.DetectMul * (Sneaking ? 0.5f : 1f) * (a.State == AiState.Search ? 2f : 1f) * LightDetect(Player.Pos) * (a.Mood == Mood.OffDuty ? Tables.OffDutyDetect : 1)
+            rate = MathF.Max(0.25f, rate) * C.DetectMul * (Sneaking ? 0.5f : 1f) * (a.State == AiState.Search ? 2f : 1f) * LightDetect(Player.Pos) * (a.Mood == Mood.OffDuty ? Tables.OffDutyDetect : 1) * (a.Drunk ? Tables.DrunkNotice : 1)
                 // Guards who have searched for you, or a site on edge, notice you faster.
                 * (a.Jumpy ? Tables.JumpyDetect : 1f) * (SecurityLevel >= 1 && !Alarm ? Tables.OnEdgeDetect : 1f);
             if (a.Is(EnemyKind.Turret)) rate *= 2.5f;
@@ -170,8 +170,18 @@ public sealed partial class Run
                 a.Goal = Player.Pos;
             }
         }
+        else if (a.Is(EnemyKind.Hound) && Smells(a, dist))
+        {
+            // A dog doesn't need to see you: it noses round the wall to where you are (never past wondering on scent alone).
+            a.Detect = MathF.Min(0.9f, a.Detect + dt * Tables.SmellRate * (Sneaking ? 0.5f : 1));
+            if (a.Detect > 0.3f && a.State == AiState.Idle) { a.State = AiState.Suspicious; a.Goal = Player.Pos; a.StateT = 0; }
+            else if (a.State == AiState.Suspicious) a.Goal = Player.Pos;
+        }
         else a.Detect = MathF.Max(0, a.Detect - dt * 0.12f);
     }
+
+    /// <summary>Close enough to smell (rain washes most of it out; a cloak doesn't).</summary>
+    private bool Smells(Actor a, float dist) => dist < Tables.Smell * (C.Weather is Career.Sky.Rain or Career.Sky.Storm ? 0.6f : 1) && a.Mood != Mood.Asleep;
 
     /// <summary>How fast you're noticed for the light you stand in: <see cref="Tables.DarkDetect"/> in the dark, <see cref="Tables.LitDetect"/> under a lamp.</summary>
     public float LightDetect(V2 p)
@@ -436,7 +446,7 @@ public sealed partial class Run
         }
         else if (off > 0.22f) return;
 
-        float spread = w.Spread + a.Def.Aim;
+        float spread = (w.Spread + a.Def.Aim) * (a.Drunk ? Tables.DrunkAim : 1);
         for (int k = 0; k < w.Pellets; k++)
             SpawnShot(a, w, a.Facing + R.Bell() * spread * MathF.PI / 360f, w.Damage * threat, false, dist);
         g.Ammo--;

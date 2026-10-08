@@ -467,7 +467,15 @@ public static class LevelArt
         ci.DrawRect(p, panel);
         ci.DrawRect(p, panel.Darkened(0.4f), false, 1.5f);
         Vector2 mid = o + new Vector2(T / 2f, T / 2f);
-        if (locked)
+        if (locked && L.Keycards.Contains(L.Idx(x, y)))
+        {
+            // A badge reader: a slot, a blue strip, a red light until it's swiped.
+            ci.DrawRect(new Rect2(mid - new Vector2(4, 4.5f), new Vector2(8, 9)), new Color(0.08f, 0.09f, 0.12f));
+            ci.DrawRect(new Rect2(mid - new Vector2(3, 3.5f), new Vector2(6, 2)), new Color(0.3f, 0.55f, 0.95f));
+            ci.DrawRect(new Rect2(mid + new Vector2(-2.5f, 0), new Vector2(5, 1)), new Color(0.5f, 0.5f, 0.55f));
+            ci.DrawCircle(mid + new Vector2(0, 3), 1.3f, new Color(1f, 0.15f, 0.1f));
+        }
+        else if (locked)
         {
             // A maglock: a keypad with its red light, and the bolt housing.
             ci.DrawRect(new Rect2(mid - new Vector2(4, 3.5f), new Vector2(8, 7)), new Color(0.08f, 0.08f, 0.1f));

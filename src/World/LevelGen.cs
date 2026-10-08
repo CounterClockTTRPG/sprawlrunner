@@ -25,9 +25,11 @@ public sealed class Spawn
     public List<V2> Patrol = new();
     public bool Bodyguard;
     public Mood Mood;
+    /// <summary>A den's drinker (slower, worse aim, slower to notice); an office guard who carries the keycard.</summary>
+    public bool Drunk, Badge;
 }
 
-public enum PickupKind { Cash, Medkit, Grenade, Loot, Objective, Clue }
+public enum PickupKind { Cash, Medkit, Grenade, Loot, Objective, Clue, Suit, Badge }
 
 public sealed class PickupSpawn
 {
@@ -59,6 +61,8 @@ public sealed class LevelPlan
     public Rect Building;
     /// <summary>The panic room the target runs to when the alarm goes (W 0: none).</summary>
     public Rect PanicRoom;
+    /// <summary>A lab's clean room (entering without a suit trips its sensors), and a warehouse's second way out through the loading dock (W 0: none).</summary>
+    public Rect CleanRoom, BackDoor;
     /// <summary>The room a point is in, and what kind it is (Plain outside any room).</summary>
     public RoomKind KindAt(Pt p) => L.In(p) && RoomOf[L.Idx(p.X, p.Y)] is int i && i >= 0 && i < Rooms.Count ? Rooms[i].Kind : RoomKind.Plain;
     /// <summary>The basement, when the site has one (W 0 otherwise), and the main map's width.</summary>
@@ -410,6 +414,7 @@ public sealed class LevelGen
         WallLine(new Pt(outerRim.Right, outerRim.Bottom - 1), new Pt(inside.Right - 1, outerRim.Bottom - 1), _inner);
         for (int y = inner.Y + 1; y < inner.Bottom - 1; y++)
         for (int x = inner.X + 1; x < inner.Right - 1; x++) L.F[L.Idx(x, y)] = Floor.LabTile;
+        P.CleanRoom = inner.Inset(1);
     }
 
     private void Rim(Rect r, Tile t)
@@ -937,7 +942,7 @@ public sealed class LevelGen
             SiteStyle.Lab => new[] { (RoomKind.LabBay, 0.9f), (RoomKind.LabBay, 0.6f), (RoomKind.Server, 0.6f), (RoomKind.Break, 0.5f), (RoomKind.Manager, 0.5f), (RoomKind.Security, security ? 1 : 0), (RoomKind.Panic, target ? 0.4f : 0) },
             SiteStyle.Warehouse => new[] { (RoomKind.Dock, 0.6f), (RoomKind.Manager, 0.6f), (RoomKind.Break, 0.6f), (RoomKind.Armoury, _job.Threat >= 2 ? 0.5f : 0) },
             SiteStyle.Den => new[] { (RoomKind.Barracks, 0.8f), (RoomKind.Barracks, 0.4f), (RoomKind.Break, 0.5f), (RoomKind.Armoury, _job.Threat >= 2 ? 0.6f : 0), (RoomKind.Ritual, _job.Threat >= 2 ? 0.35f : 0) },
-            _ => new[] { (RoomKind.Manager, 0.8f), (RoomKind.Break, 0.6f), (RoomKind.Armoury, _job.Faction == Faction.Lotus ? 0.3f : 0), (RoomKind.Security, security ? 1 : 0) },
+            _ => new[] { (RoomKind.Booth, 0.85f), (RoomKind.Manager, 0.8f), (RoomKind.Break, 0.6f), (RoomKind.Armoury, _job.Faction == Faction.Lotus ? 0.3f : 0), (RoomKind.Security, security ? 1 : 0) },
         };
         if (_job.Type == JobType.Defend || _job.Tutorial) return;
         // A nest has no barracks or break room: only, sometimes, the circle something was bound in.
@@ -950,6 +955,8 @@ public sealed class LevelGen
             var free = P.Rooms.Where(r => r.Kind == RoomKind.Plain && !r.Vault && r.R.W >= 4 && r.R.H >= 4 && r.R.Area >= 16 && L.F[L.Idx(r.R.X, r.R.Y)] != Floor.Dance
                 && (kind == RoomKind.Dock || Math.Max(r.R.W, r.R.H) <= 3 * Math.Min(r.R.W, r.R.H) && r.Links.Count <= 3)).ToList();
             if (kind == RoomKind.Dock) free = free.Where(r => r.Outer).ToList();
+            // The booth looks out over the dance floor.
+            if (kind == RoomKind.Booth) free = free.Where(r => r.Links.Any(l => l < P.Rooms.Count && L.F[L.Idx(P.Rooms[l].R.X, P.Rooms[l].R.Y)] == Floor.Dance)).ToList();
             if (kind == RoomKind.Panic) free = free.Where(r => r.Depth >= 1 && r.R.Area <= 48 && !r.Outer).ToList();
             if (free.Count == 0) continue;
             // The office and the panic room sit deep; the rest anywhere.
@@ -1002,6 +1009,7 @@ public sealed class LevelGen
                     if (!r.R.Contains(new Pt(x, y)) && L[x, y] is Tile.Drywall or Tile.Brick or Tile.Glass) L.Set(x, y, Tile.Concrete);
                 P.PanicRoom = r.R;
             }
+            if (r.Kind == RoomKind.Dock && P.BackDoor.W == 0) LoadingDoors(r);
             if (r.Kind == RoomKind.Armoury)
             {
                 // The armoury's doors are locked: hack them, or blow them.
@@ -1013,6 +1021,40 @@ public sealed class LevelGen
                 V2 at = _hot.TryGetValue(r, out V2 h) ? h : r.Centre;
                 if (_job.Type != JobType.Retrieve) P.Pickups.Add(new PickupSpawn { Kind = PickupKind.Grenade, Pos = at, Amount = 1, Id = _k.Pick(new[] { "frag", "flash", "emp" }) });
             }
+        }
+    }
+
+    /// <summary>
+    /// The loading dock's roller doors: three tiles of the building's outer wall
+    /// opened onto the yard, and a second extraction just outside them.
+    /// </summary>
+    private void LoadingDoors(Room r)
+    {
+        Rect b = P.Building;
+        var sides = new List<(Pt a, Pt step, Pt outward)>();
+        if (r.R.Y - 1 == b.Y) sides.Add((new Pt(r.R.X, b.Y), new Pt(1, 0), new Pt(0, -1)));
+        if (r.R.Bottom == b.Bottom - 1) sides.Add((new Pt(r.R.X, b.Bottom - 1), new Pt(1, 0), new Pt(0, 1)));
+        if (r.R.X - 1 == b.X) sides.Add((new Pt(b.X, r.R.Y), new Pt(0, 1), new Pt(-1, 0)));
+        if (r.R.Right == b.Right - 1) sides.Add((new Pt(b.Right - 1, r.R.Y), new Pt(0, 1), new Pt(1, 0)));
+        foreach (var (a, step, outward) in sides.OrderBy(_ => _k.Next()))
+        {
+            int len = step.X != 0 ? r.R.W : r.R.H;
+            if (len < 5) continue;
+            int at = len / 2 - 1;
+            Pt d0 = a + new Pt(step.X * at, step.Y * at);
+            var doors = new[] { d0, d0 + step, d0 + new Pt(step.X * 2, step.Y * 2) };
+            // Room to stand outside: floor two tiles out, inside the map's edge.
+            Pt o1 = d0 + step + new Pt(outward.X * 2, outward.Y * 2);
+            if (!L.In(o1) || L[o1] != Tile.Floor || o1.X <= 1 || o1.Y <= 1 || o1.X >= P.MainW - 2 || o1.Y >= L.H - 2) continue;
+            foreach (Pt d in doors) L.Set(d, Tile.Door);
+            Pt c = d0 + step + new Pt(outward.X * 2, outward.Y * 2);
+            P.BackDoor = new Rect(c.X - 1, c.Y - 1, 3, 3);
+            for (int y = P.BackDoor.Y; y < P.BackDoor.Bottom; y++)
+            for (int x = P.BackDoor.X; x < P.BackDoor.Right; x++)
+                if (L.In(x, y) && L[x, y] is not Tile.Floor and not Tile.Door && x > 0 && y > 0 && x < P.MainW - 1 && y < L.H - 1) L.Set(x, y, Tile.Floor);
+            for (int y = P.BackDoor.Y - 1; y <= P.BackDoor.Bottom; y++)
+            for (int x = P.BackDoor.X - 1; x <= P.BackDoor.Right; x++) _reserved.Add(new Pt(x, y));
+            return;
         }
     }
 
@@ -1029,9 +1071,10 @@ public sealed class LevelGen
             case JobType.Eliminate:
             case JobType.Kidnap:
             {
-                // Sometimes the target is working late in the manager's office.
+                // Sometimes the target is working late in the manager's office (in a club: holding court in the booth).
                 Room r = Deepest(x => !x.Vault);
-                if (_k.Chance(0.45f) && ByKind(RoomKind.Manager) is Room office) r = office;
+                if (_k.Chance(0.7f) && ByKind(RoomKind.Booth) is Room booth) r = booth;
+                else if (_k.Chance(0.45f) && ByKind(RoomKind.Manager) is Room office) r = office;
                 V2 at = SpotIn(r);
                 P.Enemies.Add(new Spawn { Kind = EnemyKind.Vip, Pos = at, Facing = _r.Float() * MathF.Tau });
                 Reserve(at);
@@ -1163,6 +1206,43 @@ public sealed class LevelGen
         }
         if (_vault != null) Put(_vault, Tile.Safe);
         if (_r.Chance(0.45f)) Put(Next(), Tile.Safe);
+        StyleRules();
+    }
+
+    /// <summary>
+    /// What each style brings of its own (Run applies the rules): an office's
+    /// badge-reader doors and its night cleaners; a lab's clean-room suit hung
+    /// in a locker room.
+    /// </summary>
+    private void StyleRules()
+    {
+        if (_job.Type is JobType.Defend or JobType.Hub || _job.Tutorial) return;
+        if (_job.Style == SiteStyle.Office)
+        {
+            // One or two doors deeper in open only to a keycard (or a hack, or a charge).
+            var doors = new List<Pt>();
+            foreach (Room r in P.Rooms.Where(x => x.Depth >= 2 && !x.Vault && !x.Outer).OrderByDescending(x => x.Depth))
+            {
+                Rect rim = r.R.Inset(-1);
+                for (int y = rim.Y; y < rim.Bottom; y++)
+                for (int x = rim.X; x < rim.Right; x++)
+                    if (!r.R.Contains(new Pt(x, y)) && L[x, y] == Tile.Door && !doors.Contains(new Pt(x, y))) { doors.Add(new Pt(x, y)); goto next; }
+                next:
+                if (doors.Count >= 1 + _job.Threat / 3) break;
+            }
+            foreach (Pt d in doors) { L.Set(d, Tile.LockedDoor); L.Keycards.Add(L.Idx(d.X, d.Y)); }
+            // Night cleaners: they don't fight, but a gun in their sight is a phone call.
+            for (int k = 0; k < Tables.Cleaners && P.Rooms.Count > 0; k++)
+            {
+                Room r = P.Rooms[_k.Int(P.Rooms.Count)];
+                P.Npcs.Add((FreeSpot(r), "cleaner"));
+            }
+        }
+        if (_job.Style == SiteStyle.Lab && P.CleanRoom.W > 0)
+        {
+            var rooms = P.Rooms.Where(x => !P.CleanRoom.Contains(Pt.Of(x.Centre)) && !x.Vault).ToList();
+            if (rooms.Count > 0) P.Pickups.Add(new PickupSpawn { Kind = PickupKind.Suit, Pos = FreeSpot(rooms[_k.Int(rooms.Count)]), Name = "a clean-room suit" });
+        }
     }
 
     private void Reserve(V2 at)
@@ -1559,6 +1639,17 @@ public sealed class LevelGen
         }
 
         if (P.Tower) TowerGuards(roster);
+
+        // Dens drink: some of the gangers are slow, loud and bad shots tonight.
+        if (_job.Style == SiteStyle.Den && _job.Type != JobType.Bounty)
+            foreach (Spawn s in P.Enemies.Where(e => e.Kind is EnemyKind.Ganger or EnemyKind.Bruiser)) s.Drunk = _k.Chance(Tables.DrunkShare);
+        // Offices: one guard carries the keycard for the badge-reader doors.
+        if (P.L.Keycards.Count > 0)
+        {
+            var holders = P.Enemies.Where(e => e.Kind is EnemyKind.Guard or EnemyKind.Heavy && !e.Bodyguard).ToList();
+            if (holders.Count > 0) holders[_k.Int(holders.Count)].Badge = true;
+            else P.Pickups.Add(new PickupSpawn { Kind = PickupKind.Badge, Pos = FreeSpot(P.Rooms.OrderBy(x => x.Depth).First()) });
+        }
 
         // Reinforcements come in at the edges, away from the entry.
         for (int k = 0; k < 4; k++)

@@ -519,7 +519,8 @@ public partial class AgentRunner : Node
         sb.AppendLine(r.Peaceful ? $"on foot at the {r.Job.Title} | time {r.Time:0}s" : $"job: {r.Job.Title} | {r.Job.Faction} {r.Job.Style} threat {r.Job.Threat} | time {r.Time:0}s | phase {r.Phase}");
         sb.AppendLine($"objective: {r.ObjectiveText()}" + (r.ObjectivePos() is V2 o ? $"  -> at ({o.X:0.0},{o.Y:0.0}), {V2.Distance(o, p.Pos):0.0} tiles" : "") + (r.FloorNote() is string fn && r.NavTarget() is V2 nt ? $"  {fn} Stairs on your floor at ({nt.X:0.0},{nt.Y:0.0})." : ""));
         Rect ex = r.Plan.Extraction;
-        sb.AppendLine($"extraction zone: x {ex.X}..{ex.Right - 1}, y {ex.Y}..{ex.Bottom - 1}{(r.InExtraction(p.Pos) ? " (you are in it)" : "")}");
+        sb.AppendLine($"extraction zone: x {ex.X}..{ex.Right - 1}, y {ex.Y}..{ex.Bottom - 1}{(r.Plan.BackDoor.W > 0 ? $"; also the dock exit x {r.Plan.BackDoor.X}..{r.Plan.BackDoor.Right - 1}, y {r.Plan.BackDoor.Y}..{r.Plan.BackDoor.Bottom - 1}" : "")}{(r.InExtraction(p.Pos) ? " (you are in it)" : "")}");
+        if (r.StyleRule is var (sname, swhat)) sb.AppendLine($"site: {sname} -- {swhat}{(r.HasBadge ? " | you have the keycard" : "")}{(r.HasSuit ? " | you wear the clean-room suit" : "")}{(r.Plan.CleanRoom.W > 0 ? $" | clean room x {r.Plan.CleanRoom.X}..{r.Plan.CleanRoom.Right - 1}, y {r.Plan.CleanRoom.Y}..{r.Plan.CleanRoom.Bottom - 1}" : "")}{(r.L.Keycards.Count > 0 ? $" | keycard doors at {string.Join(" ", r.L.Keycards.Select(i => $"({i % r.L.W},{i / r.L.W})"))}" : "")}");
         if (r.Plan.Tower)
             sb.AppendLine($"tower: you are on {r.Plan.FloorName(r.PlayerFloor)} ({r.PlayerFloor + 1}/{r.FloorCount}{(r.Secure(r.PlayerFloor) ? ", SECURE" : "")}); elevator panel at ({r.Plan.Lifts[r.PlayerFloor].X},{r.Plan.Lifts[r.PlayerFloor].Y}) -- {(r.LiftHacked ? "stops at " + string.Join(", ", Enumerable.Range(0, r.FloorCount).Where(r.Served).Select(k => (k + 1).ToString())) : "not hacked yet")}; E rides up, Shift+E down; stairs '^' join each floor to the next");
         if (r.Plan.Basement.W > 0) sb.AppendLine($"this site has a basement (x >= {r.Plan.MainW}); stairs '^' connect the floors -- you are {(r.Downstairs ? "DOWNSTAIRS" : "upstairs")}");
@@ -558,9 +559,9 @@ public partial class AgentRunner : Node
         sb.AppendLine(seen.Count == 0 ? "nobody in sight" : "in sight:");
         foreach (Actor a in seen.Take(12))
         {
-            string who = a.IsHostage ? $"HOSTAGE {a.Name} ({a.State})" : a.IsNpc ? (a.Vendor != null ? $"vendor: {a.Name}" : "passer-by") : a.IsGhost ? "??? (a figure -- real?)" : a.IsAlly ? $"{a.Name} [your {(a.IsDrone ? "drone" : a.Summoned ? "spirit" : "hire")}]" : a.Def != null ? $"{a.Def.Name}{(a == r.Vip ? " [TARGET]" : "")}{(a.Team == 0 ? " [hacked, yours]" : "")}" : a.Name;
+            string who = a.IsHostage ? $"HOSTAGE {a.Name} ({a.State})" : a.IsNpc ? (a.Vendor != null ? $"vendor: {a.Name}" : a.Cleaner ? "night cleaner" : "passer-by") : a.IsGhost ? "??? (a figure -- real?)" : a.IsAlly ? $"{a.Name} [your {(a.IsDrone ? "drone" : a.Summoned ? "spirit" : "hire")}]" : a.Def != null ? $"{a.Def.Name}{(a == r.Vip ? " [TARGET]" : "")}{(a.Team == 0 ? " [hacked, yours]" : "")}" : a.Name;
             string mind = a.Def == null ? "" : a.Alert ? "ALERT" : a.State == AiState.Suspicious ? "suspicious" : a.Detect > 0.05f ? $"noticing {a.Detect * 100:0}%" : "unaware";
-            sb.AppendLine($"  {Letter(a, r)} {who} at ({a.Pos.X:0.0},{a.Pos.Y:0.0}) {V2.Distance(a.Pos, p.Pos):0.0} tiles, hp {a.Hp:0}/{a.MaxHp:0} {mind}{(a.Mood == Mood.Asleep ? " ASLEEP" : a.Mood == Mood.OffDuty ? " off duty" : a.Mood == Mood.Bound ? " bound to its circle" : "")}{(a.Stun > 0 ? " stunned" : "")}");
+            sb.AppendLine($"  {Letter(a, r)} {who} at ({a.Pos.X:0.0},{a.Pos.Y:0.0}) {V2.Distance(a.Pos, p.Pos):0.0} tiles, hp {a.Hp:0}/{a.MaxHp:0} {mind}{(a.Mood == Mood.Asleep ? " ASLEEP" : a.Mood == Mood.OffDuty ? " off duty" : a.Mood == Mood.Bound ? " bound to its circle" : "")}{(a.Drunk ? " drunk" : "")}{(a.Badge ? " (has the keycard)" : "")}{(a.Cleaner ? a.CallT > 0 ? $" CALLING SECURITY ({a.CallT:0.0} s)" : " (sees a gun: calls security)" : "")}{(a.Stun > 0 ? " stunned" : "")}");
         }
         var loot = r.Pickups.Where(k => !k.Taken && r.Seen(k.Pos)).ToList();
         foreach (Actor b in r.Actors.Where(a => a.Dead && !a.Escaped && a.Def != null && r.Seen(a.Pos) && !a.Static && !a.Flying).Take(6))
@@ -617,7 +618,7 @@ public partial class AgentRunner : Node
                 {
                     ch = r.L[t] switch
                     {
-                        Tile.Floor or Tile.Rubble or Tile.DoorOpen => r.Plan.Extraction.Contains(t) ? 'E' : vis ? ' ' : '.',
+                        Tile.Floor or Tile.Rubble or Tile.DoorOpen => r.Plan.Extraction.Contains(t) || r.Plan.BackDoor.W > 0 && r.Plan.BackDoor.Contains(t) ? 'E' : vis ? ' ' : '.',
                         Tile.Glass => '"', Tile.Drywall or Tile.Brick or Tile.Concrete => '#', Tile.Reinforced => '=',
                         Tile.Door => '+', Tile.LockedDoor => 'L', Tile.Crate or Tile.Desk or Tile.Wreck or Tile.Fence => 'x',
                         Tile.Barrel => 'o', Tile.Rack => 'r', Tile.Vat => 'v', Tile.Mainframe => 'M', Tile.Console => '%', Tile.Safe => '&', Tile.Locker => 'l', Tile.Stairs => '^', Tile.Bunk => 'b', Tile.Pipe => 'p', _ => '?',
