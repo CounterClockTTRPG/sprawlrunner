@@ -47,12 +47,29 @@ public static partial class Perf
 
     public static Scope Time(string name) => On ? new Scope(name) : default;
 
+    /// <summary>One-off costs (screen changes, loading), listed in the report in order.</summary>
+    private static readonly List<(int frame, string name, double ms)> _events = new();
+
+    public readonly struct Mark : IDisposable
+    {
+        private readonly string _name;
+        private readonly long _t0;
+        public Mark(string name) { _name = name; _t0 = Stopwatch.GetTimestamp(); }
+        public void Dispose()
+        {
+            if (_name != null) _events.Add((_frames.Count, _name, (Stopwatch.GetTimestamp() - _t0) * 1000.0 / Stopwatch.Frequency));
+        }
+    }
+
+    public static Mark Event(string name) => On ? new Mark(name) : default;
+
     /// <summary>A count for this frame, reported beside the timings (names start with #).</summary>
     public static void Count(string name, int n) { if (On) _cur["#" + name] = _cur.GetValueOrDefault("#" + name) + n; }
 
     public static void Start(Viewport vp)
     {
         _frames.Clear();
+        _events.Clear();
         _cur = new();
         _alloc = GC.GetTotalAllocatedBytes();
         (_g0, _g1, _g2) = (GC.CollectionCount(0), GC.CollectionCount(1), GC.CollectionCount(2));
@@ -116,6 +133,12 @@ public static partial class Perf
         {
             var v = f.Select(x => x.Sections.GetValueOrDefault(k)).ToList();
             sb.AppendLine($"  {k,-20} {v.Average(),6:0.000}  {Pct(v, 0.99),6:0.000}  {v.Max(),6:0.000}");
+        }
+        if (_events.Count > 0)
+        {
+            sb.AppendLine("one-off events (frame: name ms; and the next 3 frames)");
+            foreach (var (fr, name, t) in _events)
+                sb.AppendLine($"  #{fr - 1,-5} {name,-22} {t,7:0.0} ms   then {string.Join(" ", _frames.Skip(fr).Take(3).Select(x => x.Ms.ToString("0")))} ms");
         }
         sb.AppendLine($"worst {worst} frames:");
         foreach (var (x, i) in f.Select((x, i) => (x, i)).OrderByDescending(t => t.x.Ms).Take(worst))

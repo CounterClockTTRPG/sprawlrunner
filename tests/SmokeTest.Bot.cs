@@ -40,7 +40,11 @@ public partial class SmokeTest
     /// <summary>Play one job; returns the run when it ends or times out.</summary>
     private static Run BotPlay(Job job, Career c, float limit = 240)
     {
+        long g0 = System.Diagnostics.Stopwatch.GetTimestamp();
         var r = new Run(job, c);
+        _botGen = Ms(g0);
+        _botTickMax = _botTickSum = 0;
+        _botTicks = _botWorstAt = _botSlow = 0;
         ushort[] field = null;
         Pt fieldFor = new(-1, -1);
         int frames = (int)(limit * 60);
@@ -74,7 +78,7 @@ public partial class SmokeTest
             var inp = new RunInput { Slot = -1, Move = move };
             if (r.Matrix != null)
             {
-                r.Step(new RunInput { Slot = -1, Move = MatrixMove(r.Matrix) });
+                TimedStep(r, new RunInput { Slot = -1, Move = MatrixMove(r.Matrix) });
                 r.Events.Clear();
                 continue;
             }
@@ -86,10 +90,28 @@ public partial class SmokeTest
             inp.InteractPressed = i % 20 == 0 && foe == null;
             inp.Medkit = p.Hp < p.MaxHp * 0.4f;
             inp.Slot = r.CurrentGun == null && r.Guns.Any(g => g != null) ? Array.FindIndex(r.Guns, g => g != null) : -1;
-            r.Step(inp);
+            TimedStep(r, inp);
             r.Events.Clear();
         }
         return r;
+    }
+
+    /// <summary>What the last bot job cost the sim: site generation, and the average and worst tick (ms).</summary>
+    private static double _botGen, _botTickMax, _botTickSum;
+    private static int _botTicks, _botWorstAt, _botSlow;
+    private static string BotCost => $"gen {_botGen,4:0} ms  tick {_botTickSum / Math.Max(1, _botTicks),5:0.00}/{_botTickMax,5:0.0} ms (worst at tick {_botWorstAt}, {_botSlow} over 4 ms)";
+
+    private static double Ms(long t0) => (System.Diagnostics.Stopwatch.GetTimestamp() - t0) * 1000.0 / System.Diagnostics.Stopwatch.Frequency;
+
+    private static void TimedStep(Run r, RunInput inp)
+    {
+        long t0 = System.Diagnostics.Stopwatch.GetTimestamp();
+        r.Step(inp);
+        double ms = Ms(t0);
+        _botTickSum += ms;
+        if (ms > _botTickMax) { _botTickMax = ms; _botWorstAt = _botTicks; }
+        if (ms > 4) _botSlow++;
+        _botTicks++;
     }
 
     private void Bot()
@@ -111,7 +133,7 @@ public partial class SmokeTest
             total++;
             bool ok = r.Phase == RunPhase.Extracted && r.Success;
             if (ok) won++;
-            lines.Add($"{type,-10} {st,-9} t{t}: {(ok ? "WON " : r.Phase == RunPhase.Dead ? "DIED" : r.Aborted ? "LEFT" : "TIME")} {r.Time,5:0}s hp {r.Player.Hp,4:0} kills {r.Kills,2} alarm {(r.Alarm ? "y" : "n")} obj {(r.ObjectiveDone ? "y" : "n")}");
+            lines.Add($"{type,-10} {st,-9} t{t}: {(ok ? "WON " : r.Phase == RunPhase.Dead ? "DIED" : r.Aborted ? "LEFT" : "TIME")} {r.Time,5:0}s hp {r.Player.Hp,4:0} kills {r.Kills,2} alarm {(r.Alarm ? "y" : "n")} obj {(r.ObjectiveDone ? "y" : "n")}  {BotCost}");
         }
         foreach (string l in lines) GD.Print("    " + l);
         GD.Print($"    bot won {won}/{total}");
@@ -128,6 +150,7 @@ public partial class SmokeTest
             c.Primary = "kestrel";
             Run r = BotPlay(job, c);
             hard++;
+            GD.Print($"    t5 {type,-10} {st,-7} {r.L.W}x{r.L.H} actors {r.Actors.Count,3}  {BotCost}");
             if (r.Phase == RunPhase.Extracted && r.Success) hardWon++;
         }
         GD.Print($"    bot won {hardWon}/{hard} threat-5 jobs with starting gear");

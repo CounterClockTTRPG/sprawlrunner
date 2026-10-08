@@ -176,18 +176,19 @@ public partial class Root : Node
             Career.Set("snap", Career.Day);
             Profile.SaveMorning(Career);
         }
-        Clear();
-        CitySim = new CitySim(City, Career, Career.Seed ^ (ulong)Career.Day * 7919);
+        using var _e = Perf.Event("enter city");
+        using (Perf.Event("  clear")) Clear();
+        using (Perf.Event("  city sim")) CitySim = new CitySim(City, Career, Career.Seed ^ (ulong)Career.Day * 7919);
         if (parkAt != null) CitySim.ParkAt(parkAt);
         CityView = new CityView();
         _world.AddChild(CityView);
-        CityView.Bind(CitySim);
+        using (Perf.Event("  city view bind")) CityView.Bind(CitySim);
         if (_ambush > 0) { CitySim.Ambush(_ambush); _ambush = 0; }
         if (_respond >= 0) { CitySim.Respond(City.Lots[_respond]); _respond = -1; }
         if (_getaway > 0) { CitySim.Getaway(_getaway); _getaway = 0; }
         CityScreen = new CityScreen { Root = this };
-        Show(CityScreen);
-        Music.Instance?.Play(MusicTrack.City);
+        using (Perf.Event("  show screen")) Show(CityScreen);
+        using (Perf.Event("  music")) Music.Instance?.Play(MusicTrack.City);
         Sfx.Instance?.Rain(Career.Weather switch { Career.Sky.Rain => 0.35f, Career.Sky.Storm => 0.6f, _ => 0 });
     }
 
@@ -195,15 +196,17 @@ public partial class Root : Node
     {
         CitySim?.SaveCar();
         Career.InRun = job.Id;
-        Profile.SaveCareer(Career);
-        Clear();
-        var run = new Run(job, Career);
+        using var _e = Perf.Event("start run");
+        using (Perf.Event("  save career")) Profile.SaveCareer(Career);
+        using (Perf.Event("  clear")) Clear();
+        Run run;
+        using (Perf.Event("  generate site")) run = new Run(job, Career);
         RunView = new RunView();
-        _world.AddChild(RunView);
-        RunView.Bind(run);
-        RunScreen = new RunScreen { Root = this, R = run, View = RunView };
-        Show(RunScreen);
-        Music.Instance?.Play(MusicTrack.Run);
+        using (Perf.Event("  add view node")) _world.AddChild(RunView);
+        using (Perf.Event("  run view bind")) RunView.Bind(run);
+        using (Perf.Event("  new screen")) RunScreen = new RunScreen { Root = this, R = run, View = RunView };
+        using (Perf.Event("  show screen")) Show(RunScreen);
+        using (Perf.Event("  music")) Music.Instance?.Play(MusicTrack.Run);
         if (Music.Instance != null) Music.Instance.Intensity = 0;
     }
 

@@ -27,7 +27,9 @@ Godot and `dotnet.exe` driven from WSL. Design and every number:
                                 scripts/agent.sh "state; drive fixer; key E; ui" ('help' lists
                                 commands). Own career file (user://agent_career.json).
                                 `perf start` ... `perf report` profiles frames (sections via
-                                `Perf.Time`, GC, render) into agent/perf.txt and perf.csv.
+                                `Perf.Time`, GC, render, screen changes via `Perf.Event`) into
+                                agent/perf.txt and perf.csv; `perf toggle Fog` (or Lights, Glow,
+                                Entities, RunHud, grime...) hides a layer to see what it costs.
 
 Machine paths default in `scripts/common.sh`; override in `.env` (see `.env.example`).
 Sound is off until turned on in Settings. Settings live in `user://sprawlrunner.json`, the career in `user://career.json`.

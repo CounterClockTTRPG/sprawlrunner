@@ -55,7 +55,7 @@ public partial class RunScreen : Control
         UITheme.Fill(this);
         Theme = UITheme.Theme;
         MouseFilter = MouseFilterEnum.Ignore;
-        _hud = new HudLayer { S = this };
+        _hud = new HudLayer { S = this, Name = "RunHud" };
         UITheme.Fill(_hud);
         AddChild(_hud);
         Input.MouseMode = Root.RunMouse;
@@ -143,7 +143,7 @@ public partial class RunScreen : Control
             _dash = _reload = _medkit = _q = _f = _g = _throwRelease = _ePressed = _whistle = _rig = false;
             _slot = -1;
             _cycle = 0;
-            R.Step(inp);
+            using (Perf.Time("run.step")) R.Step(inp);
         }
         foreach (RunEvent e in R.Events)
         {
@@ -158,7 +158,7 @@ public partial class RunScreen : Control
         if (R.Glitching) ScreenFx.Instance?.Interfere(0.9f);
         else if (R.Rigging) ScreenFx.Instance?.Interfere(0.35f);
         else if (R.Alarm) ScreenFx.Instance?.Interfere(0.15f);
-        View.Frame(dt);
+        using (Perf.Time("run.view.frame")) View.Frame(dt);
         R.Events.Clear();
         _hintT -= dt;
         for (int i = _spotted.Count - 1; i >= 0; i--) { var sp = _spotted[i]; sp.t -= dt; if (sp.t <= 0) _spotted.RemoveAt(i); else _spotted[i] = sp; }
@@ -207,6 +207,7 @@ public partial class RunScreen : Control
 
         public override void _Draw()
         {
+            using var _perf = Perf.Time("run.draw.hud");
             Run r = S.R;
             if (r == null) return;
             Vector2 size = GetViewportRect().Size;

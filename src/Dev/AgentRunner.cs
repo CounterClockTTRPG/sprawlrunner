@@ -289,6 +289,20 @@ public partial class AgentRunner : Node
             case "walk": return await Walk(new V2(F(w[1]), F(w[2])), w.Length > 3 ? (int)F(w[3]) : 15000, false);
             case "sneak": return await Walk(new V2(F(w[1]), F(w[2])), w.Length > 3 ? (int)F(w[3]) : 15000, true);
             case "perf" when w.Length > 1 && w[1] == "start": Perf.Start(GetViewport()); return "perf: recording";
+            case "perf" when w.Length > 2 && w[1] == "toggle":
+            {
+                // Hide or show a named layer (Lights, Fog, Glow, Entities, Top, TileLife, Decals, Fx, RunHud; Grime is the screen shader).
+                if (w[2].Equals("grime", StringComparison.OrdinalIgnoreCase))
+                {
+                    var fx = GetTree().Root.FindChild("ScreenFx", true, false) as CanvasLayer;
+                    if (fx == null) return "no ScreenFx";
+                    fx.Visible = !fx.Visible;
+                    return $"grime {(fx.Visible ? "shown" : "hidden")}";
+                }
+                if (GetTree().Root.FindChild(w[2], true, false) is not CanvasItem ci) return $"no layer '{w[2]}'";
+                ci.Visible = !ci.Visible;
+                return $"{w[2]} {(ci.Visible ? "shown" : "hidden")}";
+            }
             case "perf":
             {
                 string rep = Perf.Report();

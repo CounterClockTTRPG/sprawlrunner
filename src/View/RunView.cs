@@ -53,7 +53,7 @@ public partial class RunView : Node2D
             _drawn[cy * L.ChunksX + cx] = -1;
             AddChild(c);
         }
-        _lights = new Node2D { Material = Art.Additive };
+        _lights = new Node2D { Material = Art.Additive, Name = "Lights" };
         AddChild(_lights);
         foreach (var (pos, colour, radius) in L.Lights)
         {
@@ -61,20 +61,20 @@ public partial class RunView : Node2D
             s.Scale = Vector2.One * radius * T * 2 / Art.Glow.GetWidth();
             _lights.AddChild(s);
         }
-        _life = new TileLife { V = this };
+        _life = new TileLife { V = this, Name = "TileLife" };
         _life.Scan(L);
         AddChild(_life);
-        _decals = new DecalLayer();
+        _decals = new DecalLayer { Name = "Decals" };
         AddChild(_decals);
-        _entities = new Entities { V = this };
+        _entities = new Entities { V = this, Name = "Entities" };
         AddChild(_entities);
-        Fx = new FxLayer();
+        Fx = new FxLayer { Name = "Fx" };
         AddChild(Fx);
-        Glow = new FxLayer { Material = Art.Additive, AdditiveLayer = true };
+        Glow = new FxLayer { Material = Art.Additive, AdditiveLayer = true, Name = "Glow" };
         AddChild(Glow);
-        _fog = new FogLayer { R = run };
+        _fog = new FogLayer { R = run, Name = "Fog" };
         AddChild(_fog);
-        _top = new Top { V = this };
+        _top = new Top { V = this, Name = "Top" };
         AddChild(_top);
         Cam = new Camera2D { Zoom = new Vector2(1.45f, 1.45f), PositionSmoothingEnabled = false };
         AddChild(Cam);
@@ -114,11 +114,11 @@ public partial class RunView : Node2D
     public void Frame(float dt)
     {
         if (R == null) return;
-        HandleEvents();
+        using (Perf.Time("run.events")) HandleEvents();
         Fx.Step(dt);
         Glow.Step(dt);
         AmbientFire(dt);
-        _fog.Refresh();
+        using (Perf.Time("run.fog.refresh")) _fog.Refresh();
         _dirty = true;
 
         // Camera: follow, lean towards the mouse, shake.
@@ -390,6 +390,7 @@ public partial class RunView : Node2D
 
         public override void _Draw()
         {
+            using var _perf = Perf.Time("run.draw.chunk");
             int x0 = CX * Level.Chunk, y0 = CY * Level.Chunk;
             for (int y = y0; y < Math.Min(L.H, y0 + Level.Chunk); y++)
             for (int x = x0; x < Math.Min(L.W, x0 + Level.Chunk); x++)
@@ -425,6 +426,7 @@ public partial class RunView : Node2D
 
         public override void _Draw()
         {
+            using var _perf = Perf.Time("run.draw.life");
             Run r = V.R;
             if (r == null) return;
             float time = r.Time;
@@ -594,6 +596,7 @@ public partial class RunView : Node2D
 
         public override void _Draw()
         {
+            using var _perf = Perf.Time("run.draw.decals");
             foreach (var (p, r, c) in _spots) DrawCircle(p, r, c);
             foreach (var (a, f, facing) in _bodies)
             {
@@ -639,6 +642,7 @@ public partial class RunView : Node2D
 
         public override void _Draw()
         {
+            using var _perf = Perf.Time("run.draw.fog");
             if (_tex == null) return;
             // Pixel centres sit on tile centres, so linear filtering feathers the edge.
             DrawTextureRect(_tex, new Rect2(0, 0, R.L.W * T, R.L.H * T), false);
@@ -652,6 +656,7 @@ public partial class RunView : Node2D
 
         public override void _Draw()
         {
+            using var _perf = Perf.Time("run.draw.top");
             Run r = V.R;
             Rect ex = r.Plan.Extraction;
             var rect = new Rect2(ex.X * T, ex.Y * T, ex.W * T, ex.H * T);
@@ -684,6 +689,7 @@ public partial class RunView : Node2D
 
         public override void _Draw()
         {
+            using var _perf = Perf.Time("run.draw.entities");
             Run r = V.R;
             float time = r.Time;
             // Pickups.
