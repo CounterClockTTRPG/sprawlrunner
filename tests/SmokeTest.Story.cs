@@ -1272,6 +1272,9 @@ public partial class SmokeTest
         Check(l.Cash > cash - l.RentDue, $"a business pays every week ({l.Cash - cash})");
         l.Buy(l.Offers("fixer").First(o => o.Kind == ShopKind.Retainer && o.Id == "ox"));
         Check(l.Retained.Contains("ox") && l.CrewCut("ox") == 0, "Ox on retainer takes no cut");
+        int oxWage = l.RetainerWage("ox");
+        l.Rep = 30;
+        Check(l.RetainerWage("ox") == Math.Max(oxWage, 600 * l.MaxThreat) && l.RetainerWage("ade") >= 3000, $"a retainer keeps up with the jobs you take ({l.RetainerWage("ade")} at threat {l.MaxThreat})");
         // Focus ranks.
         Career f = Career.New("Mage", "mage", 2);
         f.Cash = 500000;

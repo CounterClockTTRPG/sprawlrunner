@@ -195,6 +195,9 @@ public sealed partial class Career
 
     public static readonly Dictionary<string, int> Retainers = new() { ["ox"] = 2500, ["wisp"] = 3000, ["patch"] = 2000, ["ade"] = 1800, ["byte"] = 2200 };
 
+    /// <summary>A week of a hire's time: their rate, or more once the jobs you take pay more.</summary>
+    public int RetainerWage(string id) => Math.Max(Retainers.GetValueOrDefault(id), Tables.RetainerPerThreat * MaxThreat);
+
     /// <summary>The week turns: income, wages, and the karma of a quiet life.</summary>
     private void Payday()
     {
@@ -210,7 +213,7 @@ public sealed partial class Career
         }
         foreach (string id in Retained.ToList())
         {
-            int wage = Retainers.GetValueOrDefault(id);
+            int wage = RetainerWage(id);
             if (CrewBlock(id)?.Contains("dead") == true) { Retained.Remove(id); continue; }
             if (Cash >= wage) { Cash -= wage; Count("spent", wage); }
             else

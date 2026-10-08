@@ -132,7 +132,7 @@ public sealed partial class Career
                     }
                 foreach (var h in Tables.Hires)
                 {
-                    int wage = Retainers.GetValueOrDefault(h.id);
+                    int wage = RetainerWage(h.id);
                     bool on = Retained.Contains(h.id);
                     list.Add(new Offer { Kind = ShopKind.Retainer, Id = h.id, Name = on ? $"End {h.name}'s retainer" : $"Put {h.name} on retainer", Desc = on ? "Back to a cut of each job." : $"{M.Money(wage)} every week instead of a cut: they come on any job for nothing extra.", Price = 0, Block = on ? null : CrewBlock(h.id) ?? Need(h.loyalty + 1), Owned = on ? "retained" : null });
                 }
