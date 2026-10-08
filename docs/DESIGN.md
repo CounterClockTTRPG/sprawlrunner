@@ -812,7 +812,8 @@ off.
   Desk (Neon Strip) now have doors, shops, favours and three-part stories.
   Dace: lose your file (heat to 0), pull a page (Awareness -2), a patrol
   outside the hitters' door, lose the crackdown plans; his badge means Lone
-  Star never pulls you over. Quill: sell your story (cash, Awareness +2), kill
+  Star never pulls you over. Quill: sell your story (¥400 a point of Awareness,
+  Awareness +2; once a week, and not past Awareness 8), kill
   one (-3), run a story on a faction (its plan -3); her front page wipes your
   notoriety and halves how long fame lasts. They claim their lots after the
   markets, so existing cities keep every address (a job on a lot they moved

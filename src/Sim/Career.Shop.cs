@@ -171,7 +171,8 @@ public sealed partial class Career
             case "press":
             {
                 int story = 400 * Math.Max(1, Awareness);
-                list.Add(new Offer { Kind = ShopKind.Service, Id = "sell", Name = "Sell her your story", Desc = $"Names changed, nothing traceable: she pays for the colour. Awareness +2.", Price = 0, Extra = story.ToString(), Block = Awareness < 2 ? "You're not a story yet." : null });
+                list.Add(new Offer { Kind = ShopKind.Service, Id = "sell", Name = "Sell her your story", Desc = $"Names changed, nothing traceable: she pays for the colour. Awareness +2. Once a week.", Price = 0, Extra = story.ToString(),
+                    Block = Awareness < 2 ? "You're not a story yet." : Awareness >= 9 ? "You're the whole front page already." : Flag("storyday") > 0 && Day < Flag("storyday") + 6 ? $"She ran you this week. Come back on day {Flag("storyday") + 6}." : null });
                 list.Add(new Offer { Kind = ShopKind.Service, Id = "kill", Name = "Kill a story about you", Desc = $"Her editor owes her: awareness -3 (now {Awareness}).", Price = P(2500, contact), Block = Awareness == 0 ? "Nobody's writing about you." : null });
                 foreach (Faction f in Enum.GetValues<Faction>())
                 {
@@ -342,7 +343,7 @@ public sealed partial class Career
                     case "page": Fame(-2); break;
                     case "warrant": Set("hitters", 0); Set("vendetta", 0); break;
                     case "plans": Tick("lonestar", -3); break;
-                    case "sell": { int pay = int.Parse(o.Extra); Cash += pay; Count("earned", pay); Fame(2); break; }
+                    case "sell": { int pay = int.Parse(o.Extra); Cash += pay; Count("earned", pay); Fame(2); Set("storyday", Day + 1); break; }
                     case "kill": Fame(-3); break;
                     default:
                         if (o.Id.StartsWith("smear:")) Tick(o.Id[6..], -3);

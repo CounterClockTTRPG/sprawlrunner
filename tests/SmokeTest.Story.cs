@@ -1028,6 +1028,12 @@ public partial class SmokeTest
         Check(c.Buy(c.Offers("press").First(o => o.Id == "kill")) == null && c.Awareness == 2, "Quill kills a story");
         int cash = c.Cash;
         Check(c.Buy(c.Offers("press").First(o => o.Id == "sell")) == null && c.Cash > cash && c.Awareness == 4, "or buys yours");
+        Check(c.Offers("press").First(o => o.Id == "sell").Block?.Contains("this week") == true, "once a week");
+        c.Day += 7;
+        Check(c.Offers("press").First(o => o.Id == "sell").Block == null, "and again the week after");
+        c.Awareness = 9;
+        Check(c.Offers("press").First(o => o.Id == "sell").Block != null, "not when the whole city knows you already");
+        c.Awareness = 4;
         c.Clocks["halcyon"] = 6;
         c.Loyalty["press"] = 1;
         Check(c.Buy(c.Offers("press").First(o => o.Id == "smear:halcyon")) == null && c.Clock("halcyon") == 3, "a week of bad press sets a faction back");
