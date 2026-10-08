@@ -197,6 +197,53 @@ public static partial class Settings
     }
 }
 
+/// <summary>
+/// Every achievement, from the title: the ones earned (across all careers)
+/// first, then the ones still open, each with what it asks of you.
+/// </summary>
+public static class AchievementList
+{
+    public static Modal Open(Node host)
+    {
+        var have = Profile.Current.Achieved;
+        var earned = Achievements.All.Where(a => have.Contains(a.Id)).ToList();
+        var open = Achievements.All.Where(a => !have.Contains(a.Id)).ToList();
+        var m = new Modal("ACHIEVEMENTS", 760);
+        m.Add(UITheme.Label($"{earned.Count} of {Achievements.All.Length} earned, across all your careers.", 16, UITheme.Dim));
+        var list = UITheme.VBox(6);
+        list.CustomMinimumSize = new Vector2(680, 0);
+        void Section(string title, List<Achievements.Def> items, bool got)
+        {
+            list.AddChild(UITheme.Label($"{title}  ({items.Count})", 14, UITheme.Dim));
+            if (items.Count == 0) list.AddChild(UITheme.Label(got ? "Nothing yet. The streets are waiting." : "Every one of them. Nobody does that.", 15, UITheme.Faint));
+            foreach (var a in items)
+            {
+                var row = UITheme.HBox(12);
+                var name = UITheme.Label($"{(got ? "✓" : "·")}  {a.Name}", 17, got ? UITheme.Yellow : UITheme.Text, wrap: false, heading: got);
+                name.CustomMinimumSize = new Vector2(250, 0);
+                row.AddChild(name);
+                var desc = UITheme.Label(a.Desc, 15, got ? UITheme.Dim : UITheme.Faint);
+                desc.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+                row.AddChild(desc);
+                list.AddChild(row);
+            }
+            list.AddChild(UITheme.Spacer(8));
+        }
+        Section("EARNED", earned, true);
+        Section("STILL OPEN", open, false);
+        var pad = new MarginContainer();
+        pad.AddThemeConstantOverride("margin_right", 22);
+        pad.AddChild(list);
+        m.Add(UITheme.Scroll(pad, 520));
+        var row2 = UITheme.HBox();
+        row2.Alignment = BoxContainer.AlignmentMode.Center;
+        row2.AddChild(UITheme.Button("Done", () => m.Close(), 160, 40));
+        m.Add(row2);
+        host.AddChild(m);
+        return m;
+    }
+}
+
 /// <summary>The title: a living city behind the logo.</summary>
 public partial class TitleScreen : Control
 {
@@ -279,6 +326,8 @@ public partial class TitleScreen : Control
             if (Profile.HasCareer) Modal.Confirm(this, "NEW CAREER", "One career at a time. Starting over erases the one you have.", "Start over", () => AddChild(new CreateScreen { Root = Root }));
             else AddChild(new CreateScreen { Root = Root });
         }, 420, 46));
+        int earned = Achievements.All.Count(a => Profile.Current.Achieved.Contains(a.Id));
+        _menu.AddChild(UITheme.Button($"Achievements  ({earned} / {Achievements.All.Length})", () => AchievementList.Open(this), 420, 46));
         _menu.AddChild(UITheme.Button("Settings", () => Settings.Open(this), 420, 46));
         _menu.AddChild(UITheme.Button("Quit", () => GetTree().Quit(), 420, 46));
     }

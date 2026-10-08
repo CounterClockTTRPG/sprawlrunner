@@ -76,6 +76,14 @@ public partial class ShotRunner : Node
                 await Shot("02b_create_perks");
                 cs2.QueueFree();
                 Profile.Current.Legacy = had;
+                // The achievements, earned and open.
+                var hadAch = Profile.Current.Achieved.ToList();
+                Profile.Current.Achieved = Achievements.All.Take(6).Select(a => a.Id).ToList();
+                Modal ach = AchievementList.Open(Root.Screen);
+                await Frames(10);
+                await Shot("02d_achievements");
+                ach.QueueFree();
+                Profile.Current.Achieved = hadAch;
                 // The settings, every row on screen.
                 Modal settings = Settings.Open(Root.Screen);
                 await Frames(10);

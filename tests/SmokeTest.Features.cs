@@ -611,6 +611,9 @@ public partial class SmokeTest
         }
         Check(UITheme.Body is FontFile && UITheme.Mono is FontFile && UITheme.Stamp is FontFile && UITheme.Ocr is FontFile && UITheme.Heading is FontVariation { BaseFont: FontFile },
             "the interface draws with the bundled fonts, not the system's");
+        // The title's achievement list: every one has its own id, a name and what it asks.
+        Check(Achievements.All.Select(a => a.Id).Distinct().Count() == Achievements.All.Length && Achievements.All.All(a => a.Name.Length > 0 && a.Desc.Length > 0),
+            $"the {Achievements.All.Length} achievements each have an id, a name and a description");
         var fresh = new Profile();
         Check(Profile.WindowSizes.Contains((fresh.WindowW, fresh.WindowH)) && Profile.FpsCaps.Contains(fresh.FpsCap) && fresh.VSync && fresh.AutoPause, "the display settings start on one of their own choices");
     }
