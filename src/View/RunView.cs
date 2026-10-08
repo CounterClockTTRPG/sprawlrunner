@@ -294,6 +294,10 @@ public partial class RunView : Node2D
                     Shake = 10 + 14 * Vol(e.Pos, 20);
                     break;
                 }
+                case Ev.Gas:
+                    Play(Sound.Ignite, e.Pos, 0.6f, 0.6f);
+                    Fx.Burst(FxKind.Smoke, p, 10, 90, 1.2f, 12, (GasKind)e.A == GasKind.Coolant ? new Color(0.85f, 0.95f, 1f, 0.5f) : new Color(0.5f, 0.9f, 0.35f, 0.5f));
+                    break;
                 case Ev.LampOut:
                 {
                     if (e.A >= 0 && e.A < _lamps.Count) _lamps[e.A].Visible = false;
@@ -462,6 +466,50 @@ public partial class RunView : Node2D
                 if (t is Tile.Rack or Tile.Vat or Tile.Mainframe or Tile.Console or Tile.Lift) _machines.Add(new Pt(x, y));
                 else if (L.F[L.Idx(x, y)] == Floor.Dance && t == Tile.Floor) _dance.Add(new Pt(x, y));
             }
+            // Ritual circles: one per patch of chalked floor, round its middle.
+            var done = new bool[L.W * L.H];
+            for (int y = 0; y < L.H; y++)
+            for (int x = 0; x < L.W; x++)
+            {
+                if (done[L.Idx(x, y)] || L.F[L.Idx(x, y)] != Floor.Ritual) continue;
+                int x0 = x, x1 = x, y0 = y, y1 = y;
+                var stack = new Stack<Pt>();
+                stack.Push(new Pt(x, y));
+                done[L.Idx(x, y)] = true;
+                while (stack.Count > 0)
+                {
+                    Pt p = stack.Pop();
+                    x0 = Math.Min(x0, p.X); x1 = Math.Max(x1, p.X); y0 = Math.Min(y0, p.Y); y1 = Math.Max(y1, p.Y);
+                    foreach (Pt d in Pt.Dirs4)
+                    {
+                        Pt n = p + d;
+                        if (!L.In(n) || done[L.Idx(n.X, n.Y)] || L.F[L.Idx(n.X, n.Y)] != Floor.Ritual) continue;
+                        done[L.Idx(n.X, n.Y)] = true;
+                        stack.Push(n);
+                    }
+                }
+                _circles.Add((new Vector2((x0 + x1 + 1) * T / 2f, (y0 + y1 + 1) * T / 2f), MathF.Min(x1 - x0 + 1, y1 - y0 + 1) * T / 2f - 3));
+            }
+        }
+
+        private readonly List<(Vector2 c, float r)> _circles = new();
+
+        /// <summary>A summoning circle in chalk: two rings, a star, five candles flickering.</summary>
+        private void Circle(Vector2 c, float rad, float time)
+        {
+            var chalk = new Color(0.88f, 0.88f, 0.94f, 0.65f);
+            DrawArc(c, rad, 0, MathF.Tau, 48, chalk, 2);
+            DrawArc(c, rad - 7, 0, MathF.Tau, 48, chalk with { A = 0.4f }, 1);
+            var star = new Vector2[6];
+            for (int k = 0; k < 5; k++) star[k] = c + new Vector2(MathF.Cos(-MathF.PI / 2 + k * 2 * MathF.Tau / 5), MathF.Sin(-MathF.PI / 2 + k * 2 * MathF.Tau / 5)) * (rad - 8);
+            star[5] = star[0];
+            DrawPolyline(star, chalk with { A = 0.5f }, 1.5f);
+            for (int k = 0; k < 5; k++)
+            {
+                Vector2 cp = c + new Vector2(MathF.Cos(-MathF.PI / 2 + k * MathF.Tau / 5), MathF.Sin(-MathF.PI / 2 + k * MathF.Tau / 5)) * (rad + 1);
+                DrawCircle(cp, 3, new Color(0.9f, 0.86f, 0.72f));
+                DrawCircle(cp - new Vector2(0, 3 + MathF.Sin(time * 9 + k) * 0.6f), 1.6f, new Color(1f, 0.7f, 0.2f));
+            }
         }
 
         public override void _Draw()
@@ -472,6 +520,8 @@ public partial class RunView : Node2D
             float time = r.Time;
             Rect2 view = V.ViewRect().Grow(T * 2);
             bool In(Pt p) => view.HasPoint(new Vector2(p.X * T + T / 2f, p.Y * T + T / 2f));
+            foreach (var (c, rad) in _circles)
+                if (view.HasPoint(c) && r.SeenTile(new Pt((int)(c.X / T), (int)(c.Y / T)))) Circle(c, rad, time);
             foreach (Pt p in _dance)
             {
                 if (!In(p)) continue;
@@ -834,6 +884,28 @@ public partial class RunView : Node2D
             {
                 if (a.Dead || !r.Shown(a)) continue;
                 DrawActor(a, r, time);
+                // Asleep in a bunk: the z's drift up.
+                if (a.Mood == Mood.Asleep)
+                    for (int k = 0; k < 2; k++)
+                    {
+                        float u = (time * 0.6f + k * 0.5f) % 1;
+                        UITheme.Write(this, Art.G(a.Pos, T) + new Vector2(8 + u * 6, -10 - u * 14), "z", 11 + k * 2, new Color(0.8f, 0.85f, 1f, 0.8f * (1 - u)), heading: true);
+                    }
+            }
+            // Gas hanging on the floor: frost-blue coolant, green vapour.
+            foreach (GasCloud g in r.Clouds)
+            {
+                if (!r.Seen(g.Pos)) continue;
+                Vector2 gp = Art.G(g.Pos, T);
+                float fade = MathF.Min(1, (g.Life - g.T) / 2);
+                Color gc = g.Kind == GasKind.Coolant ? new Color(0.8f, 0.92f, 1f) : new Color(0.45f, 0.9f, 0.3f);
+                for (int k = 0; k < 6; k++)
+                {
+                    float a = k * 1.05f + time * (0.2f + k * 0.05f);
+                    Vector2 off = new Vector2(MathF.Cos(a), MathF.Sin(a)) * g.Reach * T * 0.45f;
+                    DrawCircle(gp + off, g.Reach * T * (0.55f + 0.08f * MathF.Sin(time + k)), gc with { A = 0.12f * fade });
+                }
+                DrawCircle(gp, g.Reach * T * 0.7f, gc with { A = 0.16f * fade });
             }
             // The mage's astral form, drifting through walls.
             if (r.Projecting && r.AstralForm != null)

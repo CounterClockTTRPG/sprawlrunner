@@ -165,6 +165,12 @@ public static class Tables
     public const float NightAmbient = 0.08f;
     /// <summary>A room hangs a lamp every this many tiles along each side (one, for a small room).</summary>
     public const int LampEvery = 8;
+    /// <summary>Rooms with a purpose: an off-duty guard sees this far and notices this fast (of normal); a sleeper wakes to a quiet sound
+    /// this close, or a loud one within this share of its reach; a ruptured pipe's cloud (radius, seconds), its cold (hp a second: a guard, you)
+    /// and your pace in it; a lab's toxic cloud.</summary>
+    public const float OffDutySight = 0.5f, OffDutyDetect = 0.5f, WakeQuiet = 1.6f, WakeLoud = 0.6f;
+    public const float CoolantRadius = 2.6f, CoolantLife = 9, CoolantHurt = 3, CoolantHurtYou = 4, CoolantSlow = 0.55f;
+    public const float ToxicRadius = 2.8f, ToxicLife = 10, ToxicHurt = 9, ToxicHurtYou = 7;
     /// <summary>Street encounters: seconds of driving before the first look and between looks, at most this many a day,
     /// how long one waits on its kerb, and how far past it you can be before it's gone.</summary>
     public const float StreetFirst = 60, StreetEvery = 140, StreetLife = 60, StreetGone = 45;

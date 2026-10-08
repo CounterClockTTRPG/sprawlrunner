@@ -184,7 +184,7 @@ public sealed partial class Run
         V2 toAim = inp.Aim - p.Pos;
         if (toAim.LengthSquared() > 0.01f) p.Facing = M.Angle(toAim);
         V2 move = inp.Move.LengthSquared() > 1 ? M.Norm(inp.Move) : inp.Move;
-        float speed = p.Speed * (inp.Sneak ? 0.55f : 1f) * (CarriedBody != null ? 0.6f : 1f) * (Adrenaline ? 1.25f : 1f);
+        float speed = p.Speed * (inp.Sneak ? 0.55f : 1f) * (CarriedBody != null ? 0.6f : 1f) * (Adrenaline ? 1.25f : 1f) * (Clouds.Count > 0 && InGas(p.Pos, GasKind.Coolant) ? Tables.CoolantSlow : 1f);
         // Platelet factories: below half health, the bleeding stops on its own.
         if (C.Has("platelet") && p.Hp < p.MaxHp * 0.5f) p.Hp = MathF.Min(p.MaxHp * 0.5f, p.Hp + dt);
         StepMediDrone(dt);

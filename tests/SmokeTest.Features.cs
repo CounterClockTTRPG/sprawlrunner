@@ -170,4 +170,99 @@ public partial class SmokeTest
             Check(night && litTiles > floor / 5 && darkTiles > floor / 10, $"{st}: inside is light and dark ({litTiles} lit, {darkTiles} dark of {floor})");
         }
     }
+
+    /// <summary>Rooms with a purpose: kinds by style, their set pieces, objectives that move into them, and what each one does on a run.</summary>
+    private void RoomKinds()
+    {
+        var seen = new System.Collections.Generic.HashSet<RoomKind>();
+        int moved = 0, total = 0, moods = 0;
+        foreach (SiteStyle st in Enum.GetValues<SiteStyle>())
+        foreach (JobType type in new[] { JobType.Eliminate, JobType.Retrieve, JobType.Datasteal, JobType.Investigate })
+        for (ulong seed = 1; seed <= 6; seed++)
+        {
+            var job = new Job { Id = 1, Type = type, Style = st, Threat = 2 + (int)seed % 3, Seed = seed * 131 + (ulong)st, Faction = st == SiteStyle.Den ? Faction.Vipers : Faction.Halcyon, Count = 2, Target = "T", Item = "I", Title = "rooms" };
+            LevelPlan p = LevelGen.Generate(job);
+            foreach (Room r in p.Rooms) if (r.Kind != RoomKind.Plain) seen.Add(r.Kind);
+            moods += p.Enemies.Count(e => e.Mood != Mood.None);
+            total++;
+            V2? obj = type switch
+            {
+                JobType.Eliminate => p.Enemies.FirstOrDefault(e => e.Kind == EnemyKind.Vip)?.Pos,
+                JobType.Retrieve => p.Pickups.FirstOrDefault(k => k.Kind == PickupKind.Objective)?.Pos,
+                JobType.Datasteal => p.Mainframe.X >= 0 ? p.Mainframe.Centre : null,
+                _ => p.Pickups.FirstOrDefault(k => k.Kind == PickupKind.Clue)?.Pos,
+            };
+            if (obj is V2 o && p.KindAt(Pt.Of(o)) != RoomKind.Plain) moved++;
+            if (_only == "RoomKinds" && seed == 1 && type == JobType.Eliminate) GD.Print($"    {st}: {string.Join(", ", p.Rooms.Where(r => r.Kind != RoomKind.Plain).Select(r => SetPieces.Name(r.Kind)))}");
+            if (obj is V2 g && type != JobType.Datasteal) Check(LevelGen.Reachable(p, Pt.Of(g)), $"{st} {type} {seed}: the objective can be reached");
+        }
+        if (_only == "RoomKinds") GD.Print($"    kinds seen: {string.Join(", ", seen)}; objectives in a room with a purpose: {moved}/{total}; guards off duty or asleep: {moods}");
+        foreach (RoomKind k in new[] { RoomKind.Server, RoomKind.Break, RoomKind.Barracks, RoomKind.Armoury, RoomKind.Manager, RoomKind.Security, RoomKind.LabBay, RoomKind.Dock })
+            Check(seen.Contains(k), $"some site has a {SetPieces.Name(k)}");
+        Check(moved > total / 6 && moved < total * 3 / 4, $"objectives sometimes move into a room that fits ({moved}/{total})");
+        Check(moods > 0, $"some guards start off duty or asleep ({moods})");
+        // Every set piece turns and mirrors into the same furniture count.
+        foreach (var (kind, rows) in SetPieces.All)
+        {
+            int n = rows.Sum(r => r.Count(ch => ch != '.' && ch != ' '));
+            bool clean = true;
+            for (int o = 0; o < 8; o++)
+            {
+                string[] q = SetPieces.Orient(rows, o % 4, o >= 4);
+                clean &= q.Sum(r => r.Count(ch => ch != '.' && ch != ' ')) == n && q.All(r => r.Length == q[0].Length);
+            }
+            Check(clean, $"a {kind} piece turns and mirrors cleanly");
+        }
+
+        // Asleep: blind, and a quiet step across the room doesn't wake them; a shot does.
+        string[] hall =
+        {
+            "###############",
+            "#P............#",
+            "#.............#",
+            "###############",
+        };
+        Run r1 = Make(Site(hall));
+        Actor sleeper = r1.AddEnemy(EnemyKind.Guard, new V2(6.5f, 1.5f), MathF.PI);
+        sleeper.Mood = Mood.Asleep;
+        Steps(r1, 3, new RunInput { Slot = -1, Aim = sleeper.Pos });
+        Check(!sleeper.Alert && sleeper.Detect == 0, "a sleeping guard sees nothing");
+        r1.Noise(sleeper.Pos + new V2(3, 0), 6, true, quiet: true);
+        Check(sleeper.Mood == Mood.Asleep && sleeper.State == AiState.Idle, "footsteps across the room don't wake him");
+        r1.Noise(r1.Player.Pos, 14, true);
+        r1.Step(new RunInput { Slot = -1, Aim = sleeper.Pos });
+        Check(sleeper.Mood == Mood.None && sleeper.State != AiState.Idle, "a gunshot does");
+
+        // Off duty: slower to notice than a guard on duty, at the same distance.
+        float Notice(Mood mood)
+        {
+            Run r = Make(Site(hall));
+            Actor g = r.AddEnemy(EnemyKind.Guard, new V2(6.5f, 1.5f), MathF.PI);
+            g.BaseFacing = MathF.PI;
+            g.Mood = mood;
+            Steps(r, 0.4f, new RunInput { Slot = -1, Aim = g.Pos });
+            return g.Detect;
+        }
+        float duty = Notice(Mood.None), off = Notice(Mood.OffDuty);
+        Check(off < duty * 0.7f, $"off duty, they notice you slower ({off:0.00} vs {duty:0.00})");
+
+        // A ruptured coolant pipe: the cold stops a guard beside it, and you can't see through the cloud.
+        Run r2 = Make(Site(hall));
+        Pt pipe = new(7, 1);
+        r2.L.Set(pipe, Tile.Pipe);
+        Actor cold = r2.AddEnemy(EnemyKind.Guard, new V2(8.5f, 2.5f), MathF.PI);
+        r2.DamageTile(pipe, 999, pipe.Centre);
+        Steps(r2, 1, new RunInput { Slot = -1, Aim = cold.Pos });
+        Check(r2.Clouds.Count == 1 && cold.Stun > 0 && cold.Hp < cold.MaxHp, "a ruptured pipe freezes the guard beside it");
+        Check(!r2.CanSee(cold, r2.Player), "nobody sees through the cloud");
+
+        // A bound spirit stays on its circle.
+        Run r3 = Make(Site(hall));
+        Actor sp = r3.AddEnemy(EnemyKind.Spirit, new V2(10.5f, 1.5f), MathF.PI);
+        sp.Mood = Mood.Bound;
+        sp.Static = true;
+        V2 at = sp.Pos;
+        Steps(r3, 4, new RunInput { Slot = -1, Aim = sp.Pos });
+        Check(V2.Distance(sp.Pos, at) < 0.05f, "a bound spirit can't leave its circle");
+    }
 }

@@ -536,6 +536,40 @@ public partial class ShotRunner : Node
                     await Shot("13g_fixtures");
                 }
             }
+            if (Want("run") || Want("rooms"))
+            {
+                // Rooms with a purpose: one site per kind worth seeing, the runner stood in it, the map known.
+                var wanted = new (RoomKind kind, SiteStyle style, Faction f, string name)[]
+                {
+                    (RoomKind.Server, SiteStyle.Office, Faction.Halcyon, "13h_room_server"), (RoomKind.Barracks, SiteStyle.Den, Faction.Vipers, "13i_room_barracks"),
+                    (RoomKind.Break, SiteStyle.Office, Faction.Halcyon, "13j_room_break"), (RoomKind.Armoury, SiteStyle.Den, Faction.Vipers, "13k_room_armoury"),
+                    (RoomKind.Ritual, SiteStyle.Den, Faction.Vipers, "13l_room_ritual"),
+                };
+                foreach (var (kind, style, f, name) in wanted)
+                {
+                    Root.EnterCity();
+                    await Frames(5);
+                    for (ulong sd = 1; sd < 80; sd++)
+                    {
+                        var rj = new Job { Id = 954, Type = JobType.Retrieve, Style = style, Threat = 3, Seed = 700 + sd, Faction = f, District = "docks", Target = "x", Item = "case", Title = "Rooms", Lot = -1, Schematics = true };
+                        LevelPlan rp = LevelGen.Generate(rj);
+                        Room room = rp.Rooms.FirstOrDefault(x => x.Kind == kind);
+                        if (room == null) continue;
+                        Root.StartRun(rj);
+                        await Frames(10);
+                        Sprawl.Run rr = Root.RunScreen.R;
+                        rr.Player.MaxHp = rr.Player.Hp = 1e6f;
+                        // Stand in a free corner of the room, out of everyone's sight.
+                        foreach (Actor a in rr.Actors.Where(a => a.Hostile && a.Mood == Mood.None && !a.Static)) a.Pos = new V2(-50, -50);
+                        Pt stand = Enumerable.Range(0, room.R.Area).Select(i => new Pt(room.R.X + i % room.R.W, room.R.Y + i / room.R.W)).Where(q => rr.L[q] == Tile.Floor).OrderBy(q => V2.Distance(q.Centre, room.Centre)).FirstOrDefault();
+                        rr.Player.Pos = stand.Centre;
+                        Root.RunView.Cam.Zoom = new Vector2(1.9f, 1.9f);
+                        for (int i = 0; i < 30; i++) { rr.Step(new RunInput { Slot = -1, Aim = room.Centre }); Root.RunView.Frame(1 / 60f); rr.Events.Clear(); await Frames(1); }
+                        await Shot(name);
+                        break;
+                    }
+                }
+            }
             if (Want("people"))
             {
                 // Close-ups of each faction's people: gear, shadows, the breath at rest, a gun kicking.

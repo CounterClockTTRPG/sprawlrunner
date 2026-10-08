@@ -258,6 +258,7 @@ public sealed partial class Run
         if (was is Tile.Rack or Tile.Vat && Job.Type == JobType.Destroy)
             Events.Add(new RunEvent(Ev.Objective, p.Centre, Text: $"{Job.Item}: {TargetsLeft} left"));
         if (was == Tile.Vat) Ignite(p.Centre, 1.2f, 4);
+        if (was == Tile.Pipe) Gas(p.Centre, GasKind.Coolant, Tables.CoolantRadius, Tables.CoolantLife);
         return true;
     }
 
@@ -504,6 +505,8 @@ public sealed partial class Run
             if (!a.Hostile || a.Def == null || a.Is(EnemyKind.Camera) || a.Stun > 0) continue;
             float d = V2.Distance(a.Pos, pos);
             if (d > radius) continue;
+            // Sleepers sleep through anything that isn't loud and close.
+            if (a.Mood == Mood.Asleep && (quiet ? d > Tables.WakeQuiet : d > radius * Tables.WakeLoud)) continue;
             // Walls muffle.
             if (!L.Los(a.Pos, pos) && d > radius * 0.6f) continue;
             if (a.Alert)

@@ -99,8 +99,11 @@ public sealed partial class Run
         if (t.Dead || a.Def == null) return false;
         float dist = V2.Distance(a.Pos, t.Pos);
         if (t.IsPlayer && CloakT > 0 && dist > 1.0f) return false;
+        // Asleep sees nothing; nobody sees through a cloud of gas.
+        if (a.Mood == Mood.Asleep) return false;
+        if (dist > 1.2f && Clouds.Count > 0 && GasBetween(a.Pos, t.Pos)) return false;
         if (a.Team == 0 && Cloaked(t, a.Pos)) return false;
-        float range = a.Def.Vision * (a.Alert ? 1.4f : 1f) * (a.Is(EnemyKind.Camera) || a.Is(EnemyKind.Turret) ? 1 : VisionMul);
+        float range = a.Def.Vision * (a.Alert ? 1.4f : 1f) * (a.Is(EnemyKind.Camera) || a.Is(EnemyKind.Turret) ? 1 : VisionMul) * (a.Mood == Mood.OffDuty ? Tables.OffDutySight : 1);
         if (dist > range) return false;
         bool cone = !a.Alert || a.Is(EnemyKind.Camera);
         if (cone && dist > 1.5f)
@@ -153,7 +156,7 @@ public sealed partial class Run
             float rate = dist < 2 ? 4f : 1.6f * (1.25f - dist / vision);
             // In their uniform you're one of them -- until they get a close look.
             if (Disguised) rate *= dist < 2.2f ? 0.6f : 0.2f;
-            rate = MathF.Max(0.25f, rate) * C.DetectMul * (Sneaking ? 0.5f : 1f) * (a.State == AiState.Search ? 2f : 1f) * LightDetect(Player.Pos)
+            rate = MathF.Max(0.25f, rate) * C.DetectMul * (Sneaking ? 0.5f : 1f) * (a.State == AiState.Search ? 2f : 1f) * LightDetect(Player.Pos) * (a.Mood == Mood.OffDuty ? Tables.OffDutyDetect : 1)
                 // Guards who have searched for you, or a site on edge, notice you faster.
                 * (a.Jumpy ? Tables.JumpyDetect : 1f) * (SecurityLevel >= 1 && !Alarm ? Tables.OnEdgeDetect : 1f);
             if (a.Is(EnemyKind.Turret)) rate *= 2.5f;
@@ -207,6 +210,7 @@ public sealed partial class Run
 
     private void Idle(Actor a, float dt)
     {
+        if (a.Mood == Mood.Asleep) return;
         if (a.Static) { Sweep(a, dt); return; }
         if (a.Patrol.Count > 1)
         {
@@ -322,6 +326,13 @@ public sealed partial class Run
         if (a.Is(EnemyKind.Boss) && Charge(a, target, sees, dist, dt)) return;
         if (a.Is(EnemyKind.Barghest) && Howl(a, target, sees, dist, dt)) return;
         if (a.Is(EnemyKind.Bulwark) && sees) Slam(a, target, dist, dt);
+        if (a.Is(EnemyKind.Vip) && PanicGoal(a) is V2 safe)
+        {
+            // For the panic room, firing back only when you're in the way.
+            MoveTo(a, safe, speed * 1.15f, dt);
+            if (sees && dist < 3) { a.Facing = M.TurnTo(a.Facing, M.Angle(target.Pos - a.Pos), 8 * dt); Attack(a, target, dist, dt); }
+            return;
+        }
         if (a.Is(EnemyKind.Vip))
         {
             // Run from the player; fire back when cornered or close.

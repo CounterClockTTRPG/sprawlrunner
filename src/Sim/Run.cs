@@ -65,6 +65,8 @@ public sealed class Actor
     /// <summary>A search in progress (the rooms still to look in); searched once and on edge since.</summary>
     public Queue<V2> Sweep;
     public bool Jumpy;
+    /// <summary>Off duty, asleep, or bound to a circle (see <see cref="Sprawl.Mood"/>).</summary>
+    public Mood Mood;
     public EnemyKind Kind => Def?.Kind ?? EnemyKind.Ganger;
     public bool Hostile => Team == 1 && !Dead;
     public bool Is(EnemyKind k) => Def != null && Def.Kind == k;
@@ -105,7 +107,7 @@ public sealed class Pickup
 public enum Ev
 {
     Shot, Impact, Hit, Death, Explosion, Broken, Throw, Bounce, Pickup, Alarm, Alert, Reload, Dash, Melee,
-    Hack, Message, Door, Flash, Emp, Ignite, Telegraph, Spotted, Objective, Empty, Swap, Heal, Ability, Wave, Spell, HitMark, EnemyThrow, Whistle, Carry, Safe, Stairs, Hint, Panic, LampOut,
+    Hack, Message, Door, Flash, Emp, Ignite, Telegraph, Spotted, Objective, Empty, Swap, Heal, Ability, Wave, Spell, HitMark, EnemyThrow, Whistle, Carry, Safe, Stairs, Hint, Panic, LampOut, Gas,
 }
 
 public readonly record struct RunEvent(Ev Kind, V2 Pos, V2 Dir = default, float Value = 0, int A = 0, string Text = null);
@@ -171,7 +173,13 @@ public sealed partial class Run
         Actors.Add(Player);
         SetupKit();
 
-        foreach (Spawn s in Plan.Enemies) AddEnemy(s.Kind, s.Pos, s.Facing, s.Patrol, s.Bodyguard);
+        foreach (Spawn s in Plan.Enemies)
+        {
+            Actor e = AddEnemy(s.Kind, s.Pos, s.Facing, s.Patrol, s.Bodyguard);
+            e.Mood = s.Mood;
+            // Bound to the chalk: it can't leave the circle.
+            if (s.Mood == Mood.Bound) e.Static = true;
+        }
         Vip = Actors.FirstOrDefault(a => a.Is(EnemyKind.Vip));
         Boss = Actors.FirstOrDefault(a => a.Is(EnemyKind.Boss));
         if (Vip != null) Vip.Name = job.Target;
@@ -337,7 +345,9 @@ public sealed partial class Run
         StepShots(wdt);
         StepGrenades(wdt);
         StepFire(wdt);
+        StepGas(wdt);
         FlushExplosions();
+        StepRooms();
         StepAlarm(wdt);
         StepDeadline();
         StepPhantoms(wdt);

@@ -730,7 +730,7 @@ public partial class SmokeTest
         {
             var bj = new Job { Type = JobType.Bounty, Style = SiteStyle.Den, Faction = Faction.Vipers, Threat = 1 + (int)seed % 5, Seed = seed, Title = "x", Target = "x", Item = "x" };
             var bp = LevelGen.Generate(bj);
-            Check(bp.Enemies.Count > 0 && bp.Enemies.All(x => x.Kind is EnemyKind.Hound or EnemyKind.Bruiser or EnemyKind.Spirit), $"a nest is critters ({string.Join(",", bp.Enemies.Select(x => x.Kind).Distinct())})");
+            Check(bp.Enemies.Count > 0 && bp.Enemies.All(x => x.Kind is EnemyKind.Hound or EnemyKind.Bruiser or EnemyKind.Spirit or EnemyKind.Barghest), $"a nest is critters ({string.Join(",", bp.Enemies.Select(x => x.Kind).Distinct())})");
         }
         // The board: races for the rigger, hacks for the decker, all with a place to be.
         City city = City.Generate(55);

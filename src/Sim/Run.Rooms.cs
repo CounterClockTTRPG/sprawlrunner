@@ -1,0 +1,108 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
+namespace Sprawl;
+
+/// <summary>What fills a gas cloud: coolant from a ruptured pipe (freezes), or a lab's toxic vapour (burns).</summary>
+public enum GasKind { Coolant, Toxic }
+
+/// <summary>A cloud of gas on the floor: it spreads to its radius, hangs, then thins.</summary>
+public sealed class GasCloud
+{
+    public V2 Pos;
+    public float Radius, T, Life;
+    public GasKind Kind;
+    /// <summary>How far it has spread (it grows over its first second and a half).</summary>
+    public float Reach => Radius * MathF.Min(1, 0.35f + T / 1.5f);
+}
+
+/// <summary>
+/// Rooms with a purpose, on the run: guards on their break or asleep, a
+/// spirit bound to its circle, coolant pipes that freeze whoever's beside
+/// them, a target who runs for the panic room, and a word on walking in.
+/// </summary>
+public sealed partial class Run
+{
+    public readonly List<GasCloud> Clouds = new();
+    private readonly HashSet<int> _announced = new();
+    private bool _panicSealed;
+
+    /// <summary>Gas from a broken pipe or vat at this spot.</summary>
+    public void Gas(V2 at, GasKind kind, float radius, float life)
+    {
+        Clouds.Add(new GasCloud { Pos = at, Kind = kind, Radius = radius, Life = life });
+        Events.Add(new RunEvent(Ev.Gas, at, default, radius, (int)kind));
+        Noise(at, 8, false);
+    }
+
+    /// <summary>Inside a cloud (of this kind, or any).</summary>
+    public bool InGas(V2 p, GasKind? kind = null) => Clouds.Any(c => (kind == null || c.Kind == kind) && V2.Distance(c.Pos, p) < c.Reach);
+
+    /// <summary>A cloud between two points (or round either): you can't see through it.</summary>
+    public bool GasBetween(V2 a, V2 b) => Clouds.Any(c => M.SegDist(a, b, c.Pos, out _) < c.Reach * 0.8f);
+
+    private void StepGas(float dt)
+    {
+        for (int i = Clouds.Count - 1; i >= 0; i--)
+        {
+            GasCloud c = Clouds[i];
+            c.T += dt;
+            if (c.T > c.Life) { Clouds.RemoveAt(i); continue; }
+            foreach (Actor a in Actors)
+            {
+                if (a.Dead || a.IsGhost || a.Def != null && (a.Def.Kind is EnemyKind.Camera or EnemyKind.Turret or EnemyKind.Drone or EnemyKind.Spirit)) continue;
+                if (V2.Distance(a.Pos, c.Pos) >= c.Reach) continue;
+                if (c.Kind == GasKind.Coolant)
+                {
+                    // The cold locks the joints: a guard in it can't fight; you can, slowly.
+                    a.Hp -= (a.IsPlayer ? Tables.CoolantHurtYou : Tables.CoolantHurt) * dt;
+                    if (!a.IsPlayer && !a.IsAlly) a.Stun = MathF.Max(a.Stun, 0.4f);
+                }
+                else a.Hp -= (a.IsPlayer ? Tables.ToxicHurtYou : Tables.ToxicHurt) * dt;
+                if (a.Hp <= 0 && !a.Dead) Kill(a, a.IsPlayer ? null : Player);
+            }
+        }
+    }
+
+    /// <summary>Guards off duty or asleep go back to normal once something's up; the target runs for the panic room.</summary>
+    private void StepRooms()
+    {
+        foreach (Actor a in Actors)
+        {
+            if (a.Dead || a.Mood is not (Mood.OffDuty or Mood.Asleep)) continue;
+            if (a.State != AiState.Idle || SecurityLevel >= 3 || a.Stun > 0) a.Mood = Mood.None;
+        }
+        // A word on walking into a room with a purpose (once per room).
+        if (!Peaceful && Plan.RoomOf != null)
+        {
+            Pt p = Pt.Of(Player.Pos);
+            int i = L.In(p) ? Plan.RoomOf[L.Idx(p.X, p.Y)] : -1;
+            if (i >= 0 && i < Plan.Rooms.Count && _announced.Add(i) && SetPieces.Line(Plan.Rooms[i].Kind) is string line) Say(line);
+        }
+        StepPanic();
+    }
+
+    /// <summary>
+    /// The target, once the alarm is up (or they've seen you), runs for the
+    /// panic room; inside, the doors seal (hack them or blow them).
+    /// </summary>
+    private void StepPanic()
+    {
+        if (Vip == null || Vip.Dead || Vip.KO || Plan.PanicRoom.W == 0 || _panicSealed) return;
+        if (Plan.PanicRoom.Contains(Pt.Of(Vip.Pos)) && Vip.Alert)
+        {
+            _panicSealed = true;
+            Rect rim = Plan.PanicRoom.Inset(-1);
+            for (int y = rim.Y; y < rim.Bottom; y++)
+            for (int x = rim.X; x < rim.Right; x++)
+                if (!Plan.PanicRoom.Contains(new Pt(x, y)) && L[x, y] is Tile.Door or Tile.DoorOpen) L.Set(x, y, Tile.LockedDoor);
+            Vip.Static = true;
+            Say($"{Vip.Name} made it into the panic room and sealed the door. Hack it, or blow it.");
+        }
+    }
+
+    /// <summary>Where a frightened target is heading: the panic room, when there is one and it isn't sealed yet.</summary>
+    private V2? PanicGoal(Actor a) => a == Vip && Plan.PanicRoom.W > 0 && !_panicSealed && !Plan.PanicRoom.Contains(Pt.Of(a.Pos))
+        ? new V2(Plan.PanicRoom.X + Plan.PanicRoom.W / 2f, Plan.PanicRoom.Y + Plan.PanicRoom.H / 2f) : null;
+}

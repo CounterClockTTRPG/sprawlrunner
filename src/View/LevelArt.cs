@@ -20,6 +20,7 @@ public static class LevelArt
             Floor.LabTile => new Color(0.5f + n, 0.56f + n, 0.58f + n),
             Floor.Dance => ((x + y) % 2 == 0) ? new Color(0.06f, 0.04f, 0.1f) : new Color(0.1f, 0.05f, 0.16f),
             Floor.Wood => new Color(0.27f + n, 0.18f + n, 0.11f + n),
+            Floor.Ritual => new Color(0.12f + n, 0.1f + n, 0.12f + n),
             _ => new Color(0.1f, 0.2f, 0.1f),
         };
     }
@@ -44,7 +45,7 @@ public static class LevelArt
         Vector2 o = r.Position;
         Color fc = FloorColour(f, x, y);
         ci.DrawRect(r, fc);
-        DrawFloorDetail(ci, f, x, y, o, fc);
+        DrawFloorDetail(ci, L, f, x, y, o, fc);
         // The walls' shadow on the floor beside them: light comes from the top left.
         if (!IsWall(t) && t != Tile.Glass)
         {
@@ -225,6 +226,33 @@ public static class LevelArt
                 ci.DrawRect(new Rect2(o + new Vector2(8, T - 10), new Vector2(5, 3)), new Color(0.85f, 0.83f, 0.75f));
                 break;
             }
+            case Tile.Bunk:
+            {
+                // A steel cot: a frame, a thin mattress, a pillow, a blanket thrown over it.
+                var b = new Rect2(o + new Vector2(3, 4), new Vector2(T - 6, T - 8));
+                ci.DrawRect(new Rect2(b.Position + new Vector2(2, 3), b.Size), new Color(0, 0, 0, 0.3f));
+                ci.DrawRect(b, new Color(0.25f, 0.26f, 0.28f).Darkened((1 - hpFrac) * 0.4f));
+                ci.DrawRect(b.Grow(-2), new Color(0.42f, 0.4f, 0.36f));
+                ci.DrawRect(new Rect2(b.Position + new Vector2(3, 3), new Vector2(7, b.Size.Y - 6)), new Color(0.75f, 0.73f, 0.68f));
+                Color blanket = Art.Hash(x, y, 90) > 0.5f ? new Color(0.25f, 0.32f, 0.22f) : new Color(0.32f, 0.2f, 0.2f);
+                ci.DrawRect(new Rect2(b.Position + new Vector2(11, 2), new Vector2(b.Size.X - 13, b.Size.Y - 4)), blanket);
+                ci.DrawLine(b.Position + new Vector2(11, b.Size.Y / 2), b.Position + new Vector2(b.Size.X - 2, b.Size.Y / 2 + 2), blanket.Darkened(0.3f), 1);
+                break;
+            }
+            case Tile.Pipe:
+            {
+                // A coolant run: a fat pipe with a valve wheel and frost on it.
+                Color pipe = new Color(0.45f, 0.55f, 0.62f).Darkened((1 - hpFrac) * 0.4f);
+                ci.DrawRect(new Rect2(o + new Vector2(0, 11), new Vector2(T, 12)), new Color(0, 0, 0, 0.3f));
+                ci.DrawRect(new Rect2(o + new Vector2(0, 9), new Vector2(T, 11)), pipe);
+                ci.DrawLine(o + new Vector2(0, 11), o + new Vector2(T, 11), pipe.Lightened(0.35f), 2);
+                ci.DrawRect(new Rect2(o + new Vector2(T / 2f - 2, 7), new Vector2(4, 15)), pipe.Darkened(0.3f));
+                ci.DrawArc(o + new Vector2(T / 2f, 14), 6, 0, MathF.Tau, 12, new Color(0.8f, 0.2f, 0.15f), 2);
+                ci.DrawLine(o + new Vector2(T / 2f - 6, 14), o + new Vector2(T / 2f + 6, 14), new Color(0.8f, 0.2f, 0.15f), 1.5f);
+                for (int k = 0; k < 3; k++) ci.DrawCircle(o + new Vector2(4 + Art.Hash(x, y, 91 + k) * (T - 8), 18), 1.3f, new Color(0.85f, 0.95f, 1f, 0.7f));
+                ci.DrawString(ThemeDB.FallbackFont, o + new Vector2(3, 29), "COOLANT", HorizontalAlignment.Left, -1, 6, new Color(0.9f, 0.9f, 0.3f, 0.7f));
+                break;
+            }
             case Tile.Ward:
                 ci.DrawRect(new Rect2(o + new Vector2(2, 2), new Vector2(T - 4, T - 4)), new Color(0.62f, 0.45f, 1f, 0.35f));
                 ci.DrawRect(new Rect2(o + new Vector2(2, 2), new Vector2(T - 4, T - 4)), new Color(0.8f, 0.7f, 1f, 0.9f), false, 2);
@@ -254,7 +282,7 @@ public static class LevelArt
         }
     }
 
-    private static void DrawFloorDetail(CanvasItem ci, Floor f, int x, int y, Vector2 o, Color fc)
+    private static void DrawFloorDetail(CanvasItem ci, Level L, Floor f, int x, int y, Vector2 o, Color fc)
     {
         switch (f)
         {
@@ -281,6 +309,10 @@ public static class LevelArt
                     ci.DrawLine(o + new Vector2(end, k * 8), o + new Vector2(end, k * 8 + 8), fc.Darkened(0.3f), 1);
                     if (Art.Hash(x, y, k + 30) > 0.9f) ci.DrawCircle(o + new Vector2(Art.Hash(x, y, k + 40) * T, k * 8 + 4), 1.3f, fc.Darkened(0.4f));
                 }
+                break;
+            case Floor.Ritual:
+                // Chalk dust; the circle itself is drawn over the floor by the run view (RunView.TileLife).
+                if (Art.Hash(x, y, 95) > 0.5f) ci.DrawLine(o + new Vector2(Art.Hash(x, y, 97) * T, 6), o + new Vector2(Art.Hash(x, y, 98) * T, T - 6), new Color(0.85f, 0.85f, 0.9f, 0.18f), 1);
                 break;
             case Floor.Dance:
                 if (Art.Hash(x, y, 3) > 0.7f)

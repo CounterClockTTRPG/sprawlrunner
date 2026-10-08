@@ -9,10 +9,12 @@ public enum Tile : byte
     Floor, Rubble, Glass, Drywall, Brick, Concrete, Reinforced, Door, DoorOpen, LockedDoor,
     Crate, Desk, Barrel, Fence, Wreck, Rack, Vat, Mainframe,
     Console, Safe, Locker, Stairs, Lift, Ward,
+    /// <summary>Barracks bunks (low cover), and a server room's coolant pipe (rupture it: a freezing cloud).</summary>
+    Bunk, Pipe,
 }
 
 /// <summary>What the floor under a tile looks like. Purely visual.</summary>
-public enum Floor : byte { Street, Yard, Concrete, Carpet, LabTile, Dance, Wood, Grass }
+public enum Floor : byte { Street, Yard, Concrete, Carpet, LabTile, Dance, Wood, Grass, Ritual }
 
 public readonly struct TileDef
 {
@@ -103,6 +105,8 @@ public sealed class Level
         d[(int)Tile.Lift] = new(float.PositiveInfinity, true, true, true);
         // A mage's ward: light you can see through and nothing can cross.
         d[(int)Tile.Ward] = new(float.PositiveInfinity, true, false, true);
+        d[(int)Tile.Bunk] = new(45, true, false, true, low: true, flammable: true);
+        d[(int)Tile.Pipe] = new(35, true, false, true, low: true);
         return d;
     }
 

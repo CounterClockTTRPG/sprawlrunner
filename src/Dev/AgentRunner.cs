@@ -553,12 +553,14 @@ public partial class AgentRunner : Node
             }
         }
         var seen = r.Actors.Where(a => !a.IsPlayer && !a.Dead && r.Shown(a)).OrderBy(a => V2.Distance(a.Pos, p.Pos)).ToList();
+        if (r.Plan.KindAt(Pt.Of(p.Pos)) is RoomKind rk && rk != RoomKind.Plain) sb.AppendLine($"room: {SetPieces.Name(rk)}");
+        foreach (GasCloud g in r.Clouds.Where(g => r.Seen(g.Pos))) sb.AppendLine($"gas: {g.Kind} cloud at ({g.Pos.X:0},{g.Pos.Y:0}), {g.Reach:0.0} tiles across, {g.Life - g.T:0} s left{(r.InGas(p.Pos) ? " -- YOU'RE IN IT" : "")}");
         sb.AppendLine(seen.Count == 0 ? "nobody in sight" : "in sight:");
         foreach (Actor a in seen.Take(12))
         {
             string who = a.IsHostage ? $"HOSTAGE {a.Name} ({a.State})" : a.IsNpc ? (a.Vendor != null ? $"vendor: {a.Name}" : "passer-by") : a.IsGhost ? "??? (a figure -- real?)" : a.IsAlly ? $"{a.Name} [your {(a.IsDrone ? "drone" : a.Summoned ? "spirit" : "hire")}]" : a.Def != null ? $"{a.Def.Name}{(a == r.Vip ? " [TARGET]" : "")}{(a.Team == 0 ? " [hacked, yours]" : "")}" : a.Name;
             string mind = a.Def == null ? "" : a.Alert ? "ALERT" : a.State == AiState.Suspicious ? "suspicious" : a.Detect > 0.05f ? $"noticing {a.Detect * 100:0}%" : "unaware";
-            sb.AppendLine($"  {Letter(a, r)} {who} at ({a.Pos.X:0.0},{a.Pos.Y:0.0}) {V2.Distance(a.Pos, p.Pos):0.0} tiles, hp {a.Hp:0}/{a.MaxHp:0} {mind}{(a.Stun > 0 ? " stunned" : "")}");
+            sb.AppendLine($"  {Letter(a, r)} {who} at ({a.Pos.X:0.0},{a.Pos.Y:0.0}) {V2.Distance(a.Pos, p.Pos):0.0} tiles, hp {a.Hp:0}/{a.MaxHp:0} {mind}{(a.Mood == Mood.Asleep ? " ASLEEP" : a.Mood == Mood.OffDuty ? " off duty" : a.Mood == Mood.Bound ? " bound to its circle" : "")}{(a.Stun > 0 ? " stunned" : "")}");
         }
         var loot = r.Pickups.Where(k => !k.Taken && r.Seen(k.Pos)).ToList();
         foreach (Actor b in r.Actors.Where(a => a.Dead && !a.Escaped && a.Def != null && r.Seen(a.Pos) && !a.Static && !a.Flying).Take(6))
@@ -589,7 +591,7 @@ public partial class AgentRunner : Node
         Actor p = r.Player;
         Pt c = Pt.Of(p.Pos);
         var sb = new StringBuilder();
-        sb.AppendLine($"map around you (x {c.X - radius}..{c.X + radius}, y {c.Y - radius}..{c.Y + radius}; @ you, # wall, = reinforced, \" glass, + door, L locked door, x cover, o barrel, r/v racks/vats to destroy, M mainframe, % security console, & safe, l locker, ^ stairs, ~ fire, $ pickup, E extraction, letters people (see list), space unknown, lower-case dot remembered floor):");
+        sb.AppendLine($"map around you (x {c.X - radius}..{c.X + radius}, y {c.Y - radius}..{c.Y + radius}; @ you, # wall, = reinforced, \" glass, + door, L locked door, x cover, o barrel, r/v racks/vats to destroy, M mainframe, % security console, & safe, l locker, b bunk, p coolant pipe, ^ stairs, ~ fire, $ pickup, E extraction, letters people (see list), space unknown, lower-case dot remembered floor):");
         var people = new Dictionary<Pt, char>();
         foreach (Actor a in r.Actors.Where(a => !a.IsPlayer && !a.Dead && r.Shown(a))) people[Pt.Of(a.Pos)] = Letter(a, r);
         var loot = r.Pickups.Where(k => !k.Taken && r.Seen(k.Pos)).Select(k => Pt.Of(k.Pos)).ToHashSet();
@@ -618,7 +620,7 @@ public partial class AgentRunner : Node
                         Tile.Floor or Tile.Rubble or Tile.DoorOpen => r.Plan.Extraction.Contains(t) ? 'E' : vis ? ' ' : '.',
                         Tile.Glass => '"', Tile.Drywall or Tile.Brick or Tile.Concrete => '#', Tile.Reinforced => '=',
                         Tile.Door => '+', Tile.LockedDoor => 'L', Tile.Crate or Tile.Desk or Tile.Wreck or Tile.Fence => 'x',
-                        Tile.Barrel => 'o', Tile.Rack => 'r', Tile.Vat => 'v', Tile.Mainframe => 'M', Tile.Console => '%', Tile.Safe => '&', Tile.Locker => 'l', Tile.Stairs => '^', _ => '?',
+                        Tile.Barrel => 'o', Tile.Rack => 'r', Tile.Vat => 'v', Tile.Mainframe => 'M', Tile.Console => '%', Tile.Safe => '&', Tile.Locker => 'l', Tile.Stairs => '^', Tile.Bunk => 'b', Tile.Pipe => 'p', _ => '?',
                     };
                     if (ch == ' ' && vis) ch = '·';
                 }

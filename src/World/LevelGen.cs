@@ -12,6 +12,8 @@ public sealed class Room
     public List<int> Links = new();
     public int Depth = -1;
     public bool Vault, Outer;
+    /// <summary>What it's for (see <see cref="SetPieces"/>).</summary>
+    public RoomKind Kind;
     public V2 Centre => new(R.X + R.W / 2f, R.Y + R.H / 2f);
 }
 
@@ -22,6 +24,7 @@ public sealed class Spawn
     public float Facing;
     public List<V2> Patrol = new();
     public bool Bodyguard;
+    public Mood Mood;
 }
 
 public enum PickupKind { Cash, Medkit, Grenade, Loot, Objective, Clue }
@@ -54,6 +57,10 @@ public sealed class LevelPlan
     /// <summary>Hubs: people about, with the vendor they are (or null for the crowd).</summary>
     public List<(V2 pos, string vendor)> Npcs = new();
     public Rect Building;
+    /// <summary>The panic room the target runs to when the alarm goes (W 0: none).</summary>
+    public Rect PanicRoom;
+    /// <summary>The room a point is in, and what kind it is (Plain outside any room).</summary>
+    public RoomKind KindAt(Pt p) => L.In(p) && RoomOf[L.Idx(p.X, p.Y)] is int i && i >= 0 && i < Rooms.Count ? Rooms[i].Kind : RoomKind.Plain;
     /// <summary>The basement, when the site has one (W 0 otherwise), and the main map's width.</summary>
     public Rect Basement;
     public int MainW;
@@ -102,7 +109,14 @@ public sealed class LevelGen
     {
         _job = job;
         _r = new Rng(job.Seed);
+        _k = new Rng(job.Seed ^ 0x6005E7B1ECEUL);
     }
+
+    /// <summary>Room kinds and set pieces draw from their own stream, so they don't reshuffle the rest of the site.</summary>
+    private readonly Rng _k;
+    /// <summary>Spots for guards who start off duty or asleep (filled from the site's budget), and each room's objective spot.</summary>
+    private readonly List<(V2 pos, Mood mood, float facing)> _moods = new();
+    private readonly Dictionary<Room, V2> _hot = new();
 
     public static LevelPlan Generate(Job job) => job.Type == JobType.Hack ? HomeRig(job) : new LevelGen(job).Build();
 
@@ -214,6 +228,8 @@ public sealed class LevelGen
         LinkRooms();
         Depths();
 
+        AssignKinds();
+        StampKinds();
         Objectives();
         SpecialRooms();
         Furnish(yard);
@@ -904,6 +920,108 @@ public sealed class LevelGen
 
     private readonly HashSet<Pt> _reserved = new();
 
+    // ---- what rooms are for ------------------------------------------------------------
+
+    /// <summary>
+    /// Give some rooms a purpose, by the site's style: a manager's office, a
+    /// break room, servers, barracks, an armoury, a ritual circle, a panic room
+    /// for a target with something to fear. The rest stay plain.
+    /// </summary>
+    private void AssignKinds()
+    {
+        bool target = _job.Type is JobType.Eliminate or JobType.Kidnap;
+        bool security = _job.Faction == Faction.Halcyon || _job.Threat >= 3;
+        var wants = _job.Style switch
+        {
+            SiteStyle.Office => new (RoomKind, float)[] { (RoomKind.Manager, 0.85f), (RoomKind.Break, 0.7f), (RoomKind.Server, 0.6f), (RoomKind.Security, security ? 1 : 0), (RoomKind.Panic, target ? 0.5f : 0) },
+            SiteStyle.Lab => new[] { (RoomKind.LabBay, 0.9f), (RoomKind.LabBay, 0.6f), (RoomKind.Server, 0.6f), (RoomKind.Break, 0.5f), (RoomKind.Manager, 0.5f), (RoomKind.Security, security ? 1 : 0), (RoomKind.Panic, target ? 0.4f : 0) },
+            SiteStyle.Warehouse => new[] { (RoomKind.Dock, 0.6f), (RoomKind.Manager, 0.6f), (RoomKind.Break, 0.6f), (RoomKind.Armoury, _job.Threat >= 2 ? 0.5f : 0) },
+            SiteStyle.Den => new[] { (RoomKind.Barracks, 0.8f), (RoomKind.Barracks, 0.4f), (RoomKind.Break, 0.5f), (RoomKind.Armoury, _job.Threat >= 2 ? 0.6f : 0), (RoomKind.Ritual, _job.Threat >= 2 ? 0.35f : 0) },
+            _ => new[] { (RoomKind.Manager, 0.8f), (RoomKind.Break, 0.6f), (RoomKind.Armoury, _job.Faction == Faction.Lotus ? 0.3f : 0), (RoomKind.Security, security ? 1 : 0) },
+        };
+        if (_job.Type == JobType.Defend || _job.Tutorial) return;
+        // A nest has no barracks or break room: only, sometimes, the circle something was bound in.
+        if (_job.Type == JobType.Bounty) wants = new[] { (RoomKind.Ritual, _job.Threat >= 2 ? 0.4f : 0) };
+        foreach (var (kind, chance) in wants)
+        {
+            if (!_k.Chance(chance)) continue;
+            // A room, not a corridor: not long and thin, not a junction of doorways.
+            // (A loading dock is meant to be long, on the outside, with doors.)
+            var free = P.Rooms.Where(r => r.Kind == RoomKind.Plain && !r.Vault && r.R.W >= 4 && r.R.H >= 4 && r.R.Area >= 16 && L.F[L.Idx(r.R.X, r.R.Y)] != Floor.Dance
+                && (kind == RoomKind.Dock || Math.Max(r.R.W, r.R.H) <= 3 * Math.Min(r.R.W, r.R.H) && r.Links.Count <= 3)).ToList();
+            if (kind == RoomKind.Dock) free = free.Where(r => r.Outer).ToList();
+            if (kind == RoomKind.Panic) free = free.Where(r => r.Depth >= 1 && r.R.Area <= 48 && !r.Outer).ToList();
+            if (free.Count == 0) continue;
+            // The office and the panic room sit deep; the rest anywhere.
+            Room pick = kind is RoomKind.Manager or RoomKind.Panic
+                ? free.OrderByDescending(r => r.Depth + _k.Float() * 2).First()
+                : free[_k.Int(free.Count)];
+            pick.Kind = kind;
+        }
+    }
+
+    /// <summary>Furnish each room with a purpose from a set piece (turned to fit), and build what it needs.</summary>
+    private void StampKinds()
+    {
+        foreach (Room r in P.Rooms)
+        {
+            if (r.Kind == RoomKind.Plain) continue;
+            var fits = SetPieces.Fitting(r.Kind, r.R.W, r.R.H, _k);
+            if (fits.Count == 0) { r.Kind = RoomKind.Plain; continue; }
+            string[] piece = fits[0];
+            int pw = piece[0].Length, ph = piece.Length;
+            int x0 = r.R.X + (r.R.W - pw) / 2 + (r.R.W - pw > 2 ? _k.Range(-1, 1) : 0);
+            int y0 = r.R.Y + (r.R.H - ph) / 2 + (r.R.H - ph > 2 ? _k.Range(-1, 1) : 0);
+            V2 centre = new(x0 + pw / 2f, y0 + ph / 2f);
+            Mood mood = r.Kind switch { RoomKind.Break or RoomKind.Security => Mood.OffDuty, RoomKind.Barracks => Mood.Asleep, _ => Mood.None };
+            for (int y = 0; y < ph; y++)
+            for (int x = 0; x < pw; x++)
+            {
+                char c = piece[y][x];
+                var p = new Pt(x0 + x, y0 + y);
+                if (!r.R.Contains(p) || L[p] != Tile.Floor) continue;
+                if (SetPieces.TileFor(c) is Tile t) { if (Free(p)) L.Set(p, t); continue; }
+                switch (c)
+                {
+                    case '~': L.F[L.Idx(p.X, p.Y)] = Floor.Ritual; break;
+                    case '*': _hot[r] = p.Centre; break;
+                    case 'g' when mood != Mood.None && Free(p): _moods.Add((p.Centre, mood, M.Angle(centre - p.Centre))); _reserved.Add(p); break;
+                    case 'x' when _job.Threat >= 2 && Free(p):
+                        L.F[L.Idx(p.X, p.Y)] = Floor.Ritual;
+                        P.Enemies.Add(new Spawn { Kind = EnemyKind.Spirit, Pos = p.Centre, Facing = _k.Float() * MathF.Tau, Mood = Mood.Bound });
+                        _reserved.Add(p);
+                        break;
+                }
+            }
+            if (r.Kind == RoomKind.Panic)
+            {
+                // Armoured walls, and the door seals from inside (Run: the target runs here).
+                Rect rim = r.R.Inset(-1);
+                for (int y = rim.Y; y < rim.Bottom; y++)
+                for (int x = rim.X; x < rim.Right; x++)
+                    if (!r.R.Contains(new Pt(x, y)) && L[x, y] is Tile.Drywall or Tile.Brick or Tile.Glass) L.Set(x, y, Tile.Concrete);
+                P.PanicRoom = r.R;
+            }
+            if (r.Kind == RoomKind.Armoury)
+            {
+                // The armoury's doors are locked: hack them, or blow them.
+                Rect rim = r.R.Inset(-1);
+                for (int y = rim.Y; y < rim.Bottom; y++)
+                for (int x = rim.X; x < rim.Right; x++)
+                    if (!r.R.Contains(new Pt(x, y)) && L[x, y] == Tile.Door) L.Set(x, y, Tile.LockedDoor);
+                // And it's stocked.
+                V2 at = _hot.TryGetValue(r, out V2 h) ? h : r.Centre;
+                if (_job.Type != JobType.Retrieve) P.Pickups.Add(new PickupSpawn { Kind = PickupKind.Grenade, Pos = at, Amount = 1, Id = _k.Pick(new[] { "frag", "flash", "emp" }) });
+            }
+        }
+    }
+
+    /// <summary>The deepest room of one of these kinds, or null.</summary>
+    private Room ByKind(params RoomKind[] kinds) => P.Rooms.Where(r => kinds.Contains(r.Kind)).OrderByDescending(r => r.Depth).FirstOrDefault();
+
+    /// <summary>The room's own objective spot (from its set piece), else anywhere free in it.</summary>
+    private V2 SpotIn(Room r) => _hot.TryGetValue(r, out V2 h) && L[Pt.Of(h)] == Tile.Floor && !_reserved.Contains(Pt.Of(h)) ? h : FreeSpot(r);
+
     private void Objectives()
     {
         switch (_job.Type)
@@ -911,8 +1029,10 @@ public sealed class LevelGen
             case JobType.Eliminate:
             case JobType.Kidnap:
             {
+                // Sometimes the target is working late in the manager's office.
                 Room r = Deepest(x => !x.Vault);
-                V2 at = FreeSpot(r);
+                if (_k.Chance(0.45f) && ByKind(RoomKind.Manager) is Room office) r = office;
+                V2 at = SpotIn(r);
                 P.Enemies.Add(new Spawn { Kind = EnemyKind.Vip, Pos = at, Facing = _r.Float() * MathF.Tau });
                 Reserve(at);
                 for (int k = 0; k < 1 + _job.Threat / 2; k++)
@@ -926,7 +1046,8 @@ public sealed class LevelGen
             case JobType.Retrieve:
             {
                 Room r = _vault ?? Deepest();
-                V2 at = FreeSpot(r);
+                if (_vault == null && _k.Chance(0.5f) && ByKind(RoomKind.Armoury, RoomKind.Manager, RoomKind.Dock) is Room fit) r = fit;
+                V2 at = SpotIn(r);
                 P.Pickups.Add(new PickupSpawn { Kind = PickupKind.Objective, Pos = at, Name = _job.Item });
                 Reserve(at);
                 break;
@@ -953,6 +1074,7 @@ public sealed class LevelGen
             case JobType.Datasteal:
             {
                 Room r = _vault ?? Deepest();
+                if (_vault == null && _k.Chance(0.6f) && ByKind(RoomKind.Server) is Room servers) r = servers;
                 Pt p = WallSpot(r);
                 // No good wall spot: any floor not in front of a door (never block the only way in).
                 if (p.X < 0)
@@ -968,7 +1090,8 @@ public sealed class LevelGen
             case JobType.Rescue:
             {
                 Room r = _vault ?? Deepest();
-                V2 at = FreeSpot(r);
+                if (_vault == null && _k.Chance(0.35f) && ByKind(RoomKind.Barracks, RoomKind.Armoury) is Room cell) r = cell;
+                V2 at = SpotIn(r);
                 P.Hostage = at;
                 Reserve(at);
                 break;
@@ -977,6 +1100,9 @@ public sealed class LevelGen
             {
                 // Three pieces of evidence in three of the deeper rooms (the vault, if any, keeps one).
                 var deep = P.Rooms.OrderByDescending(r => r.Depth + _r.Float() * 2).ToList();
+                // Evidence is where people keep it: the manager's desk, the security office, the break-room table.
+                foreach (Room k in P.Rooms.Where(x => x.Kind is RoomKind.Manager or RoomKind.Security or RoomKind.Break).ToList())
+                    if (_k.Chance(0.6f)) { deep.Remove(k); deep.Insert(0, k); }
                 if (_vault != null) { deep.Remove(_vault); deep.Insert(0, _vault); }
                 string[] names = { "a ledger", "a recording", "a file of photographs", "a burner commlink", "shipping manifests" };
                 for (int k = 0; k < 3; k++)
@@ -1003,7 +1129,8 @@ public sealed class LevelGen
             case JobType.Plant:
             {
                 Room r = _vault ?? Deepest();
-                V2 at = FreeSpot(r);
+                if (_vault == null && _k.Chance(0.5f) && ByKind(RoomKind.Server, RoomKind.Manager, RoomKind.Security) is Room spot) r = spot;
+                V2 at = SpotIn(r);
                 P.PlantAt = at;
                 Reserve(at);
                 break;
@@ -1026,8 +1153,9 @@ public sealed class LevelGen
             L.Set(p, t);
             for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++) _reserved.Add(p + new Pt(dx, dy));
         }
-        if (_job.Faction == Faction.Halcyon || _job.Threat >= 3) Put(Next(), Tile.Console);
-        if (_job.Threat >= 2 && _r.Chance(0.6f))
+        bool security = P.Rooms.Any(x => x.Kind == RoomKind.Security), armoury = P.Rooms.Any(x => x.Kind == RoomKind.Armoury);
+        if ((_job.Faction == Faction.Halcyon || _job.Threat >= 3) && !security) Put(Next(), Tile.Console);
+        if (_job.Threat >= 2 && _r.Chance(0.6f) && !armoury)
         {
             Room arm = Next();
             Put(arm, Tile.Locker);
@@ -1061,7 +1189,7 @@ public sealed class LevelGen
         SiteStyle st = _job.Style;
         foreach (Room r in P.Rooms)
         {
-            if (r.R.W < 3 || r.R.H < 3) continue;
+            if (r.R.W < 3 || r.R.H < 3 || r.Kind != RoomKind.Plain) continue;
             switch (st)
             {
                 case SiteStyle.Office:
@@ -1400,6 +1528,17 @@ public sealed class LevelGen
             if (def.Budget > budget + 0.5f) continue;
             budget -= def.Budget;
             var s = new Spawn { Kind = kind, Facing = _r.Float() * MathF.Tau };
+            // Someone's on their break, or asleep: a person, not a drone or a dog.
+            if (_moods.Count > 0 && kind is EnemyKind.Ganger or EnemyKind.Guard or EnemyKind.Blade or EnemyKind.Heavy or EnemyKind.Bruiser or EnemyKind.Firebug or EnemyKind.Shield or EnemyKind.Sniper or EnemyKind.Mage or EnemyKind.Rigger)
+            {
+                var (mp, mood, mf) = _moods[0];
+                _moods.RemoveAt(0);
+                s.Pos = mp;
+                s.Mood = mood;
+                s.Facing = mf;
+                P.Enemies.Add(s);
+                continue;
+            }
             bool inYard = _r.Chance(0.25f) || rooms.Count == 0;
             if (inYard)
             {
