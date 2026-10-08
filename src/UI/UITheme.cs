@@ -293,9 +293,21 @@ public static class UITheme
         }
     }
 
-    /// <summary>Draw text with an outline, for custom-drawn views.</summary>
     /// <summary>A font size with the player's text-size setting applied.</summary>
     public static int Scaled(int size) => (int)MathF.Round(size * Math.Clamp(Profile.Current?.TextScale ?? 1, 1, 1.4f));
+
+    /// <summary>Upper case, remembered: names over heads, on roofs and on the HUD are drawn every frame.</summary>
+    public static string Caps(string s)
+    {
+        if (s == null) return null;
+        if (_caps.TryGetValue(s, out string c)) return c;
+        if (_caps.Count > 512) _caps.Clear();
+        return _caps[s] = s.ToUpperInvariant();
+    }
+
+    private static readonly System.Collections.Generic.Dictionary<string, string> _caps = new();
+
+    /// <summary>Draw text with an outline, for custom-drawn views.</summary>
 
     public static void Write(CanvasItem ci, Vector2 at, string text, int size, Color colour, HorizontalAlignment align = HorizontalAlignment.Left,
         float width = -1f, bool heading = false, int outline = 0, bool mono = false)

@@ -315,6 +315,8 @@ public partial class CityView : Node2D
                 for (int k = 0; k + 1 < V.Route.Count; k++)
                 {
                     Vector2 a = Art.G(V.Route[k], T), b = Art.G(V.Route[k + 1], T);
+                    // Only the legs on screen (each leg's dots start from its own end, so skipping one moves nothing).
+                    if (!view.Intersects(new Rect2(a, Vector2.Zero).Expand(b).Grow(4))) continue;
                     float len = a.DistanceTo(b);
                     for (float u = 0; u < len; u += 26) DrawCircle(a.Lerp(b, u / len), 3.5f, UITheme.Cyan with { A = 0.55f });
                 }
@@ -443,22 +445,43 @@ public partial class CityView : Node2D
             City c = V.Sim.City;
             Rect2 view = V.ViewRect;
             Vector2 cam = V.CamCentre;
-            var list = c.Lots.Where(l => l.Kind == LotKind.Building || l.Landmark != null)
-                .Select(l => (l, rect: new Rect2(l.R.X * T, l.R.Y * T, l.R.W * T, l.R.H * T)))
-                .Where(x => view.Intersects(x.rect))
-                .OrderByDescending(x => (x.rect.GetCenter() - cam).LengthSquared());
-            int n = 0;
-            foreach (var (l, rect) in list) { DrawBuilding(l, rect); n++; }
-            Perf.Count("buildings", n);
+            // Far ones first (ties in lot order, as a stable sort gives); the list is reused frame to frame.
+            List<(Lot l, Rect2 rect, float far, int k)> list = _inView;
+            list.Clear();
+            foreach (Lot l in c.Lots)
+            {
+                if (l.Kind != LotKind.Building && l.Landmark == null) continue;
+                var rect = new Rect2(l.R.X * T, l.R.Y * T, l.R.W * T, l.R.H * T);
+                if (view.Intersects(rect)) list.Add((l, rect, (rect.GetCenter() - cam).LengthSquared(), list.Count));
+            }
+            list.Sort(FarFirst);
+            foreach (var (l, rect, _, _) in list) DrawBuilding(l, rect);
+            Perf.Count("buildings", list.Count);
         }
+
+        private readonly List<(Lot l, Rect2 rect, float far, int k)> _inView = new();
+        private static readonly Comparison<(Lot l, Rect2 rect, float far, int k)> FarFirst = (a, b) => a.far != b.far ? b.far.CompareTo(a.far) : a.k.CompareTo(b.k);
+
+        /// <summary>
+        /// Whether the wall along edge i (0 north, 1 east, 2 south, 3 west) faces the way the
+        /// building leans: away from the camera, so the roof and the walls that face you cover it.
+        /// </summary>
+        private static bool FacesAway(int i, Vector2 lean) => i switch { 0 => lean.Y < 0, 1 => lean.X > 0, 2 => lean.Y > 0, _ => lean.X < 0 };
+
+        private readonly Vector2[] _quad = new Vector2[4], _q = new Vector2[4], _top = new Vector2[4];
 
         /// <summary>A box from a base rectangle (shifted by baseOff) up to its roof (shifted by topOff).</summary>
         private void Box(Rect2 b, Vector2 baseOff, Vector2 topOff, Color c, bool roof = true)
         {
-            Vector2[] q = { b.Position, b.Position + new Vector2(b.Size.X, 0), b.End, b.Position + new Vector2(0, b.Size.Y) };
-            Color[] shade = { c.Darkened(0.2f), c.Darkened(0.45f), c.Darkened(0.32f), c.Darkened(0.5f) };
+            Vector2[] q = _q;
+            q[0] = b.Position; q[1] = b.Position + new Vector2(b.Size.X, 0); q[2] = b.End; q[3] = b.Position + new Vector2(0, b.Size.Y);
             for (int i = 0; i < 4; i++)
-                Poly(new[] { q[i] + baseOff, q[(i + 1) % 4] + baseOff, q[(i + 1) % 4] + topOff, q[i] + topOff }, shade[i]);
+            {
+                // Under a roof, the walls leaning away are hidden behind it and the walls facing you.
+                if (roof && FacesAway(i, topOff - baseOff)) continue;
+                _quad[0] = q[i] + baseOff; _quad[1] = q[(i + 1) % 4] + baseOff; _quad[2] = q[(i + 1) % 4] + topOff; _quad[3] = q[i] + topOff;
+                Poly(_quad, c.Darkened(i switch { 0 => 0.2f, 1 => 0.45f, 2 => 0.32f, _ => 0.5f }));
+            }
             if (roof)
             {
                 DrawRect(new Rect2(b.Position + topOff, b.Size), c);
@@ -471,7 +494,7 @@ public partial class CityView : Node2D
             Vector2 cen = b.GetCenter();
             Vector2 Lean(float h) => V.Lean(cen, h);
             float t = V.Time;
-            string name = City.Landmarks.First(x => x.id == l.Landmark).name.ToUpperInvariant();
+            string name = UITheme.Caps(City.Landmarks.First(x => x.id == l.Landmark).name);
             Vector2 label = cen;
             switch (l.Landmark)
             {
@@ -596,19 +619,20 @@ public partial class CityView : Node2D
         {
             if (l.Landmark != null) { DrawLandmark(l, b); return; }
             b = b.Grow(-3);
-            DistrictDef d = Tables.District(l.District);
             Vector2 lean = V.Lean(b.GetCenter(), l.Height);
-            Color baseCol = DistrictTint(l, d);
-            Vector2[] q = { b.Position, b.Position + new Vector2(b.Size.X, 0), b.End, b.Position + new Vector2(0, b.Size.Y) };
-            Vector2[] top = q.Select(p => p + lean).ToArray();
-            // Walls: shade by which way they face, with rows of lit windows.
+            Color baseCol = DistrictTint(l);
+            Vector2[] q = _q, top = _top;
+            q[0] = b.Position; q[1] = b.Position + new Vector2(b.Size.X, 0); q[2] = b.End; q[3] = b.Position + new Vector2(0, b.Size.Y);
+            for (int i = 0; i < 4; i++) top[i] = q[i] + lean;
+            // Walls: shade by which way they face, with rows of lit windows -- only those facing you (the roof covers the rest).
             Color wall = baseCol.Darkened(0.25f);
-            Color[] shade = { wall.Lightened(0.08f), wall.Darkened(0.3f), wall.Darkened(0.15f), wall.Darkened(0.4f) };
             int floors = Math.Max(1, (int)(l.Height * 2.4f));
             for (int i = 0; i < 4; i++)
             {
+                if (FacesAway(i, lean)) continue;
                 Vector2 a = q[i], bb = q[(i + 1) % 4], ta = top[i], tb = top[(i + 1) % 4];
-                Poly(new[] { a, bb, tb, ta }, shade[i]);
+                _quad[0] = a; _quad[1] = bb; _quad[2] = tb; _quad[3] = ta;
+                Poly(_quad, i switch { 0 => wall.Lightened(0.08f), 1 => wall.Darkened(0.3f), 2 => wall.Darkened(0.15f), _ => wall.Darkened(0.4f) });
                 for (int f = 1; f <= floors; f++)
                 {
                     float u = f / (floors + 1f);
@@ -697,7 +721,7 @@ public partial class CityView : Node2D
             bool ownLoft = V.Sim.C.HasUpgrade("loft");
             if (l.Place != null && !(l.Place == "loft" && !ownLoft) && !(l.Place == "home" && ownLoft))
             {
-                string label = City.PlaceName(l.Place).ToUpperInvariant();
+                string label = UITheme.Caps(City.PlaceName(l.Place));
                 Color sc = Art.C(l.Sign);
                 UITheme.Write(this, roof.GetCenter() + new Vector2(-roof.Size.X / 2 - 40, 6), label, 17, sc, HorizontalAlignment.Center, roof.Size.X + 80, heading: true);
             }
@@ -723,7 +747,7 @@ public partial class CityView : Node2D
             DrawColoredPolygon(q, c);
         }
 
-        private static Color DistrictTint(Lot l, DistrictDef d)
+        private static Color DistrictTint(Lot l)
         {
             float v = Art.Hash(l.Index, 9) * 0.06f;
             return l.District switch
@@ -747,12 +771,13 @@ public partial class CityView : Node2D
             using var _perf = Perf.Time("draw.glow");
             CitySim s = V.Sim;
             Rect2 view = V.ViewRect;
+            bool loft = s.C.HasUpgrade("loft");
             foreach (Lot l in s.City.Lots)
             {
                 if (l.Sign == 0 || l.Kind != LotKind.Building) continue;
-                if (l.Place == "loft" && !s.C.HasUpgrade("loft") || l.Place == "home" && s.C.HasUpgrade("loft")) continue;
                 var b = new Rect2(l.R.X * T, l.R.Y * T, l.R.W * T, l.R.H * T);
                 if (!view.Intersects(b)) continue;
+                if (l.Place == "loft" && !loft || l.Place == "home" && loft) continue;
                 Vector2 lean = V.Lean(b.GetCenter(), l.Height);
                 Color c = Art.C(l.Sign);
                 float flick = Art.Hash(l.Index, (int)(V.Time * 8)) > 0.97f ? 0.3f : 1f;

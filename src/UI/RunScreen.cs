@@ -38,16 +38,7 @@ public partial class RunScreen : Control
 
     private static string _keyedFrom, _keyedE, _keyedSh, _keyed;
 
-    /// <summary>Upper case, remembered (names on the HUD and over heads, every frame).</summary>
-    public static string Caps(string s)
-    {
-        if (s == null) return null;
-        if (_caps.TryGetValue(s, out string c)) return c;
-        if (_caps.Count > 512) _caps.Clear();
-        return _caps[s] = s.ToUpperInvariant();
-    }
 
-    private static readonly System.Collections.Generic.Dictionary<string, string> _caps = new();
 
     public Root Root;
     public Run R;
@@ -301,8 +292,8 @@ public partial class RunScreen : Control
             var hb = new Rect2(24, size.Y - 74, 320, 22);
             Panel(new Rect2(14, size.Y - 112, 420, 98));
             // Laid out from the text's measured widths, so a larger text size pushes things along instead of piling them up.
-            UITheme.Write(this, new Vector2(24, size.Y - 84), Caps(r.C.Name), 18, UITheme.Cyan, heading: true);
-            float nameEnd = 24 + TextW(Caps(r.C.Name), 18, true) + 14;
+            UITheme.Write(this, new Vector2(24, size.Y - 84), UITheme.Caps(r.C.Name), 18, UITheme.Cyan, heading: true);
+            float nameEnd = 24 + TextW(UITheme.Caps(r.C.Name), 18, true) + 14;
             float hp = p.Hp / p.MaxHp;
             UITheme.DrawSegBar(this, hb, hp, hp > 0.5f ? UITheme.Good : hp > 0.25f ? UITheme.Yellow : UITheme.Bad, 24);
             DrawRect(hb, UITheme.PanelEdge, false, 1);
@@ -442,7 +433,7 @@ public partial class RunScreen : Control
             if (r.Rigging && r.Drone != null)
             {
                 DrawRect(new Rect2(Vector2.Zero, size), new Color(0.2f, 1f, 0.6f, 0.05f));
-                UITheme.Write(this, new Vector2(0, size.Y / 2 - 200), $"RIGGING: {Caps(r.Drone.Name)}  ·  hull {r.Drone.Hp:0}/{r.Drone.MaxHp:0}  ·  signal {r.DroneSignal * 100:0} %  ·  T to come back", 17, r.DroneSignal < 0.2f ? UITheme.Bad : UITheme.Term, HorizontalAlignment.Center, size.X, heading: true);
+                UITheme.Write(this, new Vector2(0, size.Y / 2 - 200), $"RIGGING: {UITheme.Caps(r.Drone.Name)}  ·  hull {r.Drone.Hp:0}/{r.Drone.MaxHp:0}  ·  signal {r.DroneSignal * 100:0} %  ·  T to come back", 17, r.DroneSignal < 0.2f ? UITheme.Bad : UITheme.Term, HorizontalAlignment.Center, size.X, heading: true);
             }
             else if (r.Drone != null && !r.Drone.Dead) UITheme.Write(this, new Vector2(14, size.Y - 100), $"[{Controls.KeyName(Act.Rig)}] drone", 13, UITheme.Term, HorizontalAlignment.Right, 410);
             if (r.FloorLabel is string fl && !r.Plan.Tower) UITheme.Write(this, new Vector2(24, 76 + (cond.Length > 0 ? 20 : 0)), fl, 16, UITheme.Yellow, heading: true);
@@ -508,7 +499,7 @@ public partial class RunScreen : Control
                 DrawRect(bb, new Color(0, 0, 0, 0.7f));
                 UITheme.DrawSegBar(this, bb, r.Boss.Hp / r.Boss.MaxHp, UITheme.Yellow, 30);
                 DrawRect(bb, UITheme.Yellow, false, 1);
-                UITheme.Write(this, bb.Position + new Vector2(0, -4), Caps(r.Boss.Name), 15, UITheme.Yellow, HorizontalAlignment.Center, bb.Size.X, heading: true);
+                UITheme.Write(this, bb.Position + new Vector2(0, -4), UITheme.Caps(r.Boss.Name), 15, UITheme.Yellow, HorizontalAlignment.Center, bb.Size.X, heading: true);
             }
 
             // Arrow to the objective when it is off screen.

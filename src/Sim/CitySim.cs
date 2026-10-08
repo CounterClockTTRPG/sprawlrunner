@@ -167,15 +167,25 @@ public sealed partial class CitySim
     // ---- places -------------------------------------------------------------------
 
     /// <summary>Lots you can go into: home, contacts, the active job.</summary>
-    public IEnumerable<Lot> Destinations()
+    /// <remarks>Asked many times a frame (the HUD, the map, the street): the list is remade only when what it depends on changes.</remarks>
+    public IReadOnlyList<Lot> Destinations()
     {
-        yield return HomeLot;
-        foreach (ContactDef k in Tables.Contacts) yield return City.Place(k.Id);
-        foreach (var h in City.Hubs) yield return City.Place(h.id);
+        bool loft = C.HasUpgrade("loft");
         Job j = C.Active;
-        if (j != null && j.Driving) yield return CourierLot(j);
-        else if (j != null && j.Lot >= 0) yield return City.Lots[j.Lot];
+        var key = (loft, j, j?.Type ?? default, C.Courier, j?.Lot ?? -1, j?.Lot2 ?? -1);
+        if (_destinations.Count > 0 && key.Equals(_destinationsKey)) return _destinations;
+        _destinationsKey = key;
+        _destinations.Clear();
+        _destinations.Add(HomeLot);
+        foreach (ContactDef k in Tables.Contacts) _destinations.Add(City.Place(k.Id));
+        foreach (var h in City.Hubs) _destinations.Add(City.Place(h.id));
+        if (j != null && j.Driving) _destinations.Add(CourierLot(j));
+        else if (j != null && j.Lot >= 0) _destinations.Add(City.Lots[j.Lot]);
+        return _destinations;
     }
+
+    private readonly List<Lot> _destinations = new();
+    private (bool, Job, JobType, bool, int, int) _destinationsKey;
 
     /// <summary>The place whose door the car is stopped at, if any.</summary>
     public Lot AtDoor()

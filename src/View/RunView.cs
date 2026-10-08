@@ -1157,7 +1157,7 @@ public partial class RunView : Node2D
                 var l = a.Cleaner ? Art.CleanerLook(a.Id) : new Art.Look { Body = Color.FromHsv(h1, 0.5f, 0.45f), Trim = Color.FromHsv(h2, 0.8f, 1f), Skin = new Color(0.5f + h2 * 0.4f, 0.4f + h2 * 0.25f, 0.3f + h2 * 0.2f), Hair = Color.FromHsv(h2, 0.6f, 0.5f), Coat = h1 > 0.5f };
                 Art.Person(this, p, a.Facing, rad * 1.1f, l, null, 0, time * a.Speed * 2.2f);
                 if (a.Cleaner) Art.CleanerKit(this, p, a.Facing, rad * 1.1f, a.CallT > 0, time);
-                if (a.Vendor != null) UITheme.Write(this, p + new Vector2(-70, -rad - 12), RunScreen.Caps(a.Name), 11, UITheme.Yellow, HorizontalAlignment.Center, 140, heading: true);
+                if (a.Vendor != null) UITheme.Write(this, p + new Vector2(-70, -rad - 12), UITheme.Caps(a.Name), 11, UITheme.Yellow, HorizontalAlignment.Center, 140, heading: true);
                 else if (a.PanicT > 0) UITheme.Write(this, p + new Vector2(-20, -rad - 8 - MathF.Abs(MathF.Sin(time * 9 + a.Id)) * 3), "!", 15, UITheme.Yellow, HorizontalAlignment.Center, 40, heading: true);
             }
             else
@@ -1220,7 +1220,7 @@ public partial class RunView : Node2D
                 }
                 if (a.Is(EnemyKind.Firebug)) DrawCircle(p + new Vector2(MathF.Cos(a.Facing + 0.6f), MathF.Sin(a.Facing + 0.6f)) * rad * 1.1f, 3, new Color(1f, 0.6f, 0.1f));
                 if (a.Is(EnemyKind.Rigger)) DrawLine(p, p - new Vector2(MathF.Cos(a.Facing), MathF.Sin(a.Facing)) * rad * 1.2f + new Vector2(0, -rad * 1.4f), UITheme.Cyan, 1.5f);
-                if (a.Is(EnemyKind.Boss) || a.Is(EnemyKind.Bulwark)) UITheme.Write(this, p + new Vector2(-70, -rad - 16), RunScreen.Caps(a.Name), 12, UITheme.Yellow, HorizontalAlignment.Center, 140, heading: true);
+                if (a.Is(EnemyKind.Boss) || a.Is(EnemyKind.Bulwark)) UITheme.Write(this, p + new Vector2(-70, -rad - 16), UITheme.Caps(a.Name), 12, UITheme.Yellow, HorizontalAlignment.Center, 140, heading: true);
                 if (a.IsHostage && a.State == AiState.Tied) DrawArc(p, rad * 1.1f, 0, MathF.Tau, 16, new Color(0.8f, 0.7f, 0.4f), 2);
                 if (a.IsPlayer && r.DashT > 0) DrawArc(p, rad * 1.6f, 0, MathF.Tau, 20, UITheme.Cyan with { A = 0.6f }, 2);
             }
@@ -1246,10 +1246,10 @@ public partial class RunView : Node2D
             }
             if (a.Surrendered && !a.Dead) UITheme.Write(this, p + new Vector2(-60, -rad - 10), "HANDS UP", 11, UITheme.Text, HorizontalAlignment.Center, 120, heading: true);
             if (a.IsMedic && !a.Dead) UITheme.Write(this, p + new Vector2(-60, -rad - 10), "TRAUMALINK", 11, a.Team == 2 ? new Color(0.3f, 0.95f, 0.5f) : UITheme.Bad, HorizontalAlignment.Center, 120, heading: true);
-            if (a.IsAlly) UITheme.Write(this, p + new Vector2(-50, -rad - 10), RunScreen.Caps(a.Name), 11, UITheme.Good, HorizontalAlignment.Center, 100, heading: true);
+            if (a.IsAlly) UITheme.Write(this, p + new Vector2(-50, -rad - 10), UITheme.Caps(a.Name), 11, UITheme.Good, HorizontalAlignment.Center, 100, heading: true);
             else if (a.Rival && !a.Dead)
             {
-                UITheme.Write(this, p + new Vector2(-60, -rad - 10), a == r.RivalCarrier ? RunScreen.Caps(a.Name) + " -- HAS IT" : RunScreen.Caps(a.Name), 11, RivalColour, HorizontalAlignment.Center, 120, heading: true);
+                UITheme.Write(this, p + new Vector2(-60, -rad - 10), a == r.RivalCarrier ? UITheme.Caps(a.Name) + " -- HAS IT" : UITheme.Caps(a.Name), 11, RivalColour, HorizontalAlignment.Center, 120, heading: true);
                 DrawArc(p, rad + 4, 0, MathF.Tau, 16, RivalColour with { A = 0.8f }, 1.5f);
             }
             else if (a.Team == 0 && a.Def != null) DrawArc(p, rad + 4, 0, MathF.Tau, 16, UITheme.Violet, 1.5f);

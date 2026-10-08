@@ -79,10 +79,15 @@ public partial class CityScreen : Control
             _replanT = 1.5f;
             if (V2.Distance(Sim.Player.Pos, w[Math.Min(_routeFrom, w.Count - 1)]) > 14) { _route = Sim.RouteTo(_routeTo); _routeFrom = 0; }
         }
-        var pts = new System.Collections.Generic.List<V2> { Sim.Player.Pos };
+        var pts = _routePts;
+        pts.Clear();
+        pts.Add(Sim.Player.Pos);
         for (int k = _routeFrom; k < _route.Waypoints.Count; k++) pts.Add(_route.Waypoints[k]);
         Root.CityView.Route = pts;
     }
+
+    /// <summary>The route from the car on, handed to the view (one list, refilled each step).</summary>
+    private readonly System.Collections.Generic.List<V2> _routePts = new();
     public bool Paused => Modal.Open > 0 || _place != null || DebriefScreen.Open > 0 || Pda.Open > 0;
     private PlaceScreen _place;
     private float _towT = -1;
@@ -92,7 +97,10 @@ public partial class CityScreen : Control
         UITheme.Fill(this);
         Theme = UITheme.Theme;
         MouseFilter = MouseFilterEnum.Ignore;
-        AddChild(new Rain { Drops = Root.Career.Weather switch { Career.Sky.Clear => 0, Career.Sky.Rain => 260, Career.Sky.Storm => 520, _ => 0 }, Fog = Root.Career.Weather == Career.Sky.Fog, Storm = Root.Career.Weather == Career.Sky.Storm });
+        var rain = new Rain { Drops = Root.Career.Weather switch { Career.Sky.Clear => 0, Career.Sky.Rain => 260, Career.Sky.Storm => 520, _ => 0 }, Fog = Root.Career.Weather == Career.Sky.Fog, Storm = Root.Career.Weather == Career.Sky.Storm };
+        // A clear night has nothing to draw: no layer redrawn every frame for it.
+        if (rain.Drops > 0 || rain.Fog || rain.Storm) AddChild(rain);
+        else rain.Free();
         _hud = new Hud { S = this };
         UITheme.Fill(_hud);
         AddChild(_hud);
@@ -357,8 +365,13 @@ public partial class CityScreen : Control
     public override void _Process(double delta)
     {
         _toastT -= (float)delta;
-        _hud.QueueRedraw();
+        // Under a place, a dialog or the PDA nothing on the HUD moves: one last paint, then leave it be.
+        bool paused = Paused;
+        if (!paused || !_hudPaused) _hud.QueueRedraw();
+        _hudPaused = paused;
     }
+
+    private bool _hudPaused;
 
     // ---- HUD ------------------------------------------------------------------------
 
@@ -414,18 +427,21 @@ public partial class CityScreen : Control
             // Status.
             var panel = new Rect2(16, 16, 380, 92);
             UITheme.DrawPanel(this, panel);
-            UITheme.Write(this, new Vector2(30, 44), $"{c.Name.ToUpper()}  ·  {c.ArchetypeName}", 20, UITheme.Cyan, heading: true);
-            UITheme.Write(this, new Vector2(30, 72), $"{M.Money(c.Cash)}", 20, UITheme.Yellow, heading: true);
-            UITheme.Write(this, new Vector2(170, 72), $"Karma {c.Karma}", 17, UITheme.Violet);
-            UITheme.Write(this, new Vector2(280, 72), $"Rep {c.Rep}", 17, UITheme.Good);
-            UITheme.Write(this, new Vector2(30, 97), $"Day {c.Day}  ·  {c.Weather}  ·  TraumaLink {c.TraumaLinks}", 15, UITheme.Dim);
-            if (c.Unread > 0) UITheme.Write(this, new Vector2(300, 97), $"MAIL {c.Unread} (P)", 15, MathF.Sin(sim.Time * 4) > 0 ? UITheme.Amber : UITheme.Yellow, heading: true);
+            Status st = StatusOf(c);
+            UITheme.Write(this, new Vector2(30, 44), st.Who, 20, UITheme.Cyan, heading: true);
+            UITheme.Write(this, new Vector2(30, 72), st.Cash, 20, UITheme.Yellow, heading: true);
+            UITheme.Write(this, new Vector2(170, 72), st.Karma, 17, UITheme.Violet);
+            UITheme.Write(this, new Vector2(280, 72), st.Rep, 17, UITheme.Good);
+            UITheme.Write(this, new Vector2(30, 97), st.Day, 15, UITheme.Dim);
+            if (st.Unread > 0) UITheme.Write(this, new Vector2(300, 97), st.Mail, 15, MathF.Sin(sim.Time * 4) > 0 ? UITheme.Amber : UITheme.Yellow, heading: true);
+            bool police = false;
+            foreach (Chaser ch in sim.Chasers) police |= ch.Kind == ChaserKind.Police;
             // Heat.
             if (c.Heat > 0.01f)
             {
                 var hp2 = new Rect2(398, 16, 330, 66);
-                UITheme.DrawPanel(this, hp2, UITheme.Bad with { A = 0.7f }, hazard: sim.Chasers.Any(x => x.Kind == ChaserKind.Police));
-                bool flash = sim.Chasers.Any(x => x.Kind == ChaserKind.Police) && MathF.Sin(sim.Time * 8) > 0;
+                UITheme.DrawPanel(this, hp2, UITheme.Bad with { A = 0.7f }, hazard: police);
+                bool flash = police && MathF.Sin(sim.Time * 8) > 0;
                 for (int k = 0; k < 5; k++)
                 {
                     float fill = M.Clamp(c.Heat - k, 0, 1);
@@ -433,7 +449,7 @@ public partial class CityScreen : Control
                     Star(sp, 10, new Color(0.2f, 0.2f, 0.25f, 0.8f));
                     if (fill > 0) Star(sp, 10 * MathF.Max(0.35f, fill), flash ? UITheme.Bad : UITheme.Yellow);
                 }
-                UITheme.Write(this, new Vector2(408, 72), sim.Chasers.Any(x => x.Kind == ChaserKind.Police) ? "LONE STAR ON YOU -- don't stop near them" : "Heat cools while no patrol is near (or sleep it off)", 14, UITheme.Dim);
+                UITheme.Write(this, new Vector2(408, 72), police ? "LONE STAR ON YOU -- don't stop near them" : "Heat cools while no patrol is near (or sleep it off)", 14, UITheme.Dim);
             }
             if (c.Courier)
             {
@@ -554,13 +570,55 @@ public partial class CityScreen : Control
                 UITheme.DrawPanel(this, pr, UITheme.Amber);
                 UITheme.Write(this, new Vector2(pr.Position.X, pr.Position.Y + 29), what, 19, UITheme.Amber, HorizontalAlignment.Center, 600, heading: true);
             }
-            // The car radio, a station every eight seconds.
-            var radio = c.Radio(sim.City.DistrictAt[(int)M.Clamp(sim.Player.Pos.Y, 0, City.H - 1) * City.W + (int)M.Clamp(sim.Player.Pos.X, 0, City.W - 1)], sim.Chasers.Any(x => x.Kind == ChaserKind.Police));
-            if (radio.Count > 0)
+            // The car radio, a station every eight seconds (worked out once per station, district and chase).
+            string district = sim.City.DistrictAt[(int)M.Clamp(sim.Player.Pos.Y, 0, City.H - 1) * City.W + (int)M.Clamp(sim.Player.Pos.X, 0, City.W - 1)];
+            var radioKey = ((int)(sim.Time / 8), district, police);
+            if (!radioKey.Equals(_radioKey) || _radioFor != c)
             {
-                var (station, text) = radio[(int)(sim.Time / 8) % radio.Count];
-                UITheme.Write(this, new Vector2(340, size.Y - 28), $"RADIO · {station}: {text}", 15, station == "SCANNER" ? UITheme.Cyan with { A = 0.8f } : station == "KBAY PIRATE" ? UITheme.Violet : UITheme.Dim);
+                _radioKey = radioKey;
+                _radioFor = c;
+                var radio = c.Radio(district, police);
+                if (radio.Count == 0) _radioLine = null;
+                else
+                {
+                    var (station, text) = radio[(int)(sim.Time / 8) % radio.Count];
+                    _radioLine = $"RADIO · {station}: {text}";
+                    _radioColour = station == "SCANNER" ? UITheme.Cyan with { A = 0.8f } : station == "KBAY PIRATE" ? UITheme.Violet : UITheme.Dim;
+                }
             }
+            if (_radioLine != null) UITheme.Write(this, new Vector2(340, size.Y - 28), _radioLine, 15, _radioColour);
+        }
+
+        private (int, string, bool) _radioKey = (-1, null, false);
+        private Career _radioFor;
+        private string _radioLine;
+        private Color _radioColour;
+
+        /// <summary>The status panel's lines, remade only when what they show changes.</summary>
+        private sealed class Status
+        {
+            public string Name, Archetype, Who, Cash, Karma, Rep, Day, Mail;
+            public int CashV = int.MinValue, KarmaV = int.MinValue, RepV = int.MinValue, DayV = -1, Links = -1, Unread = -1;
+            public Career.Sky Sky;
+        }
+
+        private readonly Status _status = new();
+
+        private Status StatusOf(Career c)
+        {
+            Status st = _status;
+            if (st.Name != c.Name || st.Archetype != c.Archetype) { st.Name = c.Name; st.Archetype = c.Archetype; st.Who = $"{c.Name.ToUpper()}  ·  {c.ArchetypeName}"; }
+            if (st.CashV != c.Cash) { st.CashV = c.Cash; st.Cash = $"{M.Money(c.Cash)}"; }
+            if (st.KarmaV != c.Karma) { st.KarmaV = c.Karma; st.Karma = $"Karma {c.Karma}"; }
+            if (st.RepV != c.Rep) { st.RepV = c.Rep; st.Rep = $"Rep {c.Rep}"; }
+            if (st.DayV != c.Day || st.Sky != c.Weather || st.Links != c.TraumaLinks || st.Day == null)
+            {
+                st.DayV = c.Day; st.Sky = c.Weather; st.Links = c.TraumaLinks;
+                st.Day = $"Day {c.Day}  ·  {c.Weather}  ·  TraumaLink {c.TraumaLinks}";
+            }
+            int unread = c.Unread;
+            if (st.Unread != unread) { st.Unread = unread; st.Mail = $"MAIL {unread} (P)"; }
+            return st;
         }
 
         /// <summary>The route you planned, from where you are to the door.</summary>
@@ -731,8 +789,17 @@ public partial class CityScreen : Control
                     DrawTextureRect(Art.Soft, new Rect2(x, 120 + k * 120 - 260, 900, 520), false, new Color(0.7f, 0.75f, 0.85f, 0.10f));
                 }
             if (_flash > 0) DrawRect(new Rect2(Vector2.Zero, size), new Color(0.8f, 0.85f, 1f, 0.35f * _flash * _flash));
+            if (_drops.Length == 0) return;
+            // Every streak in one call.
+            _lines ??= new Vector2[_drops.Length * 2];
             for (int i = 0; i < _drops.Length; i++)
-                DrawLine(_drops[i], _drops[i] + new Vector2(-0.2f, 1) * _len[i], new Color(0.6f, 0.75f, 0.9f, 0.18f), 1);
+            {
+                _lines[i * 2] = _drops[i];
+                _lines[i * 2 + 1] = _drops[i] + new Vector2(-0.2f, 1) * _len[i];
+            }
+            DrawMultiline(_lines, new Color(0.6f, 0.75f, 0.9f, 0.18f), 1);
         }
+
+        private Vector2[] _lines;
     }
 }
