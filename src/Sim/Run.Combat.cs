@@ -108,19 +108,21 @@ public sealed partial class Run
         Pt start = Pt.Of(a);
         Pt found = default;
         bool any = false;
-        Level.Walk(a, b, (x, y) =>
+        bool fromStart = Pt.Of(s.Origin) == start;
+        var w = new Level.Walker(a, b);
+        while (w.Next(out int x, out int y))
         {
-            if (x == start.X && y == start.Y && Pt.Of(s.Origin) == start) return true;
+            if (x == start.X && y == start.Y && fromStart) continue;
             Tile t = L[x, y];
             TileDef d = Level.Def(t);
-            if (!d.BlocksShot) return true;
+            if (!d.BlocksShot) continue;
             float near = V2.Distance(s.Origin, new Pt(x, y).Centre);
             bool target = t is Tile.Rack or Tile.Vat or Tile.Console or Tile.Locker or Tile.Barrel;
-            if (d.Low && !target && near < 1.25f && near + 0.45f < s.AimDist) return true;
+            if (d.Low && !target && near < 1.25f && near + 0.45f < s.AimDist) continue;
             found = new Pt(x, y);
             any = true;
-            return false;
-        });
+            break;
+        }
         tile = found;
         at = any ? Level.Entry(a, b, found) : b;
         return any;
@@ -174,7 +176,7 @@ public sealed partial class Run
         s.Vel = M.Dir(turned) * speed;
     }
 
-    public Actor ActorById(int id) => Actors.FirstOrDefault(a => a.Id == id);
+    public Actor ActorById(int id) => FindActor(id);
 
     // ---- damage ---------------------------------------------------------------------
 
@@ -339,7 +341,7 @@ public sealed partial class Run
                 break;
             case GrenadeKind.Emp:
                 Events.Add(new RunEvent(Ev.Emp, g.Pos, default, d.Radius));
-                foreach (Actor a in Actors.ToList())
+                foreach (Actor a in ActorsNow)
                 {
                     if (a.Dead || V2.Distance(a.Pos, g.Pos) > d.Radius) continue;
                     if (a.Is(EnemyKind.Drone)) Hurt(a, 999, Player, true);
@@ -384,7 +386,7 @@ public sealed partial class Run
                 if (Shielded(pos, p)) f *= 0.25f;
                 DamageTile(p, damage * tileMul * f, p.Centre);
             }
-            foreach (Actor a in Actors.ToList())
+            foreach (Actor a in ActorsNow)
             {
                 if (a.Dead) continue;
                 float d = V2.Distance(a.Pos, pos);
@@ -402,17 +404,16 @@ public sealed partial class Run
     /// <summary>Something solid between a blast and this tile?</summary>
     private bool Shielded(V2 from, Pt to)
     {
-        bool shielded = false;
         Pt start = Pt.Of(from);
-        Level.Walk(from, to.Centre, (x, y) =>
+        var w = new Level.Walker(from, to.Centre);
+        while (w.Next(out int x, out int y))
         {
             if (x == to.X && y == to.Y) return false;
-            if (x == start.X && y == start.Y) return true;
+            if (x == start.X && y == start.Y) continue;
             TileDef d = Level.Def(L[x, y]);
-            if (d.BlocksMove && !d.Low) { shielded = true; return false; }
-            return true;
-        });
-        return shielded;
+            if (d.BlocksMove && !d.Low) return true;
+        }
+        return false;
     }
 
     // ---- fire -----------------------------------------------------------------------
@@ -438,6 +439,15 @@ public sealed partial class Run
     }
 
     private float _fireSpread;
+    private readonly List<int> _fireTiles = new();
+
+    /// <summary>The burning tiles as a list (reused), so the fire can change while it is walked.</summary>
+    private List<int> FireTiles()
+    {
+        _fireTiles.Clear();
+        _fireTiles.AddRange(Fire.Keys);
+        return _fireTiles;
+    }
 
     private void StepFire(float dt)
     {
@@ -446,7 +456,7 @@ public sealed partial class Run
         bool spread = _fireSpread > 0.5f;
         if (spread) _fireSpread = 0;
         float drown = FireMul();
-        foreach (int i in Fire.Keys.ToList())
+        foreach (int i in FireTiles())
         {
             float left = Fire[i] - dt * drown;
             var p = new Pt(i % L.W, i / L.W);
@@ -474,7 +484,7 @@ public sealed partial class Run
             if (Fire.ContainsKey(L.Idx(M.Clamp((int)a.Pos.X, 0, L.W - 1), M.Clamp((int)a.Pos.Y, 0, L.H - 1)))) a.Burn = 2f;
         }
         // Barrels in fire cook off.
-        foreach (int i in Fire.Keys.ToList())
+        foreach (int i in FireTiles())
         {
             var p = new Pt(i % L.W, i / L.W);
             for (int k = 0; k < 4; k++)

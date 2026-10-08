@@ -47,6 +47,8 @@ public sealed class Actor
     public int PatrolIdx;
     public ushort[] Field;
     public Pt FieldFor = new(-1, -1);
+    /// <summary>The <see cref="Level.PassVersion"/> and the reach (see <see cref="Level.Field(Pt, int, bool, ushort[], int, int, out int)"/>) <see cref="Field"/> was searched for.</summary>
+    public int FieldPass = -1, FieldReach;
     public bool Bodyguard;
     /// <summary>A TraumaLink trauma team member: neutral until someone shoots at them.</summary>
     public bool IsMedic;
@@ -141,6 +143,42 @@ public sealed partial class Run
     public Level L => Plan.L;
     public readonly Rng R;
     public readonly List<Actor> Actors = new();
+
+    /// <summary>
+    /// Everyone on site as the loop starts: like iterating <c>Actors.ToList()</c> (anyone
+    /// added during the loop waits for the next one) without the copy.
+    /// </summary>
+    public ActorsSoFar ActorsNow => new(Actors);
+
+    public readonly struct ActorsSoFar
+    {
+        private readonly List<Actor> _list;
+        public ActorsSoFar(List<Actor> list) => _list = list;
+        public Enumerator GetEnumerator() => new(_list);
+
+        public struct Enumerator
+        {
+            private readonly List<Actor> _list;
+            private readonly int _count;
+            private int _i;
+            public Enumerator(List<Actor> list) { _list = list; _count = list.Count; _i = -1; }
+            public Actor Current => _list[_i];
+            public bool MoveNext() => ++_i < _count && _i < _list.Count;
+        }
+    }
+
+    private readonly Dictionary<int, int> _actorAt = new();
+    private int _actorAtCount = -1;
+
+    /// <summary>The actor with this id, or null: an index kept beside <see cref="Actors"/>, checked on every use and rebuilt when it no longer matches.</summary>
+    private Actor FindActor(int id)
+    {
+        if (_actorAtCount == Actors.Count && _actorAt.TryGetValue(id, out int at) && at < Actors.Count && Actors[at].Id == id) return Actors[at];
+        _actorAt.Clear();
+        for (int i = 0; i < Actors.Count; i++) _actorAt.TryAdd(Actors[i].Id, i);
+        _actorAtCount = Actors.Count;
+        return _actorAt.TryGetValue(id, out at) ? Actors[at] : null;
+    }
     public readonly Actor Player;
     public Actor Vip, Hostage, Boss, Ally, Vip2;
     public Twist Twist;
@@ -357,7 +395,7 @@ public sealed partial class Run
         if (_graceT > 0) _graceT -= dt;
         float wdt = dt * WorldScale;
         StepPlayer(input, dt);
-        foreach (Actor a in Actors.ToList())
+        foreach (Actor a in ActorsNow)
             if (!a.IsPlayer && !a.Dead) StepActor(a, wdt);
         Separate();
         StepShots(wdt);
@@ -428,9 +466,12 @@ public sealed partial class Run
     /// Where to steer: the objective itself when it is on your floor, else the
     /// stairs on your floor that lead to it.
     /// </summary>
-    public V2? NavTarget()
+    public V2? NavTarget() => NavTarget(ObjectivePos());
+
+    /// <summary><see cref="NavTarget()"/> from an <see cref="ObjectivePos"/> already worked out this frame.</summary>
+    public V2? NavTarget(V2? objective)
     {
-        if (ObjectivePos() is not V2 o) return null;
+        if (objective is not V2 o) return null;
         if (Plan.Tower)
         {
             int fo = FloorOf(o), fp = FloorOf(Player.Pos);
@@ -446,9 +487,11 @@ public sealed partial class Run
     }
 
     /// <summary>A note for the HUD when the objective is on the other floor.</summary>
-    public string FloorNote() => Plan.Tower
-        ? ObjectivePos() is V2 to && FloorOf(to) != FloorOf(Player.Pos) ? $"It's on {Plan.FloorName(FloorOf(to))} -- take the stairs{(LiftHacked && Served(FloorOf(to)) ? " or the elevator" : "")}." : null
-        : ObjectivePos() is V2 o && Below(o) != Below(Player.Pos)
+    public string FloorNote() => FloorNote(ObjectivePos());
+
+    public string FloorNote(V2? objective) => Plan.Tower
+        ? objective is V2 to && FloorOf(to) != FloorOf(Player.Pos) ? $"It's on {Plan.FloorName(FloorOf(to))} -- take the stairs{(LiftHacked && Served(FloorOf(to)) ? " or the elevator" : "")}." : null
+        : objective is V2 o && Below(o) != Below(Player.Pos)
         ? (Below(o) ? "It's in the BASEMENT -- take the stairs (^)." : "It's UPSTAIRS -- take the stairs (^).") : null;
 
     public V2? ObjectivePos()
@@ -739,17 +782,23 @@ public sealed partial class Run
     // ---- sight ---------------------------------------------------------------------
 
     private Pt _fovFrom = new(-99, -99);
-    private int _fovVersion = -1;
+    private int _fovSight = -1, _fovRadius = -1;
+    /// <summary>Moves every time <see cref="Visible"/> (and the explored map) is recomputed: the fog repaints only then.</summary>
+    public int FovVersion { get; private set; }
 
     public int FovRadius => FlashT > 0 ? 3 : Peaceful ? 24 : Math.Max(6, C.Fov - FovPenalty);
 
     private void UpdateFov(bool force)
     {
         Pt p = Pt.Of(Projecting && AstralForm != null ? AstralForm.Pos : Rigging && Drone != null ? Drone.Pos : Player.Pos);
-        if (!force && p == _fovFrom && L.Version == _fovVersion && FlashT <= 0) return;
+        int radius = Projecting ? 9 : Rigging ? 11 : FovRadius;
+        // The field of view only depends on where you stand, how far you see and what blocks sight.
+        if (!force && p == _fovFrom && L.SightVersion == _fovSight && radius == _fovRadius && FlashT <= 0) return;
         _fovFrom = p;
-        _fovVersion = L.Version;
-        L.Fov(p, Projecting ? 9 : Rigging ? 11 : FovRadius, Visible);
+        _fovSight = L.SightVersion;
+        _fovRadius = radius;
+        L.Fov(p, radius, Visible);
+        FovVersion++;
     }
 
     /// <summary>The room furthest from you that's inside the building and on the same floor as <paramref name="near"/> (for twists that move things).</summary>
@@ -781,6 +830,9 @@ public sealed partial class Run
 
     // ---- movement --------------------------------------------------------------------
 
+    /// <summary>What a walker and a flier bump into, for <see cref="Collide.PushOut"/> (made once).</summary>
+    private Func<int, int, bool> _solidWalk, _solidFly;
+
     /// <summary>Move a circle through the level, opening doors it walks into.</summary>
     public void Move(Actor a, V2 delta)
     {
@@ -794,8 +846,7 @@ public sealed partial class Run
             a.Pos += d;
             OpenDoors(a);
             V2 p = a.Pos;
-            bool fly = a.Flying;
-            Collide.PushOut(ref p, a.Radius, (x, y) => L.Solid(x, y, fly), out _);
+            Collide.PushOut(ref p, a.Radius, a.Flying ? _solidFly ??= (x, y) => L.Solid(x, y, true) : _solidWalk ??= (x, y) => L.Solid(x, y, false), out _);
             a.Pos = p;
         }
         // Never left inside a wall: hop to the nearest open tile.

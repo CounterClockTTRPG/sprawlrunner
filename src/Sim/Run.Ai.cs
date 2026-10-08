@@ -25,14 +25,18 @@ public sealed partial class Run
     /// <summary>Spotted earlier, but nobody has eyes on you now: the alarm meter is falling.</summary>
     public bool CoolingOff;
 
+    private int _fieldPass = -1;
+
     private ushort[] PlayerField(bool fly)
     {
         Pt p = Pt.Of(Player.Pos);
-        if (_walkField == null || (p != _fieldFrom && Time - _fieldT > 0.25f))
+        // Rebuilt as you move (a few times a second at most), and at once when a wall is blown open or a way shut.
+        if (_walkField == null || (p != _fieldFrom && Time - _fieldT > 0.25f) || _fieldPass != L.PassVersion)
         {
             _walkField = L.Field(p, 400, false, _walkField);
             _fieldFrom = p;
             _fieldT = Time;
+            _fieldPass = L.PassVersion;
             _flyFresh = false;
         }
         if (!fly) return _walkField;
@@ -733,10 +737,22 @@ public sealed partial class Run
     {
         Pt gt = Pt.Of(goal);
         if (!L.In(gt)) return;
-        if (a.Field == null || a.FieldFor != gt)
+        Pt here = Pt.Of(a.Pos);
+        int hi = L.In(here) ? L.Idx(here.X, here.Y) : -1;
+        // Heading for the tile you're standing on: the shared field from you is the same
+        // search (out to 400 tiles rather than 200, so it agrees wherever this one would be final).
+        if (gt == _fieldFrom && _walkField != null && _fieldPass == L.PassVersion && gt == Pt.Of(Player.Pos) && hi >= 0)
         {
-            a.Field = L.Field(gt, 200, a.Flying, a.Field);
+            ushort[] shared = a.Flying ? PlayerField(true) : _walkField;
+            if (shared[hi] <= 2000) { FollowField(a, shared, goal, speed, dt, face: face); return; }
+        }
+        // The search stops a few tiles past the walker: the steps it takes read nothing further.
+        // Searched again for a new goal, when the way changes, or once pushed out past what it covered.
+        if (a.Field == null || a.FieldFor != gt || a.FieldPass != L.PassVersion || hi >= 0 && a.Field[hi] > a.FieldReach)
+        {
+            a.Field = L.Field(gt, 200, a.Flying, a.Field, hi, 40, out a.FieldReach);
             a.FieldFor = gt;
+            a.FieldPass = L.PassVersion;
         }
         FollowField(a, a.Field, goal, speed, dt, face: face);
     }
@@ -768,12 +784,9 @@ public sealed partial class Run
 
     private bool Clear(V2 a, V2 b, bool fly)
     {
-        bool ok = true;
-        Level.Walk(a, b, (x, y) =>
-        {
-            if (L.Solid(x, y, fly) && L[x, y] != Tile.Door) { ok = false; return false; }
-            return true;
-        });
-        return ok;
+        var w = new Level.Walker(a, b);
+        while (w.Next(out int x, out int y))
+            if (L.Solid(x, y, fly) && L[x, y] != Tile.Door) return false;
+        return true;
     }
 }

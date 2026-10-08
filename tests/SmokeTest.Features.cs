@@ -169,6 +169,43 @@ public partial class SmokeTest
             if (_only == "Lighting") GD.Print($"    {st}: {litTiles * 100 / floor} % lit, {darkTiles * 100 / floor} % dark");
             Check(night && litTiles > floor / 5 && darkTiles > floor / 10, $"{st}: inside is light and dark ({litTiles} lit, {darkTiles} dark of {floor})");
         }
+
+        // Walls blown out and doors opened after the light was worked out: only the lamps that see
+        // the change are cast again, and the light is the same as working it all out afresh.
+        int wrongTiles = 0, changed = 0;
+        foreach (SiteStyle st in Enum.GetValues<SiteStyle>())
+        {
+            var job = new Job { Id = 1, Type = JobType.Retrieve, Style = st, Threat = 3, Seed = 4242 + (ulong)st, Faction = Faction.Halcyon, Count = 2, Target = "T", Item = "I", Title = "relight" };
+            Level g = LevelGen.Generate(job).L;
+            g.LightAt(new V2(1.5f, 1.5f));
+            var rng = new Rng(77 + (ulong)st);
+            for (int k = 0; k < 400 && changed < 60 * ((int)st + 1); k++)
+            {
+                var (pos, _, _) = g.Lights[rng.Int(g.Lights.Count)];
+                Pt t = Pt.Of(pos) + new Pt(rng.Range(-4, 4), rng.Range(-4, 4));
+                if (!g.In(t) || t.X == 0 || t.Y == 0 || t.X == g.W - 1 || t.Y == g.H - 1) continue;
+                if (g[t] is Tile.Drywall or Tile.Brick or Tile.Door) { g.Set(t, g[t] == Tile.Door ? Tile.DoorOpen : Tile.Rubble); changed++; }
+                if (k % 7 == 0) g.LightAt(new V2(1.5f, 1.5f));
+            }
+            if (st == SiteStyle.Office) g.LampsOut.Add(0);
+            for (int y = 0; y < g.H; y++)
+            for (int x = 0; x < g.W; x++)
+            {
+                V2 at = new Pt(x, y).Centre;
+                float want = g.Ambient;
+                for (int k = 0; k < g.Lights.Count; k++)
+                {
+                    if (g.LampsOut.Contains(k)) continue;
+                    var (pos, _, radius) = g.Lights[k];
+                    float d = V2.Distance(at, pos);
+                    if (d > radius) continue;
+                    float v = MathF.Min(1, (1 - d / radius) * 1.6f);
+                    if (v > want && g.Los(pos, at)) want = v;
+                }
+                if (g.LightAt(at) != want) wrongTiles++;
+            }
+        }
+        Check(changed > 0 && wrongTiles == 0, $"the light after walls change is the light worked out afresh ({changed} tiles changed, {wrongTiles} lit wrong)");
     }
 
     /// <summary>Rooms with a purpose: kinds by style, their set pieces, objectives that move into them, and what each one does on a run.</summary>

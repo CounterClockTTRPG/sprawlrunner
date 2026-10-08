@@ -47,7 +47,11 @@ public sealed class City
 
     public bool Solid(int x, int y) => this[x, y] is CTile.Building or CTile.Tree or CTile.Water or CTile.Statue;
 
-    public Lot Place(string id) => Lots.FirstOrDefault(l => l.Place == id);
+    /// <summary>The lot that is this place ("home", a contact, a hub), or null.</summary>
+    public Lot Place(string id) => id == null ? Lots.FirstOrDefault(l => l.Place == null) : _places.TryGetValue(id, out Lot l) ? l : null;
+
+    /// <summary>Each place's lot (the first in <see cref="Lots"/> with it, as a scan would find), filled in at generation.</summary>
+    private readonly Dictionary<string, Lot> _places = new();
 
     private static readonly (string id, float x, float y)[] Seeds =
     {
@@ -113,6 +117,8 @@ public sealed class City
         }
 
         c.AssignPlaces(r);
+        foreach (Lot l in c.Lots)
+            if (l.Place != null) c._places.TryAdd(l.Place, l);
         return c;
     }
 

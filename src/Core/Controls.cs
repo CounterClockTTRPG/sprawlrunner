@@ -56,7 +56,17 @@ public static class Controls
     /// <summary>The key bound to an action (the agent always plays on the defaults).</summary>
     public static Key KeyOf(Act a) => !AgentRunner.Active && Profile.Current.Bindings.TryGetValue(a, out Key k) ? k : Defaults[a];
 
-    public static string KeyName(Act a) => OS.GetKeycodeString(KeyOf(a));
+    public static string KeyName(Act a)
+    {
+        // The HUD asks every frame: remember each action's name until its key changes (a rebinding).
+        Key k = KeyOf(a);
+        if (_keyNames.TryGetValue(a, out var known) && known.key == k) return known.name;
+        string name = OS.GetKeycodeString(k);
+        _keyNames[a] = (k, name);
+        return name;
+    }
+
+    private static readonly Dictionary<Act, (Key key, string name)> _keyNames = new();
 
     public static bool Down(Key k) => AgentRunner.Active ? AgentKeys.Contains(k) : Input.IsPhysicalKeyPressed(k) || Input.IsKeyPressed(k);
 

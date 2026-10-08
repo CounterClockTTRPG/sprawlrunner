@@ -140,7 +140,7 @@ public sealed partial class Run
     private void StepHive(float dt, bool roused)
     {
         if (!roused) return;
-        foreach (Actor a in Actors.ToList())
+        foreach (Actor a in ActorsNow)
         {
             if (a.Dead || a.Team != 1) continue;
             if (a.Is(EnemyKind.EggSac) && (a.EggT += dt) >= Tables.EggHatch)
