@@ -203,6 +203,13 @@ public static class Tables
     /// <summary>Ways back from notoriety: the penance jobs open at 7+ and take 2 off; three quiet wins in a row take 1;
     /// Juno's restitution costs this much per point, once a week, and takes 1.</summary>
     public const int AtoneFrom = 7, AtoneCut = 2, QuietStreak = 3, RestitutionPer = 2000;
+    /// <summary>Business troubles (Career.Business.cs): at most one every BizGap days across all you own, on BizChance of the mornings that may;
+    /// a shakedown's weekly cut (%) and the cut talked down to, the days a business is shut when it is wrecked, how long seeing them off buys;
+    /// the inspector's bribe (% of a week), the days shut for refusing him (and under a Lotus council), the days a refusal keeps him away;
+    /// the skim (% of the takings) and the days before the skimmer does you a favour.</summary>
+    public const int BizGap = 6, BizCut = 25, BizTalkCut = 10, BizWrecked = 7, BizSafeDays = 30,
+        BizBribe = 40, BizInspectShut = 4, BizCouncilShut = 8, BizCleanDays = 30, BizSkim = 15, BizSkimTip = 7;
+    public const float BizChance = 0.35f;
     /// <summary>A crew retainer costs at least this much a week per threat level you are offered.</summary>
     public const int RetainerPerThreat = 600;
     /// <summary>Spur blades: they take the combat knife's place, heavier and slower.</summary>

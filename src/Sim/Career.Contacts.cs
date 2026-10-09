@@ -76,6 +76,7 @@ public sealed partial class Career
     private void Lapsed(Job j)
     {
         RivalTookIt(j);
+        BusinessAbandoned(j);
         if (j.Tag != null && j.Tag.StartsWith("danger:")) HurtContact(j.Tag[7..]);
         if (j.Tag != null && j.Tag.StartsWith("heist:")) { Set("heist:stage", 0); Say("The heist crew scattered when you didn't show."); }
     }

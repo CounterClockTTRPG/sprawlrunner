@@ -916,6 +916,30 @@ you are offered; the most trusted free one on retainer comes on every job but
 driving and hacks, and Juno can swap them for another hire), power focus ranks (x1.25/1.4/1.6),
 spell ranks (+15 % a rank, karma), loadout kits.
 
+### Business troubles (`Career.Business.cs`, `Storylets.Business.cs`)
+A business you own (after its first payday) has trouble now and then: a
+morning storylet, on a seeded draw (35 % of mornings may; never `Career.Rng`),
+at most one every 6 days across everything you own, never at a business that is
+shut or already has a defence on the board. Every payday line says what its
+week cost and why ("shut 4 days; 25 % to the Ash Vipers; the till is light, -15 %").
+A closure starts the next day; payday pays the open days of its last seven.
+- **Shakedown** (a call; from whoever holds the street, unless they already
+  take half for a grudge of 4+, already get a cut, or were seen off): pay 25 %
+  of the takings every week -- their standing +2 a week instead of +1, and the
+  deal ends when they lose the street; refuse -- a 2-day defence at a free site
+  in the district (`biz:<id>`, ×0.8 pay): held, no shakedowns for 30 days and
+  their standing -2 (grudge as for any job); lost or never fought, shut 7 days;
+  or (Gang, or Corporate for Halcyon) talk them down to 10 %.
+- **Inspector** (the council licensing office): a bribe of 40 % of a week now,
+  and he comes back; refuse, shut 4 days (8 while the Lotus own the council)
+  but no inspector for 30 days; or (Security) quote the code at him for nothing,
+  except under a Lotus council, when nobody listens.
+- **The till** (a named member of staff): fire them -- the next week at half
+  while you rehire; (Street) a quiet word -- two weeks' skim (30 % of a week)
+  back and an honest till; or let it go -- -15 % every week until dealt with,
+  and a week later they repay it with the floor plan of your next job, after
+  which you can keep them on or let them go (a week at half).
+
 ### UX
 - The map is its own screen: overlays (1 turf, 2 police, 3 people), labels
   that avoid each other. Click a place to make it your **target** (or

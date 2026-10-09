@@ -891,6 +891,7 @@ public sealed partial class Career
         else if (j.Type is not (JobType.Courier or JobType.Race or JobType.Hub or JobType.Bounty))
             d.Lines.Add(($"{who} grudge", "+0: they never knew you were there"));
         Atone(j, r, d);
+        BusinessHeld(j, r, d);
         if (j.Driving) Courier = false;
         Board.Remove(j);
         if (ActiveJob == j.Id) { ActiveJob = -1; ResumeHeld(); }

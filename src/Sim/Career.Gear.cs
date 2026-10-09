@@ -202,19 +202,7 @@ public sealed partial class Career
     /// <summary>The week turns: income, wages, and the karma of a quiet life.</summary>
     private void Payday()
     {
-        foreach (string b in Property.ToList())
-        {
-            var def = Businesses.First(x => x.id == b);
-            // A business on a street your enemies hold pays them first.
-            Faction holder = Holder(def.district);
-            bool leaned = Grudge.GetValueOrDefault(holder) >= 4;
-            int take = leaned ? def.week / 2 : def.week;
-            Cash += take;
-            Count("earned", take);
-            // A business that pays its way on their street makes friends of whoever runs it.
-            if (!leaned) Standing[holder] = Math.Min(10, StandingOf(holder) + 1);
-            Say($"{def.name}: {M.Money(take)} this week{(leaned ? $" (the {Tables.FactionNames[(int)holder]} took their cut)" : $"; the {Tables.FactionNames[(int)holder]} like a neighbour who pays (standing +1)")}.");
-        }
+        foreach (string b in Property.ToList()) BusinessWeek(b);
         foreach (string id in Retained.ToList())
         {
             int wage = RetainerWage(id);
