@@ -364,6 +364,19 @@ public partial class ShotRunner : Node
                 ps.Show("Runner");
                 await Frames(10);
                 await Shot("06_runner");
+                // A mage who knows every spell: the longest Runner tab there is.
+                {
+                    Career rc = Root.Career;
+                    string arch = rc.Archetype;
+                    var spells = rc.Spells.ToList();
+                    rc.Archetype = "mage";
+                    rc.Spells = Tables.Spells.Select(s => s.Id).ToList();
+                    ps.Show("Runner");
+                    await Frames(10);
+                    await Shot("06b_runner_mage");
+                    rc.Archetype = arch;
+                    rc.Spells = spells;
+                }
                 ps.Show("Loadout");
                 await Frames(10);
                 await Shot("07_loadout");
