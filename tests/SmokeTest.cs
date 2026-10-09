@@ -31,7 +31,7 @@ public partial class SmokeTest : Node
     private IEnumerable<Action> Sections() => new Action[]
     {
         Sight, Shots, Destruction, Repathing, Explosions, Fire, Stealth, Noise, Fighting, Grenades, Abilities, Magic, Bodies, EnemyGrenades, Conditions, NonLethal, Carrying, Lures, Fixtures, Ammo, Shields, Riggers, Bosses, Allies, Basements, PlaytestFixes, Hubs, Johnsons, Grudges, Spirits, Campaign, Storylets, Consequences, Crosses, TraumaLinkStreets, Turf, Atonement, Happenings, Crew, NewJobs, MoreJobs, Fifth, LateCampaigns, NewFaces, Towers, TopTier, Verbs, RunChoices, Backgrounds, Receipts, Roadblocks, Standing, EdgePoints, DialogsClose, Crowds, LegacyChoice, HighEnd, DangerCalls, SecurityLadder, Lamplighter, Balance, Performance, Block, LongCareer, Favours, Injuries, Legacy, Phantoms, Tutorial, Bindings, Playtest2Fixes, Twists, ContactStories, Trust, StatsAndAchievements, Rigging, Playtest3Fixes,
-        Objectives, Extraction, LevelGenSeeds, LevelGenDebug, Bot, CityGen, Driving, Autopilot, Traffic, Police, Gangs, Couriers, Motorcycles, Shops, Karma, Board, Debriefs, Saving, Audio, GeneratedAssets, Retiring, StreetEncounters, Lighting, RoomKinds, StyleRules, EntryPoints, RivalCrews, Presentation,
+        Objectives, Extraction, LevelGenSeeds, LevelGenDebug, Bot, CityGen, Driving, Autopilot, Traffic, Police, Gangs, Couriers, Motorcycles, Shops, Karma, Board, Debriefs, Saving, Audio, GeneratedAssets, Retiring, StreetEncounters, Lighting, RoomKinds, StyleRules, EntryPoints, RivalCrews, RivalArc, Presentation,
     };
 
     private void Run(Action section)

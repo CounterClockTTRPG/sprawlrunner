@@ -194,7 +194,7 @@ public sealed partial class Career
         ("node", "A data haven node in the Spire", "Pays ¥25,000 a week. Null keeps it running.", 250000, 25000, "spire"),
     };
 
-    public static readonly Dictionary<string, int> Retainers = new() { ["ox"] = 2500, ["wisp"] = 3000, ["patch"] = 2000, ["ade"] = 1800, ["byte"] = 2200 };
+    public static readonly Dictionary<string, int> Retainers = new() { ["ox"] = 2500, ["wisp"] = 3000, ["patch"] = 2000, ["ade"] = 1800, ["byte"] = 2200, ["rook"] = 2600 };
 
     /// <summary>A week of a hire's time: their rate, or more once the jobs you take pay more.</summary>
     public int RetainerWage(string id) => Math.Max(Retainers.GetValueOrDefault(id), Tables.RetainerPerThreat * MaxThreat);

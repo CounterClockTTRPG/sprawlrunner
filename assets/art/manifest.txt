@@ -55,6 +55,7 @@ hire-wisp  | 1:1 | head-and-shoulders portrait of Wisp, a slender elf sniper wit
 hire-patch | 1:1 | head-and-shoulders portrait of Patch, a tired combat medic in a battered armoured vest with a red cross patch, trauma kit on the chest, a submachine gun slung, kind weary eyes
 hire-ade   | 1:1 | head-and-shoulders portrait of Ade, a West African woman in her late forties with grey at the temples, a street clinic night nurse turned runner medic, close-cropped hair, plain unmarked scrubs under a plain dark padded vest, a medical bag strap across the chest, calm tired determined gaze, in a dim clinic corridor
 hire-byte  | 1:1 | head-and-shoulders portrait of Byte, a scrawny teenage hacker, a cheap cyberdeck strapped to the forearm, a cable running from a datajack behind the ear, oversized hoodie, cocky grin, face lit from below by a holographic screen
+hire-rook  | 1:1 | head-and-shoulders portrait of Rook, a lean wiry runner in his thirties with a shaved head and a neat black beard, a thin scar through one eyebrow, a worn grey tactical jacket with the collar up, a silenced submachine gun strap across the chest, watchful planner's eyes, rain on his shoulders
 
 # ---- faction bosses: Tables.BossOf, by Faction ---------------------------------------------
 

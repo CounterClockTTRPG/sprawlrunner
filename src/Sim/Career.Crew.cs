@@ -15,7 +15,7 @@ public sealed class CrewState
 }
 
 /// <summary>
-/// The three hires as a crew: trust from jobs together, a word in the debrief,
+/// The hires as a crew: trust from jobs together, a word in the debrief,
 /// an upgrade at trust 2 and 4, a personal job at trust 3, and death that
 /// lasts unless someone carries them out or TraumaLink Gold does.
 /// </summary>
@@ -49,6 +49,7 @@ public sealed partial class Career
         // The recruits come from the stories that saved them.
         if (id == "ade" && ArcStep.GetValueOrDefault("doc") < 2) return "Ade is still at Ichikawa's clinic (part 2 of the doc's story).";
         if (id == "byte" && ArcStep.GetValueOrDefault("decker") < 2) return "Byte is still in Null's back room (part 2 of Null's story).";
+        if (id == "rook" && Rival?.Fate != "merged") return "Rook runs with another crew (the rival crew's story).";
         if (!Crew.TryGetValue(id, out CrewState s)) return null;
         if (s.Dead) return $"{Tables.Hires.First(h => h.id == id).name} is dead.";
         if (s.OutUntil >= Day) return $"Recovering until day {s.OutUntil + 1}.";
@@ -93,6 +94,11 @@ public sealed partial class Career
             ("reach", "A better antenna: reaches machines 14 tiles away.", "fast", "Faster scripts: a machine every 5 seconds."),
             ("loop", "Long loops: what Byte blinds stays blind twice as long.", "cheap", "Old friends: his cut drops by 5 points."),
         },
+        ["rook"] = new[]
+        {
+            ("quick", "A better SMG: he fires half again as fast.", "plating", "Dermal plates: +80 health, +2 armour."),
+            ("wind", "Second wind: the first time he goes down, he gets back up at half health.", "cheap", "Old friends: his cut drops by 5 points."),
+        },
     };
 
     /// <summary>Lines in the debrief, by how it went.</summary>
@@ -113,6 +119,9 @@ public sealed partial class Career
         ["byte:loud"] = new[] { "Was that the plan? That didn't feel like the plan.", "Next time let me hack the loud bits quieter." },
         ["byte:quiet"] = new[] { "Not one camera saw us. Null's going to be so annoyed I'm this good.", "Clean. Ghosted. Beautiful." },
         ["byte:close"] = new[] { "I nearly died! Is it always like this?", "Okay. Okay. I'm fine. Are you fine? We're fine." },
+        ["rook:loud"] = new[] { "We used to plan around crews like us. Now I know why.", "Loud works. It's just expensive." },
+        ["rook:quiet"] = new[] { "That's how I'd have planned it. Better, actually.", "Nobody knew we were there. Old habits." },
+        ["rook:close"] = new[] { "You pulled me out once. Let's not make it a habit for either of us.", "Too close. I'll draw it up better next time." },
     };
 
     private void CrewAfter(Job j, RunResult r, Debrief d)

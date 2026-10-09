@@ -366,7 +366,8 @@ cameras), club (a big dance floor, a VIP room upstairs-equivalent at the back).
   Guards, heavies and gangers on threat 3+ carry a grenade for when you
   hide.
 - **Hires** at the fixer: Ox (tank), Wisp (sniper), Patch (medic, 3 heals) for
-  20-25 % of the pay; they hold fire while you sneak.
+  20-25 % of the pay; they hold fire while you sneak. Ade and Byte join from their
+  stories, Rook from the rival crew's (a merge ending).
 - **Basements** on many threat 3+ sites: stairs lead to a concrete level
   where the vault and objective often are. Everyone uses the stairs.
 - **The Matrix** (datasteal): a 9x5 node grid; move node to node, grab three
@@ -1187,6 +1188,29 @@ two beatings their boss calls: pay them to leave, split the city (Street, or hav
 knocked out and spared two of theirs; they then
 send floor plans), or refuse. With two of theirs dead, Juno finds their hideout:
 clear it, or kill them all, and they're finished.
+
+The crew's arc runs in three acts. Act one is the above. Their grudge against you
+(0-9, `RivalCrew.Grudge`) is two for each of theirs you killed, one for each beating,
+one off for each you spared, plus the burn. **Act two, the burn**: after three
+contests (jobs they took plus runs you beat them on), at least six days after they
+arrived, their Johnson (Mr. Halvorsen, Halcyon money) sets them up, and Null (trust
+2+) or Juno tells you. Warn them: they owe you, grudge -3, they stop bidding on your
+work, and Rook, who plans their jobs, was already at the meet -- a Rescue on your
+board (Halcyon office, threat 2 + tier, five days; pulled out, grudge -2 more; failed
+or let lapse, Rook is lost). Sell the warning: ¥4,000 + ¥2,000 a tier, notoriety
++1, grudge +3, and Rook and one of the others die. Stay out: Rook is taken. The old
+offer and Juno's hideout no longer come once they're burned. **Act three**, four
+days after the burn (once Rook's rescue is settled), by the history: a *showdown* if
+you sold them, at grudge 6+, or if a tier-3 crew you didn't warn is too proud to
+run -- their boss calls with the address, a Clear job at their tenement (threat 3 +
+tier, re-offered weekly until done), and winning it ends them with their stash
+(¥6,000), karma +6 and street rep +2; a *merge* if you warned them, pulled Rook out,
+the grudge is 3 or less and your notoriety under 6 -- Rook joins your crew (a sixth
+hire: SMG, 150 health, trust 2 from the start, his own upgrades and personal job
+against the Johnson), and the old boss, gone straight, still sends floor plans;
+otherwise they *leave town* (or you send Rook with them), and ten days later a
+postcard, with ¥3,000 under the stamp if they owe you. Every ending stops the
+contested jobs and the crew's gloating.
 
 ### Retiring
 The safehouse offers "Retire..." once a campaign is won or `Tables.RetireSavings`

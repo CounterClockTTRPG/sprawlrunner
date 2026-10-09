@@ -586,6 +586,7 @@ public static partial class Storylets
                 "ox" => (JobType.Clear, SiteStyle.Den, Faction.Vipers, "barrens", 3, "Ox: the old crew", "Ox, quietly for a troll: 'My old crew sold me to the Vipers for a debt. They're running a den in the Barrens now, getting fat. I want to look them in the eye. Come with me.'"),
                 "wisp" => (JobType.Eliminate, SiteStyle.Office, Faction.Halcyon, "spire", 4, "Wisp: the teacher", "Wisp: 'The man who taught me to shoot works corporate security now. He trained me, then he sold me to Halcyon's labs. He's on the top floor. Let me take the shot.'"),
                 "ade" => (JobType.Escort, SiteStyle.Club, Faction.Lotus, "strip", 3, "Ade: the testimony", "Ade: 'The Lotus took me to send Ichikawa a message. I want to send one back: I'm testifying to a Lone Star inspector who isn't on their payroll. The meeting is in one of their clubs -- their idea of a joke. Walk me in and out.'"),
+                "rook" => (JobType.Eliminate, SiteStyle.Office, Faction.Halcyon, "spire", 4, "Rook: the Johnson", $"Rook: 'The Johnson who burned my crew still takes meetings -- {Tables.RivalJohnson}, a Halcyon corner office, the same chair he sold us from. Deniable crews get denied. Let's deny him.'"),
                 "byte" => (JobType.Hack, SiteStyle.Office, Faction.Lotus, "strip", 3, "Byte: the books", "Byte: 'The Lotus still have my face in their books -- they'll find me one day. Let me jack in from your place and burn the records. You hold the ICE off. Please.'"),
                 _ => (JobType.Rescue, SiteStyle.Lab, Faction.Halcyon, "industrial", 3, "Patch: the ward", "Patch: 'There's a girl in a Halcyon test ward. I was her nurse before I was a runner. They're going to use her up. I can't do it alone.'"),
             };
@@ -595,7 +596,7 @@ public static partial class Storylets
                 {
                     new Choice("I'm in", (c, m) =>
                     {
-                        Job j = c.OfferSpecial(type, style, fac, district, threat, title, brief, tag: "crew:" + id, target: id switch { "wisp" => "Garrick Vance", "ade" => "Ade", _ => "Lena Sorel" }, item: "the girl", expires: 15);
+                        Job j = c.OfferSpecial(type, style, fac, district, threat, title, brief, tag: "crew:" + id, target: id switch { "wisp" => "Garrick Vance", "ade" => "Ade", "rook" => Tables.RivalJohnson, _ => "Lena Sorel" }, item: "the girl", expires: 15);
                         if (j != null && type != JobType.Escort) j.Hired = id;
                         if (j != null && type == JobType.Hack && c.CityRef != null) j.Lot = c.CityRef.Place(c.HasUpgrade("loft") ? "loft" : "home").Index;
                         return $"{name}: 'Thank you.' It's on your board -- {name} comes along, and finishing it means their cut drops for good.";
