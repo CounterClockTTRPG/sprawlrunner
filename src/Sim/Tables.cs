@@ -203,6 +203,9 @@ public static class Tables
     /// <summary>Ways back from notoriety: the penance jobs open at 7+ and take 2 off; three quiet wins in a row take 1;
     /// Juno's restitution costs this much per point, once a week, and takes 1.</summary>
     public const int AtoneFrom = 7, AtoneCut = 2, QuietStreak = 3, RestitutionPer = 2000;
+    /// <summary>Election week (Career.Election): first around day 25, every 30 days (+0..3 seeded), a week long; the winner's season lasts 20 days.</summary>
+    public const int ElectionFirst = 25, ElectionEvery = 30, ElectionJitter = 3, ElectionWeek = 7, SeasonDays = 20, RenewalPolice = 2, ReformPolice = 3;
+    public const float VotePay = 1.3f, RenewalPay = 1.1f, RenewalTurf = 0.1f, ReformRent = 0.85f;
     /// <summary>A crew retainer costs at least this much a week per threat level you are offered.</summary>
     public const int RetainerPerThreat = 600;
     /// <summary>Spur blades: they take the combat knife's place, heavier and slower.</summary>

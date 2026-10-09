@@ -410,6 +410,7 @@ public sealed partial class Career
             }
             if (fac is Faction.Vipers or Faction.Lotus && On("gangwar")) j.Pay = (int)(MathF.Round(j.Pay * 1.1f / 50) * 50);
             if (fac == Faction.Lotus && On("council")) j.Pay = (int)(MathF.Round(j.Pay * 1.12f / 50) * 50);
+            ElectionMods(j);
         }
         if (type is JobType.Courier or JobType.Race)
         {
@@ -891,6 +892,7 @@ public sealed partial class Career
         else if (j.Type is not (JobType.Courier or JobType.Race or JobType.Hub or JobType.Bounty))
             d.Lines.Add(($"{who} grudge", "+0: they never knew you were there"));
         Atone(j, r, d);
+        Ballot(j, r, d);
         if (j.Driving) Courier = false;
         Board.Remove(j);
         if (ActiveJob == j.Id) { ActiveJob = -1; ResumeHeld(); }

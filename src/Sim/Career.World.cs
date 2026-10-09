@@ -44,6 +44,9 @@ public sealed partial class Career
         ("expansion", "Halcyon expansion", "Halcyon-Matsuda is buying up the Docks and Industrial: elite security on their new sites, and every landlord in the city puts the rent up 25 %."),
         ("council", "Council in the pocket", "the Red Lotus own the council this week: busts cost double, heat cools at half speed, Lotus sites field their best, and jobs against them pay 12 % more."),
         ("crackdown", "Crackdown", "Lone Star is cracking down: checkpoints close avenue blocks (stop and be waved through, if you're clean -- hot, and they come after you), heat cools at half speed, the informant costs three times as much."),
+        ("election", "Election week", "the council votes at the end of the week."),
+        ("renewal", "Urban renewal council", "Adrian Vell sits for Halcyon: more Lone Star on the streets, Halcyon's ground grows, and jobs against Halcyon pay 10 % more."),
+        ("reform", "Reform council", "Rosa Ibarra has the seat: Lone Star's brass on the back foot, every rent 15 % lower -- and nervous factions double the patrols on every new site (+10 % pay)."),
     };
 
     public static (string id, string name, string desc) HappeningDef(string id) => HappeningDefs.First(h => h.id == id);
@@ -66,7 +69,7 @@ public sealed partial class Career
     public IEnumerable<string> HappeningLines() => Today.Select(h =>
     {
         var d = HappeningDef(h.Id);
-        return $"TODAY: {d.name}{(h.District != null ? $" in the {Tables.District(h.District).Name}" : "")} -- {d.desc}";
+        return $"TODAY: {d.name}{(h.District != null ? $" in the {Tables.District(h.District).Name}" : "")} -- {(h.Id == "election" ? ElectionStatus() : d.desc)}";
     });
 
     private void Begin(string id, int days, string district = null, string news = null)
@@ -209,6 +212,7 @@ public sealed partial class Career
         if (Day % 15 == 0) Begin("lanterns", 1, news: "KBN: Lanterns over the night market -- the festival is on, and the stalls are cutting prices.");
         if (r.Chance(1 / 12f)) Begin("surge", 2, news: "The talismongers are whispering: the astral is running high tonight.");
         if (r.Chance(1 / 15f)) Begin("grid", 2, r.Pick(Tables.Districts).Id);
+        ElectionMorning();
         if (r.Chance(1 / 20f)) Begin("strike", 2, news: "KBN: Lone Star officers walk out over pay. 'Essential patrols only.' The gangs are celebrating.");
         // Faction plans.
         if (Day % 3 == 0) foreach (string f in new[] { "vipers", "halcyon", "lotus" }) Tick(f, 1);
@@ -244,7 +248,7 @@ public sealed partial class Career
     public int RentDue => RentOf(LifeTier);
 
     /// <summary>A week at this tier: the loft costs more, and Halcyon's "urban renewal" puts every rent up while it runs.</summary>
-    public int RentOf(int tier) => (int)(Lifestyles[tier].week * (HasUpgrade("loft") ? 1.5f : 1f) * (On("expansion") ? 1.25f : 1f) / 50) * 50;
+    public int RentOf(int tier) => ReformRent((int)(Lifestyles[tier].week * (HasUpgrade("loft") ? 1.5f : 1f) * (On("expansion") ? 1.25f : 1f) / 50) * 50);
 
     /// <summary>A seventh of the week's rent, every morning: you pay for the nights you lived there.</summary>
     public int DailyRent => (int)MathF.Round(RentDue / 7f);
@@ -389,6 +393,7 @@ public sealed partial class Career
         if (Clock("lotus") >= 5) tips.Add("Lotus money's going to the council. Watch, the cops'll go soft on 'em.");
         if (Clock("lonestar") >= 5) tips.Add("Lone Star's been asking about runners. About you, maybe. They're gearing up.");
         if ((Day + 1) % 7 == 3) tips.Add("Big game at the stadium tomorrow. Half the cops'll be watching it.");
+        if (DaysToVote is >= 0 and <= 2) tips.Add("Everybody's out with leaflets. Vell, Tsao, Ibarra -- my mum says whoever pays the most wins. She's usually right.");
         if ((Day + 1) % 15 == 0) tips.Add("Lantern festival tomorrow! Everything at the stalls goes half price.");
         foreach (DistrictDef d in Tables.Districts)
         {

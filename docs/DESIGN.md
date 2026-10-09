@@ -661,6 +661,26 @@ Runner tab. They open storylet choices; Corporate adds 10 % to a haggle.
 | Halcyon expansion | Halcyon clock | Halcyon +10 % in the Docks and Industrial, elite on their new sites (+15 % pay, not 30), every rent +25 % |
 | Council in the pocket | Lotus clock | busts cost double, heat cools at half speed; Lotus sites field elites (no pay rise for it); jobs against the Lotus +12 % |
 | Crackdown | Lone Star clock | heat cools at half speed, the informant costs three times as much |
+| Election week | 7 days, opening about every 30 days from day 25 (+0-3, seeded) | the council vote: news, radio countdown, campaign graffiti; three jobs on the board (below) |
+| Urban renewal council | Vell wins, 20 days | Halcyon +10 % turf in two districts it doesn't hold, Lone Star clock +2 (once), jobs against Halcyon +10 % |
+| Council in the pocket | Tsao wins, 20 days | as above (an older one runs on to the end of the new season) |
+| Reform council | Ibarra wins, 20 days | Lone Star clock -3 (once), every rent -15 % (to the ¥10), notoriety -1 once if you did her job; every new site doubles its patrols (Shift change, +10 % pay) and none runs a skeleton crew |
+
+- **Election week** (`Career.Election`, `Storylets.Election`): three candidates --
+  Adrian Vell (Halcyon's "renewal"), Councillor Henry Tsao (the Red Lotus'), Rosa
+  Ibarra (reform, backed by nobody; Mara Quill and Sgt. Dace care). The first
+  morning, KBN announces it and Quill writes; the board gets one job per campaign
+  (tagged `vote:<candidate>:<n>`, pay x1.3, gone the day before the count): for
+  Vell, a datasteal, plant or kidnap on a Lotus site; for Tsao, a plant,
+  wetwork or datasteal on a Halcyon one; for Ibarra (from Quill), escort her
+  through a Viper hall or hold her Docks office against the Lotus. Each one
+  finished is +1 for its candidate (faction turf, clocks and grudge as for any
+  job). Quill (Corporate: leak Vell's backers) and Dace (¥2,000: lose the
+  ballot boxes somewhere they get counted) can each add +1 for Ibarra. On the
+  seventh morning the heaviest wins; ties and empty weeks go by a seeded
+  baseline (Lotus 0.6, Halcyon 0.4, Ibarra 0.2, plus 0-0.3 each), so the
+  Lotus' money wins a quiet week and one job outweighs it. The happenings list
+  shows the candidates, their weight and the days left.
 
 ### Crew
 The three hires keep a **trust** (0-5): +1 for each job finished together.
