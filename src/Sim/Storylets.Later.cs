@@ -148,6 +148,8 @@ public static partial class Storylets
                     "Ade: 'You carried me out. I don't say thank you very well. So I'll just keep you alive instead.'"),
             ("byte", "Byte has three of your devices open on the floor. 'Your commlink was leaking your location to four ad networks. I fixed it. You're welcome.'",
                      "Byte, suddenly serious: 'Null says you're the only runner who never lied to them. So. I won't either.'"),
+            ("rook", "Rook has your city map on the table, drawing exits in pencil around every site you've hit. 'Habit. I planned every job my old crew ran. Including the ones against you.'",
+                     "Rook, folding the map away: 'The Johnson sold us because we were cheap to lose. You came in anyway. I don't plan around that. I just remember it.'"),
         };
         foreach (var (id, first, second) in talks)
         {

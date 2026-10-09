@@ -183,6 +183,15 @@ public static class Tables
     public const int RivalWait = 3;
     /// <summary>Seconds a rival needs at the mainframe to pull the data (you take about 12-20).</summary>
     public const float RivalHack = 22;
+    /// <summary>The rival arc. Act two (their Johnson burns them) comes after this many contests, at least this many days after they arrive;
+    /// warning them takes this off their grudge, selling the warning adds this and pays base + per tier; pulling Rook out takes this off.
+    /// Act three this many days after the burn: a showdown at this grudge or more, a merge at this or less (and notoriety under this);
+    /// the hideout finale's stash and karma; the postcard this many days after they leave, and what's in it if they owe you.</summary>
+    public const int RivalBurnAfter = 3, RivalBurnDay = 6, RivalWarnGrudge = 3, RivalSellGrudge = 3, RivalSellPay = 4000, RivalSellPerTier = 2000, RivalRookGrudge = 2;
+    public const int RivalEndAfter = 4, RivalShowdownGrudge = 6, RivalMergeGrudge = 3, RivalMergeNotoriety = 6, RivalStash = 6000, RivalShowdownKarma = 6;
+    public const int RivalPostcardAfter = 10, RivalPostcardGift = 3000, RivalMergeTrust = 2;
+    /// <summary>The Johnson who burns the rival crew.</summary>
+    public const string RivalJohnson = "Mr. Halvorsen";
     /// <summary>Street encounters: seconds of driving before the first look and between looks, at most this many a day,
     /// how long one waits on its kerb, and how far past it you can be before it's gone.</summary>
     public const float StreetFirst = 60, StreetEvery = 140, StreetLife = 60, StreetGone = 45;
@@ -549,6 +558,7 @@ public static class Tables
         ("patch", "Patch", "Combat medic. Patches you up three times a run, shoots back otherwise.", new EnemyDef { Kind = EnemyKind.Ally, Name = "Patch", Hp = 130, Armor = 2, Speed = 3.8f, Aim = 4, Weapon = "a_smg", Vision = 12, PreferRange = 6 }, 0.2f, 2),
         ("ade", "Ade", "Ichikawa's night nurse, who you carried out of a Lotus club. Four quick patch-ups a run; not much of a shot.", new EnemyDef { Kind = EnemyKind.Ally, Name = "Ade", Hp = 110, Armor = 1, Speed = 4f, Aim = 6, Weapon = "a_smg", Vision = 11, PreferRange = 6 }, 0.15f, 0),
         ("byte", "Byte", "The kid Null taught, who you got out of the Lotus books. Blinds cameras, turrets and drones near you, a few at a time.", new EnemyDef { Kind = EnemyKind.Ally, Name = "Byte", Hp = 90, Armor = 0, Speed = 4.1f, Aim = 5, Weapon = "a_smg", Vision = 12, PreferRange = 7 }, 0.2f, 0),
+        ("rook", "Rook", "The rival crew's planner, who came over after their Johnson burned them. Quick, careful, a steady hand on an SMG; knows how other crews think.", new EnemyDef { Kind = EnemyKind.Ally, Name = "Rook", Hp = 150, Armor = 2, Speed = 4.2f, Aim = 2, Weapon = "a_smg", Vision = 14, PreferRange = 5 }, 0.2f, 0),
     };
 
     /// <summary>The name and gun of each faction's boss.</summary>
