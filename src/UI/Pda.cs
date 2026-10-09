@@ -303,7 +303,7 @@ public partial class Pda : Control
         foreach (var h in Tables.Hires)
         {
             CrewState cs = C.Crew.GetValueOrDefault(h.id);
-            string state = cs == null ? "never worked with you" : cs.Dead ? "dead" : $"trust {cs.Trust}/5" + (cs.Perks.Count > 0 ? ", knows " + string.Join(", ", cs.Perks.Select(Career.PerkName)) : "") + (cs.OutUntil >= C.Day ? $", recovering until day {cs.OutUntil + 1}" : "");
+            string state = cs == null ? "never worked with you" : cs.Dead ? "dead" : $"trust {cs.Trust}/5" + (cs.Perks.Count > 0 ? ", knows " + string.Join(", ", cs.Perks.Select(Career.PerkName)) : "") + (cs.OutUntil >= C.Day ? $", recovering until day {cs.OutUntil + 1}" : "") + (C.Partner == h.id ? ", your partner" : "");
             list.AddChild(UITheme.Label($"{h.name} -- {state}. Cut {C.CrewCut(h.id) * 100:0} %.", 16, cs?.Dead == true ? UITheme.Faint : UITheme.Text));
         }
     }

@@ -637,6 +637,8 @@ public sealed partial class Career
         if (Passenger != null) { Say($"{Passenger.Who} got out at a red light and didn't come back."); Passenger = null; }
         // How well you live is how well you mend.
         if (rested && Injuries > 0 && LifeTier >= 1) Injuries = LifeTier >= 2 ? 0 : Injuries - 1;
+        // And so does who you come home to.
+        if (rested && Injuries > 0 && Partner != null && CrewBlock(Partner) == null) Injuries--;
         if (rested) Tell(Hook.Sleep);
         if (Day % 7 == 0) foreach (Faction f in Grudge.Keys.ToList()) Grudge[f] = Math.Max(0, Grudge[f] - 1);
         if (HasUpgrade("loft") && Day % 5 == 0) Rep++;

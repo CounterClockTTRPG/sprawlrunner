@@ -253,7 +253,7 @@ public sealed partial class Run
                 if (Perk("breacher")) aw.Damage *= 1.4f;
                 if (Perk("quick")) aw.Rate *= 1.5f;
             }
-            float hp = h.def.Hp + (Perk("plating") ? 80 : 0) + (Perk("vest") ? 60 : 0);
+            float hp = (h.def.Hp + (Perk("plating") ? 80 : 0) + (Perk("vest") ? 60 : 0)) * (c.Partner == job.Hired ? Tables.PartnerAllyHp : 1);
             Ally = new Actor
             {
                 Id = _nextId++, Def = h.def, Team = 0, IsAlly = true, Name = h.name, Pos = Player.Pos + new V2(0.6f, 0.6f), Radius = h.def.Radius,

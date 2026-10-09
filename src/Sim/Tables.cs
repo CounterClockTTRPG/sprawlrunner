@@ -227,6 +227,10 @@ public static partial class Tables
     /// <summary>Election week (Career.Election): first around day 25, every 30 days (+0..3 seeded), a week long; the winner's season lasts 20 days.</summary>
     public const int ElectionFirst = 25, ElectionEvery = 30, ElectionJitter = 3, ElectionWeek = 7, SeasonDays = 20, RenewalPolice = 2, ReformPolice = 3;
     public const float VotePay = 1.3f, RenewalPay = 1.1f, RenewalTurf = 0.1f, ReformRent = 0.85f;
+    /// <summary>A partner (Storylets.Romance): their hit points when they come on a job with you, days between quiet nights,
+    /// days before a "not yet" is asked again, what ending it costs (trust, days out), days before the keepsake turns up.</summary>
+    public const float PartnerAllyHp = 1.2f;
+    public const int PartnerNightEvery = 8, RomanceAskAgain = 20, PartnerBreakTrust = 2, PartnerBreakDays = 3, PartnerKeepsakeAfter = 20;
     /// <summary>Visitors at the safehouse: at most one every <c>VisitGap</c> days -- after a job, or after
     /// <c>VisitQuiet</c> quiet days. The cat: food to keep it, karma a week while it stays, the kids to find it.</summary>
     public const int VisitGap = 3, VisitQuiet = 6, CatFood = 150, CatKarma = 1, CatLostAfter = 12, CatSearch = 300;

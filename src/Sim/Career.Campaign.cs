@@ -432,7 +432,9 @@ public sealed partial class Career
         foreach (var (id, s) in Crew)
         {
             string name = Tables.Hires.First(x => x.id == id).name;
-            if (s.Dead) e.Add($"{name} is buried in the Barrens, under a plain stone.");
+            if (s.Dead && Flag("partnerdead:" + id) > 0) e.Add($"{name} is buried in the Barrens. You still go, every year, and don't tell anyone.");
+            else if (s.Dead) e.Add($"{name} is buried in the Barrens, under a plain stone.");
+            else if (id == Partner) e.Add($"{name} is still with you. Some mornings that's the only part of it you'd keep.");
             else if (s.Trust >= 3) e.Add($"{name} still runs. Still tells stories about you, a little bigger every time.");
         }
         return e;

@@ -19,7 +19,7 @@ public static partial class Storylets
     private static IEnumerable<Storylet> Build() =>
         Basics().Concat(Fates()).Concat(RunChoices()).Concat(Crosses()).Concat(ContactLives()).Concat(Writers())
             .Concat(World()).Concat(CrewStories()).Concat(Block()).Concat(Story()).Concat(Tide())
-            .Concat(Forks()).Concat(Danger()).Concat(Penance()).Concat(Heists()).Concat(Campaigns()).Concat(Night()).Concat(Pasts()).Concat(Backgrounds()).Concat(CrewHome()).Concat(Lamp()).Concat(Streets()).Concat(Rivals()).Concat(BusinessTroubles()).Concat(Election()).Concat(Visitors()).Concat(Echoes());
+            .Concat(Forks()).Concat(Danger()).Concat(Penance()).Concat(Heists()).Concat(Campaigns()).Concat(Night()).Concat(Pasts()).Concat(Backgrounds()).Concat(CrewHome()).Concat(Lamp()).Concat(Streets()).Concat(Rivals()).Concat(BusinessTroubles()).Concat(Election()).Concat(Visitors()).Concat(Echoes()).Concat(Romance());
 
     // ---- shorthand ------------------------------------------------------------------------
 
@@ -604,7 +604,7 @@ public static partial class Storylets
                     Ok("Not now", $"{name}: 'I understand. The offer stands.'"),
                 }, Cooldown: 8);
             yield return new($"crewdead-{id}", Hook.Morning, Juno, $"{name}", $"Juno: 'They buried {name} this morning, in the Barrens, where the crew always buries its own. A few of the old faces came. They asked if you'd come.'",
-                c => c.Flag("crewdead:" + id) > 0 && c.Day - c.Flag("crewdead:" + id) <= 3,
+                c => c.Flag("crewdead:" + id) > 0 && c.Day - c.Flag("crewdead:" + id) <= 3 && c.Flag("partnerdead:" + id) == 0,
                 new[]
                 {
                     Pay("Go, and pay for the stone (¥1,000)", 1000, (c, m) => { c.Karma += 2; c.KarmaEarned += 2; return $"A plain stone, '{name}. Ran with the best.' Karma +2."; }),

@@ -222,6 +222,13 @@ public partial class ShotRunner : Node
                 await Shot("17c_call_video");
                 vm.QueueFree();
                 await Frames(3);
+                // At full trust, at the safehouse: a crew member asks.
+                var rmod = new StoryModal(c, c.Send("romance-wisp"));
+                Root.CityScreen.AddChild(rmod);
+                await Frames(10);
+                await Shot("17d_romance");
+                rmod.QueueFree();
+                await Frames(3);
                 // The Lamplighter on the line, wearing someone else's face.
                 Mail lm = c.Send("lamp-open");
                 lm.Call = true;

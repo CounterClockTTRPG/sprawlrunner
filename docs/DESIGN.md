@@ -736,6 +736,16 @@ The three hires keep a **trust** (0-5): +1 for each job finished together.
   career -- unless you carry them to the extraction (hold E on them) or have
   TraumaLink Gold; then they sit out three days. A funeral mail follows a
   death.
+- **Romance** (`Storylets.Romance.cs`): at trust 5, after their second talk at
+  the safehouse, Ox, Wisp, Patch, Ade or Rook asks (Byte is a kid and never
+  does). Stay: they are your partner, one at a time. Not yet: asked again in
+  20 days. Crew: never again. A partner has +20 % HP on a job with you, mends
+  an injury on every night you sleep at home (even in a squat), comes round
+  on a quiet night every 8 days or so (stay in: well fed), and worries after a
+  bad job you did without them (let them fuss: an injury mended). Ending it:
+  trust -2 and three days apart, and they never ask again. Lost on a run, they
+  are grieved (their own funeral), a keepsake turns up 20 days later
+  (karma +1), and the ending remembers them either way.
 
 ### The story, second draft
 - Chapters still open after 3, 5, 8 and 11 jobs, but chapters 2-4 also need

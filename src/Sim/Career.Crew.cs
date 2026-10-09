@@ -43,6 +43,9 @@ public sealed partial class Career
         return MathF.Max(0.05f, cut);
     }
 
+    /// <summary>Who you're with (a crew id; Storylets.Romance), or null.</summary>
+    public string Partner;
+
     /// <summary>Why this crew member cannot come (null: they can).</summary>
     public string CrewBlock(string id)
     {
@@ -141,6 +144,7 @@ public sealed partial class Career
             {
                 s.Dead = true;
                 Set("crewdead:" + j.Hired, Day);
+                if (Partner == j.Hired) { Partner = null; Set("partnerdead:" + j.Hired, Day); }
                 d.Lines.Add(($"{h.name}", "killed"));
                 Say($"{h.name} didn't make it out.");
             }
