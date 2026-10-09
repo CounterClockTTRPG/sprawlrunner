@@ -518,7 +518,7 @@ public partial class PlaceScreen : Control
             b.ButtonPressed = C.HasProgram(id);
             flow.AddChild(b);
         }
-        if (C.Programs.Count == 0) flow.AddChild(UITheme.Label("none -- Null sells them", 15, UITheme.Dim));
+        if (C.Programs.Count == 0) flow.AddChild(UITheme.Label("none -- Null sells them", 15, UITheme.Dim, wrap: false));
         prow.AddChild(flow);
         _content.AddChild(prow);
         if (C.MemoryFree < 3) _content.AddChild(UITheme.Label($"Only {C.MemoryFree} Mp free: a datasteal's three datastores need 3 (G purges a program inside, if it comes to that).", 14, UITheme.Yellow));
