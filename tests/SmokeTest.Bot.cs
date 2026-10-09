@@ -78,7 +78,7 @@ public partial class SmokeTest
             var inp = new RunInput { Slot = -1, Move = move };
             if (r.Matrix != null)
             {
-                TimedStep(r, new RunInput { Slot = -1, Move = MatrixMove(r.Matrix) });
+                TimedStep(r, MatrixInput(r.Matrix, i));
                 r.Events.Clear();
                 continue;
             }

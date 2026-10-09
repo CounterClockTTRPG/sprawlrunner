@@ -537,8 +537,11 @@ public partial class AgentRunner : Node
         if (r.Prompt != null) sb.AppendLine($"prompt: {r.Prompt} {(r.PromptProgress >= 0 ? $"{MathF.Min(1, r.PromptProgress) * 100:0}%" : "")}");
         if (r.Matrix is MatrixRun mx)
         {
-            sb.AppendLine($"JACKED INTO THE MATRIX: move with WASD one node at a time (key D 150 etc.); E at the entry ring jacks out. Datastores {mx.Taken.Count}/3{(mx.Black ? ", BLACK ICE" : "")}{(mx.SpoofLeft ? ", spoof ready" : "")}.");
-            sb.AppendLine("grid (Y you, E entry, $ datastore, + taken, I ICE, - and | data lines):");
+            sb.AppendLine($"JACKED INTO THE MATRIX: host rating {mx.Rating}, {(mx.Alert ? "ALERT" : "calm")}, TRACE {mx.Trace * 100:0} % (+{mx.TraceRate * 100:0.0} %/s){(mx.Locked > 0 ? $", LINK-LOCKED {mx.Locked:0.0} s" : "")}{(mx.CoreDown ? ", core crashed" : "")}{(mx.SpoofLeft ? ", spoof ready" : "")}.");
+            sb.AppendLine($"deck: A{mx.Attack} S{mx.Sleaze} D{mx.Data} F{mx.Firewall}, condition {mx.Boxes - mx.Damage}/{mx.Boxes}, memory {mx.Free}/{mx.S.Memory} Mp free; datastores {mx.Taken.Count}/{mx.Stores.Count}; programs: {(mx.Programs.Count > 0 ? string.Join(", ", mx.Programs.Select(x => Tables.Program(x).Name + (Tables.Program(x).Active ? " (key)" : ""))) : "none")}");
+            sb.AppendLine("keys: WASD one node at a time (key D 150 etc.; push into a gate to crack it); key Space spikes the IC on/next to you (or brute-forces a gate); hold E (key E 2000) pulls a file / takes a node; E at the entry jacks out; Q/F/R run active programs; G purges a program.");
+            if (mx.Holding != null) sb.AppendLine($"here: hold E to {mx.Holding}{(mx.HoldT > 0 ? $" ({mx.HoldT / mx.HoldNeed * 100:0} %)" : "")}");
+            sb.AppendLine("grid (Y you, E entry, $ datastore, + taken, f paydata file, c control node, K core, a archive, IC by letter P K T B A C X # S; - | lines, = and ! locked gates):");
             for (int y = 0; y < MatrixRun.H; y++)
             {
                 var row = new StringBuilder("  ");
@@ -546,13 +549,21 @@ public partial class AgentRunner : Node
                 for (int x = 0; x < MatrixRun.W; x++)
                 {
                     var q = new Pt(x, y);
-                    char ch = q == mx.You ? 'Y' : mx.Ice.Contains(q) ? 'I' : mx.Taken.Contains(q) ? '+' : mx.Stores.Contains(q) ? '$' : q == mx.Entry ? 'E' : 'o';
-                    row.Append(ch).Append(mx.Linked(q, q + new Pt(1, 0)) ? "---" : "   ");
-                    below.Append(mx.Linked(q, q + new Pt(0, 1)) ? '|' : ' ').Append("   ");
+                    Ic ic = mx.Ice.FirstOrDefault(i => i.Pos == q);
+                    MxFile f = mx.Files.FirstOrDefault(i => i.At == q);
+                    char ch = q == mx.You ? 'Y' : ic != null ? ic.Def.Glyph : f != null ? (f.Taken ? '+' : f.Objective ? '$' : 'f')
+                        : mx.ControlAt.ContainsKey(MatrixRun.Idx(q)) ? 'c' : q == mx.Core ? 'K' : q == mx.PlantAt ? 'a' : q == mx.Entry ? 'E' : 'o';
+                    var right = q + new Pt(1, 0);
+                    row.Append(ch).Append(!mx.Linked(q, right) ? "   " : mx.Gated(q, right) ? "===" : "---");
+                    var down = q + new Pt(0, 1);
+                    below.Append(!mx.Linked(q, down) ? ' ' : mx.Gated(q, down) ? '!' : '|').Append("   ");
                 }
                 sb.AppendLine(row.ToString());
                 if (y < MatrixRun.H - 1) sb.AppendLine(below.ToString());
             }
+            foreach (Ic ic in mx.Ice) sb.AppendLine($"  {ic.Def.Glyph} {ic.Def.Name} at ({ic.Pos.X},{ic.Pos.Y}) hp {ic.Hp:0}/{ic.MaxHp:0}{(ic.Hunting ? ", hunting" : ic.Guard ? ", guarding" : "")}{(ic.Report >= 0 ? $", REPORTING in {ic.Report:0.0} s" : "")}");
+            foreach (MxFile f in mx.Files.Where(f => !f.Objective && !f.Taken)) sb.AppendLine($"  paydata at ({f.At.X},{f.At.Y}): {f.Name}, {f.Mp} Mp, {M.Money(f.Value)}{(f.Encrypted ? ", encrypted" : "")}");
+            foreach (var kv in mx.ControlAt.Where(kv => !mx.ControlsTaken.Contains(kv.Key))) sb.AppendLine($"  control node at ({kv.Key % MatrixRun.W},{kv.Key / MatrixRun.W}): {kv.Value}");
         }
         var seen = r.Actors.Where(a => !a.IsPlayer && !a.Dead && r.Shown(a)).OrderBy(a => V2.Distance(a.Pos, p.Pos)).ToList();
         if (r.Plan.KindAt(Pt.Of(p.Pos)) is RoomKind rk && rk != RoomKind.Plain) sb.AppendLine($"room: {SetPieces.Name(rk)}");

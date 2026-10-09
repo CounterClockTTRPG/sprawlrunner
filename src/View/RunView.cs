@@ -367,6 +367,16 @@ public partial class RunView : Node2D
                     Sfx.Instance?.Play(Sound.Heal);
                     Glow.Burst(FxKind.Ember, p, 14, 60, 0.8f, 2, UITheme.Good);
                     break;
+                case Ev.Matrix:
+                    // 0 a spike, 1 IC crashed, 2 your deck hit, 3 the host on alert.
+                    switch ((int)e.Value)
+                    {
+                        case 0: Sfx.Instance?.Play(Sound.Key, 1.6f, 0.5f); break;
+                        case 1: Sfx.Instance?.Play(Sound.Hack, 1.3f, 0.7f); break;
+                        case 2: Sfx.Instance?.Play(Sound.Emp, 0.7f, 0.6f); ScreenFx.Instance?.Jolt(0.3f); break;
+                        default: Sfx.Instance?.Play(Sound.Alarm, 1.4f, 0.4f); break;
+                    }
+                    break;
                 case Ev.Hack:
                     Play(Sound.Hack, e.Pos, 1, 1, 40);
                     Glow.Burst(FxKind.Spark, p, 16, 160, 0.5f, 1.5f, UITheme.Violet);

@@ -57,6 +57,8 @@ public sealed class Job
     public bool Hive;
     /// <summary>Legwork bought in the briefing (Career.Legwork ids).</summary>
     public List<string> Legwork = new();
+    /// <summary>A Matrix job from home: what Null's client wants done in there.</summary>
+    public MxGoal Host;
     /// <summary>A job done behind the wheel: courier runs and street races.</summary>
     [System.Text.Json.Serialization.JsonIgnore] public bool Driving => Type is JobType.Courier or JobType.Race;
     /// <summary>A double-cross that never pays rather than sending a squad (one in three).</summary>
@@ -78,7 +80,7 @@ public sealed class RunResult
     /// <summary>A mid-run twist: its effect on the pay and what happened.</summary>
     public float PayMul = 1;
     public string Twist;
-    public int KnockOuts, Bosses, Walls, Spells, Datastores;
+    public int KnockOuts, Bosses, Walls, Spells, Datastores, SpidersCrashed;
     public bool DroneLost;
     /// <summary>The target got out of the building; the target was carried out alive; the hostage died.</summary>
     public bool TargetFled, TargetTaken, HostageDead;
@@ -272,7 +274,7 @@ public sealed partial class Career
             case "doc": if (!Cyber.Contains("booster")) Cyber.Add("booster"); break;
             case "arms": if (!Weapons.Contains("thunder")) { Weapons.Add("thunder"); Primary = "thunder"; } break;
             case "rigger": if (!Vehicles.Contains("interceptor")) { Vehicles.Add("interceptor"); Vehicle = "interceptor"; } break;
-            case "decker": if (!Programs.Contains("ghost")) Programs.Add("ghost"); break;
+            case "decker": GiveProgram("ghost"); break;
             case "fence": Cash += 5000; Count("earned", 5000); break;
             case "press": Notoriety = 0; break;
         }
@@ -515,8 +517,23 @@ public sealed partial class Career
                 j.Brief = $"Something has been eating people in the {Tables.District(j.District).Name}. Lone Star traced it to {where} and doesn't want to go in. Ghouls, hellhounds, maybe worse. Clear the nest; the bounty pays per head, so they say.";
                 break;
             case JobType.Hack:
-                j.Title = $"Remote: {who} systems";
-                j.Brief = $"{emp} has a client who wants into {who}'s systems -- and you can do it from your own chair. Jack in at the safehouse rig and pull three datastores. ICE that traces you twice blows the job (and gives you a headache).";
+                // What the client wants done in there: the threat-1 jobs are always a plain pull.
+                j.Host = j.Threat <= 1 ? MxGoal.Pull : (MxGoal)new Rng(j.Seed ^ 0xDEC4UL).Int(3);
+                switch (j.Host)
+                {
+                    case MxGoal.Crash:
+                        j.Title = $"Remote: crash {who}";
+                        j.Brief = $"{emp} has a client who wants {who}'s host down for a night. Jack in at the safehouse rig, get to the core and spike it until it crashes -- the IC will come for you the moment you start. Traced twice and the job is blown.";
+                        break;
+                    case MxGoal.Plant:
+                        j.Title = $"Remote: a backdoor into {who}";
+                        j.Brief = $"{emp} has a client who wants a way back into {who}'s systems whenever they like. Jack in at the safehouse rig, find the archive node and plant the backdoor (hold E) -- it takes a while, and the trace climbs while you do. Traced twice and the job is blown.";
+                        break;
+                    default:
+                        j.Title = $"Remote: {who} systems";
+                        j.Brief = $"{emp} has a client who wants into {who}'s systems -- and you can do it from your own chair. Jack in at the safehouse rig and pull three datastores. The host's trace catching you twice blows the job (and gives you a headache). Paydata on the side is yours to sell.";
+                        break;
+                }
                 break;
             case JobType.Race:
                 j.Title = $"Street race: {Tables.District(j.District).Name} to {Tables.District(city.Lots[j.Lot2].District).Name}";
@@ -698,6 +715,7 @@ public sealed partial class Career
         Count("walls", r.Walls);
         Count("spells", r.Spells);
         if (r.Datastores >= 3) Count("matrix");
+        if (r.SpidersCrashed > 0) Count("spiders", r.SpidersCrashed);
         WellFed = false;
         NextNoAmbush = NextCamerasDown = NextFastSpells = false;
         if (!r.Died && r.HpLeft > 0 && r.HpLeft < 0.3f && Injuries < 3)

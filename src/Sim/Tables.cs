@@ -5,7 +5,7 @@ using System.Linq;
 namespace Sprawl;
 
 public enum Attr { Body, Agility, Strength, Reaction, Logic, Charisma }
-public enum Skill { Firearms, Heavy, Blades, Demolitions, Electronics, Stealth, Driving }
+public enum Skill { Firearms, Heavy, Blades, Demolitions, Electronics, Stealth, Driving, Decking }
 public enum WeaponClass { Pistol, Smg, Shotgun, Rifle, Sniper, Lmg, Launcher, Melee }
 public enum GrenadeKind { Frag, Flash, Emp, Fire, Breach }
 public enum Ability { None, Overclock, Hack, Cloak, Manabolt, Fireball, Heal, Summon, Astral, Project, Ward }
@@ -75,6 +75,9 @@ public sealed class ProgramDef
 {
     public string Id, Name, Desc;
     public int Cost, Loyalty;
+    /// <summary>Memory it takes in the deck (Mp), and whether it is run by a key inside the Matrix (Q, F, R).</summary>
+    public int Mp;
+    public bool Active;
 }
 
 public sealed class SpellDef
@@ -141,7 +144,7 @@ public sealed class DistrictDef
 }
 
 /// <summary>Every number in the game.</summary>
-public static class Tables
+public static partial class Tables
 {
     /// <summary>A guard below this share of health rolls once to surrender, at this chance.</summary>
     public const float SurrenderBelow = 0.25f, SurrenderChance = 0.15f;
@@ -372,14 +375,20 @@ public static class Tables
 
     public static readonly ProgramDef[] Programs =
     {
-        new() { Id = "breaker", Name = "Icebreaker", Cost = 4000, Desc = "Hacking (doors, mainframes) +50 % faster." },
-        new() { Id = "spoof", Name = "Spoof", Cost = 6000, Loyalty = 1, Desc = "Cameras ignore you. Mainframe traces never raise the alarm." },
-        new() { Id = "daemon", Name = "Daemon", Cost = 9000, Loyalty = 2, Desc = "Hacked turrets and drones stay yours for the whole run." },
-        new() { Id = "ghost", Name = "Ghost protocol", Cost = 0, Loyalty = 9, Desc = "Null's own: cameras ignore you, and ICE moves 30 % slower." },
-        new() { Id = "lamplight", Name = "Lamplight", Cost = 0, Loyalty = 99, Desc = "A gift from something that isn't anyone: every hack 25 % faster, and once a run it pulls you out of the Matrix before a trace lands." },
-        new() { Id = "deck2", Name = "Obsidian-class deck", Cost = 110000, Loyalty = 4, Desc = "Hardware: a serious deck. Hacking and moving in the Matrix 30 % faster." },
-        new() { Id = "deck3", Name = "Excalibur-class deck", Cost = 400000, Loyalty = 5, Desc = "Hardware: the best deck money can buy. Hacking and the Matrix 70 % faster. (Prestige.)" },
-        new() { Id = "overwatch", Name = "Overwatch", Cost = 7000, Loyalty = 2, Desc = "Pings every hostile on the site for 6 s when you go in." },
+        new() { Id = "breaker", Name = "Icebreaker", Cost = 4000, Mp = 2, Desc = "Hacking (doors, mainframes) +50 % faster; firewall gates in the Matrix crack 50 % faster." },
+        new() { Id = "spoof", Name = "Spoof", Cost = 6000, Loyalty = 1, Mp = 2, Desc = "Cameras ignore you. In the Matrix the first full trace hits a decoy, and traces never raise the alarm." },
+        new() { Id = "daemon", Name = "Daemon", Cost = 9000, Loyalty = 2, Mp = 2, Desc = "Hacked turrets and drones stay yours for the whole run." },
+        new() { Id = "ghost", Name = "Ghost protocol", Cost = 0, Loyalty = 9, Mp = 1, Desc = "Null's own: cameras ignore you, and IC moves 30 % slower." },
+        new() { Id = "lamplight", Name = "Lamplight", Cost = 0, Loyalty = 99, Mp = 0, Desc = "A gift from something that isn't anyone: every hack 25 % faster, and once a run it pulls you out of the Matrix before a trace lands." },
+        new() { Id = "overwatch", Name = "Overwatch", Cost = 7000, Loyalty = 2, Mp = 1, Desc = "Pings every hostile on the site for 6 s when you go in." },
+        new() { Id = "hammer", Name = "Hammer", Cost = 5000, Mp = 2, Desc = "Matrix: your spikes hit 40 % harder." },
+        new() { Id = "armor", Name = "Armor", Cost = 5000, Mp = 2, Desc = "Matrix: every IC hit on your deck does a box less." },
+        new() { Id = "decrypt", Name = "Decryption", Cost = 3000, Mp = 1, Desc = "Matrix: encrypted files and firewall gates open twice as fast." },
+        new() { Id = "sneak", Name = "Sneak", Cost = 7000, Loyalty = 1, Mp = 2, Desc = "Matrix: patrol IC only sees you on its own node, and the trace builds 25 % slower." },
+        new() { Id = "biofilter", Name = "Biofeedback filter", Cost = 6000, Loyalty = 1, Mp = 1, Desc = "Matrix: black IC and spiders hurt your body half as much." },
+        new() { Id = "patch", Name = "Patch", Cost = 4000, Loyalty = 1, Mp = 1, Active = true, Desc = "Matrix, on a key: once a jack-in, repair 4 boxes of your deck." },
+        new() { Id = "scrub", Name = "Signal scrub", Cost = 8000, Loyalty = 2, Mp = 2, Active = true, Desc = "Matrix, on a key: once a jack-in, wipe 40 % off the trace." },
+        new() { Id = "decoy", Name = "Decoy", Cost = 7000, Loyalty = 2, Mp = 2, Active = true, Desc = "Matrix, on a key: every 25 s, a copy of your icon that hunting IC chases for 6 s." },
     };
 
     public static readonly DroneDef[] Drones =
@@ -515,7 +524,7 @@ public static class Tables
             Blurb = "Builds cars out of other people's cars. Fixes yours for a price.",
             Greetings = new[] { "What did you do to my baby?", "Engines don't lie. People do.", "Got something with real torque out back." } },
         new() { Id = "decker", Name = "Null", Role = "Decker", Venue = "The Data Haven", District = "spire", Colour = 0x9a6bffff,
-            Blurb = "Lives in the Matrix, visits meatspace under protest. Sells programs and site schematics.",
+            Blurb = "Lives in the Matrix, visits meatspace under protest. Sells decks, programs and site schematics; buys paydata.",
             Greetings = new[] { "Your commlink is a sieve. Want better?", "I don't do small talk. I do packets.", "The corps changed their ICE. I didn't." } },
         new() { Id = "talismonger", Name = "Madame Sabine", Role = "Talismonger", Venue = "The Moonlit Charm", District = "strip", Colour = 0xb070ffff,
             Blurb = "Sells reagents, fetishes and formulae to the Awakened. Pretends not to know what you are.",
@@ -598,16 +607,17 @@ public static class Tables
         "+20 max HP a point.", "+4 % speed, -6 % spread a point.", "Throw range, +12 % melee a point.",
         "-6 % ability cooldowns, faster dash a point.", "+20 % hacking speed a point.", "-3 % prices a point.",
     };
-    public static readonly string[] SkillNames = { "Firearms", "Heavy weapons", "Blades", "Demolitions", "Electronics", "Stealth", "Driving" };
+    public static readonly string[] SkillNames = { "Firearms", "Heavy weapons", "Blades", "Demolitions", "Electronics", "Stealth", "Driving", "Decking" };
     public static readonly string[] SkillDesc =
     {
         "Pistols, SMGs, rifles: -10 % spread, +5 % reload speed, +2 % crit a point.",
         "Shotguns, LMGs, launchers: -10 % spread, +5 % reload speed a point.",
         "Melee: +12 % damage a point.",
         "Grenades: +10 % damage a point, +1 carried at 2 and 4.",
-        "+15 % hacking speed a point.",
+        "Maglocks, turrets, cameras, lifts: +15 % hacking speed a point; turn turrets at 3.",
         "Enemies notice you 12 % slower a point, footsteps quieter.",
         "Grip and steering +6 % a point.",
+        "The Matrix: spikes +12 %, the trace -6 %, gates +15 % a point. 3: see IC's next step and strength; 4: quiet cracking leaves no trace; 5: spikes twice as fast; 6: once a run a full trace slips off you.",
     };
 
     public static readonly (RunMod mod, string name, string desc, float pay)[] RunMods =

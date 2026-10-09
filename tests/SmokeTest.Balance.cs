@@ -13,7 +13,7 @@ namespace Sprawl;
 /// </summary>
 public partial class SmokeTest
 {
-    private static readonly ShopKind[] Buys = { ShopKind.Weapon, ShopKind.Armor, ShopKind.Cyber, ShopKind.Program, ShopKind.Drone, ShopKind.Vehicle, ShopKind.CarMod, ShopKind.Grade, ShopKind.Spell, ShopKind.Focus, ShopKind.Lifestyle, ShopKind.Property, ShopKind.Upgrade, ShopKind.Mod };
+    private static readonly ShopKind[] Buys = { ShopKind.Weapon, ShopKind.Armor, ShopKind.Cyber, ShopKind.Program, ShopKind.Deck, ShopKind.Drone, ShopKind.Vehicle, ShopKind.CarMod, ShopKind.Grade, ShopKind.Spell, ShopKind.Focus, ShopKind.Lifestyle, ShopKind.Property, ShopKind.Upgrade, ShopKind.Mod };
 
     private void Balance()
     {

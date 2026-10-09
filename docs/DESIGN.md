@@ -48,7 +48,7 @@ job board refreshes a little every day; jobs expire.
 | Doc Ichikawa, street doc | Clinic, Docks | cyberware, healing, TraumaLink contracts |
 | Big Sal, arms dealer | Sal's Surplus, Industrial | weapons, armour, grenades, medkits, weapon mods |
 | Torque, rigger | Chop shop, Barrens | vehicles, repairs |
-| Null, decker | Data haven, Spire | cyberdeck programs, terminal upgrades |
+| Null, decker | Data haven, Spire | decks, programs, buys paydata; remote hack jobs |
 | Old Wen, fence | Pawn shop, Barrens | buys loot you carry out |
 | Madame Sabine, talismonger | The Moonlit Charm, Neon Strip | spells and a power focus (the Awakened only) |
 
@@ -222,7 +222,8 @@ Armour (one worn): armoured jacket (3), lined coat (5), full body armour
 **Skills** 0-6 (karma: next level x 3): Firearms, Heavy Weapons, Blades,
 Demolitions (grenade damage +10 %, +1 carried), Electronics (hacking speed
 +15 %, hack turrets at 3), Stealth (detection -12 %, quieter), Driving
-(grip and steering +6 %).
+(grip and steering +6 %), Decking (the Matrix: spikes, the trace, gates; rules
+at 3-6 -- see `docs/MATRIX.md`).
 
 **Archetypes** at the start: Street Mage (Logic, Charisma, Manabolt and Heal), Street Samurai (Body, Agility, Firearms,
 Blades, wired reflexes), Decker (Logic, Electronics, cyberdeck), Face
@@ -370,9 +371,15 @@ cameras), club (a big dance floor, a VIP room upstairs-equivalent at the back).
   stories, Rook from the rival crew's (a merge ending).
 - **Basements** on many threat 3+ sites: stairs lead to a concrete level
   where the vault and objective often are. Everyone uses the stairs.
-- **The Matrix** (datasteal): a 9x5 node grid; move node to node, grab three
-  datastores, avoid ICE (black ICE on threat 4+). Caught: alarm and
-  dumpshock (10/25). Your body stays exposed; a hit pulls you out.
+- **The Matrix** (datasteal, Null's jobs from home, the tower's pass): a
+  host of nodes and data lines, rated 1-6 (threat, +1 at ALARM, +1 while a
+  spider is in it). Hold E to pull datastores and paydata into the deck's
+  memory, take control nodes (cameras, maglocks, turrets, the alarm clock);
+  spike IC (eight kinds, black IC at rating 5); patrols report you, an alert
+  core launches hunters; the trace fills, and full it is the old "caught":
+  alarm and dumpshock (10/25). Spiders on site are personas inside. Decks,
+  programs and memory: everything in `docs/MATRIX.md`. Your body stays
+  exposed; a hit pulls you out.
 - **Mr. Johnson** jobs (30 %) are negotiated: deal, haggle once (Charisma; never
   better than 85 %, and that Johnson opens 10 % lower next time),
   or walk. 15 % are set-ups: a squad arrives by the exit when the job is
@@ -969,7 +976,7 @@ Screech sonic rifle, Yakusoku homing missiles, Ogre assault cannon, Kagero
 rail rifle, Lancer heavy laser (ignores armour). Armour up to mil-spec battle
 armour (15). Chrome and bio: platelet factories, cerebral booster, pain
 editor, adrenaline pump, synaptic booster, control rig II, wired reflexes II,
-move-by-wire. Decks: Obsidian-class (x1.3) and the top deck (x1.7). Drones,
+move-by-wire. Decks: Obsidian-class (x1.3) and the top deck (x1.7) -- now on Null's Decks counter beside five more (docs/MATRIX.md). Drones,
 cars (Rhino security car), the Aerodyne Kite helicopter (free flights).
 
 **Cyberware grades** (`Tables.Grades`): alphaware 0.8x essence at 5x the

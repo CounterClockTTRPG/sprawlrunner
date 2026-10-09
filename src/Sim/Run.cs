@@ -114,7 +114,7 @@ public sealed class Pickup
 public enum Ev
 {
     Shot, Impact, Hit, Death, Explosion, Broken, Throw, Bounce, Pickup, Alarm, Alert, Reload, Dash, Melee,
-    Hack, Message, Door, Flash, Emp, Ignite, Telegraph, Spotted, Objective, Empty, Swap, Heal, Ability, Wave, Spell, HitMark, EnemyThrow, Whistle, Carry, Safe, Stairs, Hint, Panic, LampOut, Gas,
+    Hack, Matrix, Message, Door, Flash, Emp, Ignite, Telegraph, Spotted, Objective, Empty, Swap, Heal, Ability, Wave, Spell, HitMark, EnemyThrow, Whistle, Carry, Safe, Stairs, Hint, Panic, LampOut, Gas,
 }
 
 public readonly record struct RunEvent(Ev Kind, V2 Pos, V2 Dir = default, float Value = 0, int A = 0, string Text = null);
@@ -362,7 +362,7 @@ public sealed partial class Run
         JobType.Eliminate => $"Objective: eliminate {Job.Target}.",
         JobType.Retrieve => $"Objective: find {TheItem} and carry it out.",
         JobType.Destroy => $"Objective: destroy {Plan.Targets.Count} {Job.Item}.",
-        JobType.Datasteal => "Objective: jack into the mainframe (hold E) and finish the download.",
+        JobType.Datasteal => "Objective: jack into the mainframe (E) and pull its three datastores (hold E on each).",
         JobType.Rescue => $"Objective: free {Job.Target} (hold E) and bring them out.",
         JobType.Investigate => "Objective: find three pieces of evidence, then get out.",
         JobType.Plant => $"Objective: plant the {Job.Item} at the marked spot (hold E), unseen if you can.",
@@ -371,7 +371,12 @@ public sealed partial class Run
         JobType.Escort => $"Objective: walk {Job.Target} to the meeting (they follow you), wait while they talk, and bring them back out alive.",
         JobType.Bounty when Job.Hive => "Objective: burn out the hive -- the queen, every egg sac, everything that hatched.",
         JobType.Bounty => "Objective: clear out the nest. Everything in there is hungry.",
-        JobType.Hack => "Objective: jack in (E at your rig) and pull three datastores. Two traces and the job is blown.",
+        JobType.Hack => Job.Host switch
+        {
+            MxGoal.Crash => "Objective: jack in (E at your rig) and crash the host's core (spike it). Two traces and the job is blown.",
+            MxGoal.Plant => "Objective: jack in (E at your rig), reach the archive and plant the backdoor (hold E). Two traces and the job is blown.",
+            _ => "Objective: jack in (E at your rig) and pull three datastores. Two traces and the job is blown.",
+        },
         _ => $"Objective: clear out every {Tables.FactionNames[(int)Job.Faction]} on site.",
     };
 
@@ -444,7 +449,7 @@ public sealed partial class Run
             JobType.Retrieve when RivalCarrier != null => $"{RivalCarrier.Name} has {TheItem} -- get it back.",
             JobType.Retrieve => $"Find {TheItem}.",
             JobType.Destroy => $"Destroy {TheItem}: {TargetsLeft} left.",
-            JobType.Datasteal => DataProgress > 0 ? $"Download {DataProgress * 100:0} %. Stay jacked in (hold E)." : "Jack into the mainframe.",
+            JobType.Datasteal => DataProgress > 0 ? $"Datastores {DataProgress * 3:0}/3.{(Matrix != null && DataProgress >= 1 ? " Jack out at the entry." : "")}" : "Jack into the mainframe.",
             JobType.Rescue => Hostage.State == AiState.Tied ? $"Free {Job.Target}." : $"Bring {Job.Target} out.",
             JobType.Investigate => $"Find the evidence: {CluesFound}/{ClueCount}.",
             JobType.Plant => PlantProgress > 0 ? $"Planting the {Job.Item}: {PlantProgress * 100:0} %." : $"Plant the {Job.Item} at the marker.",
@@ -453,7 +458,7 @@ public sealed partial class Run
             JobType.Escort => EscortProgress > 0 ? $"{Job.Target} is talking: {EscortProgress * 100:0} %. Keep them alive." : $"Bring {Job.Target} to the meeting.",
             JobType.Bounty when Job.Hive => $"Burn out the hive: {HostilesLeft} left{(Actors.Any(a => a.Is(EnemyKind.HiveQueen) && !a.Dead) ? ", the queen among them" : "")}.",
             JobType.Bounty => $"Clear the nest: {HostilesLeft} left.",
-            JobType.Hack => $"Pull the datastores: {DataProgress * 3:0}/3. Traces: {Traces}/2.",
+            JobType.Hack => (DataProgress >= 1 ? "Done -- jack out at the entry." : Job.Host switch { MxGoal.Crash => "Crash the host's core.", MxGoal.Plant => "Plant the backdoor in the archive.", _ => $"Pull the datastores: {DataProgress * 3:0}/3." }) + $" Traces: {Traces}/2.",
             _ => $"Clear the site: {HostilesLeft} hostiles left.",
         };
     }
@@ -600,7 +605,7 @@ public sealed partial class Run
             Say($"{Job.Target} is dead. The client wanted them breathing. The job is blown.");
         }
         // Done from home: nothing to walk out of.
-        if (Job.Type == JobType.Hack && Phase == RunPhase.Playing && (ObjectiveDone || ObjectiveLost))
+        if (Job.Type == JobType.Hack && Phase == RunPhase.Playing && (ObjectiveDone && Matrix == null || ObjectiveLost))
         {
             Success = ObjectiveDone;
             Phase = RunPhase.Extracted;
@@ -769,7 +774,7 @@ public sealed partial class Run
         HostageDead = Hostage != null && Hostage.Dead && !Hostage.Escaped, ExfilBurned = Twist == Twist.ExfilMoved && TwistFired, Trap = _trapped,
         AllyDied = Ally != null && Ally.Dead && !AllyCarriedOut, AllyCarried = AllyCarriedOut, ObjectiveDone = ObjectiveDone, ShotTrauma = HtrHostile,
         Choices = new List<string>(Decided), Spared = Actors.Count(a => a.Surrendered && !a.Dead), KilledHelpless = KilledHelpless, EdgeUsed = EdgeUsed,
-        KnockOuts = KnockOuts, Bosses = BossKills, Walls = WallsBroken, Spells = SpellsCast, Datastores = (int)MathF.Round(DataProgress * 3), GrenadesLeft = new Dictionary<string, int>(Nades), MedkitsLeft = Medkits, Seconds = Time,
+        KnockOuts = KnockOuts, Bosses = BossKills, Walls = WallsBroken, Spells = SpellsCast, Datastores = (int)MathF.Round(DataProgress * 3), SpidersCrashed = SpidersCrashed, GrenadesLeft = new Dictionary<string, int>(Nades), MedkitsLeft = Medkits, Seconds = Time,
     };
 
     /// <summary>The crew member went down, and you carried them to the way out.</summary>

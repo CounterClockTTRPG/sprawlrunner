@@ -147,7 +147,7 @@ public sealed partial class Career
             Set("lamp:won", 2);
             return "The Registry wires ¥25,000 and a commendation nobody will ever see. On the way home every streetlight on your road goes out, one by one, and comes back on behind you. On a vending machine: 'I understand. I would have done the same.'";
         }
-        if (!Programs.Contains("lamplight")) Programs.Add("lamplight");
+        GiveProgram("lamplight");
         Set("lamp:won", 1);
         return "For one second every screen in Kessler Bay goes white. Then the city's grid is quieter than it has ever been. On your deck, a program you didn't install: Lamplight. 'We are no longer two. Thank you. When the ICE comes for you, we will be there.'";
     }

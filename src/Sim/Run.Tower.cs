@@ -18,7 +18,6 @@ public sealed partial class Run
     /// <summary>Riding the elevator: seconds left, and the floor it is going to (-1: not riding).</summary>
     public float LiftT;
     public int LiftTo = -1;
-    private bool _matrixLift;
 
     public int FloorOf(V2 p) => Plan.FloorAt(p.X);
     public int PlayerFloor => FloorOf(Projecting && AstralForm != null ? AstralForm.Pos : Rigging && Drone != null ? Drone.Pos : Player.Pos);
@@ -29,7 +28,7 @@ public sealed partial class Run
     public bool Served(int floor) => LiftOverride || _liftUnlocked.Contains(floor) || LiftHacked && !Secure(floor);
 
     /// <summary>Good enough in the Matrix to override the security pass.</summary>
-    public bool CanOverride => C.Has("deck") && C.S(Skill.Electronics) >= 3 || C.S(Skill.Electronics) >= 5;
+    public bool CanOverride => (C.Has("deck") || C.Decks.Count > 0) && C.S(Skill.Decking) >= 3 || C.S(Skill.Electronics) >= 5;
 
     private int NextServed(int from, int dir)
     {
@@ -92,10 +91,8 @@ public sealed partial class Run
         else if (!Sneaking && up >= 0) Ride(up);
         else if (!Sneaking && lockedAbove && CanOverride)
         {
-            Matrix = new MatrixRun(Job.Seed ^ (ulong)(_jacks++ * 104729), Math.Min(6, Job.Threat + 1), C.HasProgram("breaker") || C.HasProgram("ghost"), C.HasProgram("spoof") && !_spoofUsed, HackRate);
-            _matrixLift = true;
-            Events.Add(new RunEvent(Ev.Hack, p.Pos));
-            Say("Jacked into the building's security host. Pull three keys and the pass is yours.");
+            if (BrickedT > 0) Say($"Your deck is still rebooting ({BrickedT:0} s).");
+            else JackIn(MxUse.Lift, MxGoal.Keys);
         }
         return true;
     }
@@ -113,7 +110,6 @@ public sealed partial class Run
     {
         LiftOverride = true;
         LiftHacked = true;
-        _matrixLift = false;
         Say("Override accepted. The elevator will take you anywhere in the building.");
     }
 

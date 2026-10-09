@@ -81,8 +81,9 @@ Sound is off until turned on in Settings. Settings live in `user://sprawlrunner.
   prices), `Career.Contacts` (contacts hurt and lost), `Career.Legwork`, `Career.Streets` (radio, graffiti),
   `Run.Jobs` (Investigate, Plant, Defend, Escort, Hack, the TraumaLink HTR team, legwork). Storylets draw their own
   seeded randomness, never `Career.Rng`. `UI/StoryUi.cs` shows one; the PDA has the Inbox and City tabs.
-- More `Sim`: `CitySim.Pursuit` (heat, police, gangers, courier jobs), `Matrix` (the decking
-  minigame), `Autopilot` (driving to a door, used by the agent harness and chasers).
+- More `Sim`: `CitySim.Pursuit` (heat, police, gangers, courier jobs), `Matrix` (the host:
+  IC, the trace, files, gates; `Run.Matrix` is the site's side of it, `Career.Matrix` decks,
+  array, loaded programs and memory, `Tables.Matrix` the numbers; design in `docs/MATRIX.md`), `Autopilot` (driving to a door, used by the agent harness and chasers).
   `World/HubGen` builds the walkable markets. `Core/Controls` is the input layer
   (rebindable actions, gamepad, agent isolation). `src/Dev/AgentRunner.cs` -- the agent harness
   (input via `Input.ParseInputEvent`, text state with an honest ASCII map, autopilots;

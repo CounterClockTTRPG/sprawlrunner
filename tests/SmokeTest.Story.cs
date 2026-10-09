@@ -1212,7 +1212,7 @@ public partial class SmokeTest
         Check(r.Served(top), "hacked from inside: the elevator stops here now");
         // The Matrix override.
         Career d = Career.New("Decker", "decker", 4);
-        d.Skills[(int)Skill.Electronics] = 4;
+        d.Skills[(int)Skill.Decking] = 4;
         // (An easier tower: at threat 5 the security host runs black ICE, which the test bot is no match for.)
         var ej = new Job { Id = 4, Type = JobType.Datasteal, Style = SiteStyle.Office, Faction = Faction.Halcyon, Threat = 2, Seed = 4, Floors = 4, Target = "x", Item = "x", Title = "x", Lot = -1 };
         var dr = new Run(ej, d, LevelGen.Generate(ej));
@@ -1232,7 +1232,8 @@ public partial class SmokeTest
             if (attempt == 0) Check(dr.Matrix != null, "jacked into the security host");
             // The bot is a poor decker: give it two of the keys and let it fetch the last.
             if (dr.Matrix != null) dr.Matrix.Taken.AddRange(dr.Matrix.Stores.Take(2).Where(st => !dr.Matrix.Taken.Contains(st)));
-            for (int i = 0; i < 60 * 120 && dr.Matrix != null; i++) dr.Step(new RunInput { Slot = -1, Move = MatrixMove(dr.Matrix) });
+            if (dr.Matrix != null) foreach (MxFile f in dr.Matrix.Files.Where(f => dr.Matrix.Taken.Contains(f.At))) f.Taken = true;
+            for (int i = 0; i < 60 * 120 && dr.Matrix != null; i++) dr.Step(MatrixInput(dr.Matrix, i));
             Steps(dr, 0.7f);
         }
         Check(dr.LiftOverride && dr.Served(dr.FloorCount - 1), "three keys, and every floor is open");

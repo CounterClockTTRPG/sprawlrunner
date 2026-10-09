@@ -105,7 +105,7 @@ public sealed class Profile
         if (Legacy.Contains("warded")) c.Set("tlgold");
         if (Legacy.Contains("streetking")) c.Rep += 2;
         if (Legacy.Contains("wyrmcoin")) c.Cash += 10000;
-        if (Legacy.Contains("lamplight") && !c.Programs.Contains("lamplight")) c.Programs.Add("lamplight");
+        if (Legacy.Contains("lamplight")) c.GiveProgram("lamplight");
         if (Legacy.Contains("dragonfoe")) c.Attrs[(int)Attr.Logic] = Math.Min(6, c.Attrs[(int)Attr.Logic] + 1);
     }
 

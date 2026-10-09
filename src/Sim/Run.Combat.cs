@@ -196,7 +196,7 @@ public sealed partial class Run
         a.Hp -= dmg;
         a.HitFlash = 0.12f;
         if (a.Is(EnemyKind.Cloaker)) a.RevealT = Tables.CloakReveal;
-        if (a.IsPlayer && dmg >= 3) Interrupted();
+        if (a.IsPlayer && dmg >= 3 && !_biofeedback) Interrupted();
         if (by != null && by.IsPlayer && !a.IsPlayer) Events.Add(new RunEvent(Ev.HitMark, a.Pos, default, a.Hp - dmg <= 0 ? 1 : 0));
         Events.Add(new RunEvent(Ev.Hit, a.Pos, default, MathF.Min(dmg, a.Hp + dmg), a.Id, crit ? "crit" : null));
         if (a.IsMedic && a.Team == 2 && by != null && by.Team == 0) ShotAtTrauma();

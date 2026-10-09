@@ -60,7 +60,7 @@ public partial class SmokeTest
         }
         Check(spiders >= 4, $"threat-5 corporate sites have a spider ({spiders}/6)");
         var low = new Job { Id = 1, Type = JobType.Datasteal, Style = SiteStyle.Office, Faction = Faction.Halcyon, Threat = 4, Seed = 3, Target = "x", Item = "x", Title = "x", Lot = -1 };
-        Check(Enumerable.Range(1, 8).All(k => { low.Seed = (ulong)k; return LevelGen.Generate(low).Enemies.All(e => e.Kind is not (EnemyKind.Spider or EnemyKind.Cloaker or EnemyKind.Bulwark)); }), "none of the high end below threat 5");
+        Check(Enumerable.Range(1, 8).All(k => { low.Seed = (ulong)k; return LevelGen.Generate(low).Enemies.All(e => e.Kind is not (EnemyKind.Cloaker or EnemyKind.Bulwark)); }), "none of the high end below threat 5 (bar the threat-4 spider, in the Decking section)");
 
         // ---- the ghost operative ----
         Run g = HighRun();
@@ -266,7 +266,7 @@ public partial class SmokeTest
         // What the program does.
         Career d = TestCareer();
         float rate = d.HackRate;
-        d.Programs.Add("lamplight");
+        d.GiveProgram("lamplight");
         Check(d.HackRate > rate * 1.2f, "Lamplight: hacks faster");
         var prof = new Profile();
         Career whole = TestCareer();

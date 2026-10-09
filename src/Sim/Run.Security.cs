@@ -122,7 +122,7 @@ public sealed partial class Run
     }
 
     /// <summary>The security loop is running (a console was used): no clock, no cameras.</summary>
-    public bool Looped => UsedFixtures.Any(p => L[p] == Tile.Console);
+    public bool Looped => _matrixLooped || UsedFixtures.Any(p => L[p] == Tile.Console);
 
     /// <summary>How far to the next level, 0-1 (the HUD's sub-ticks).</summary>
     public float SecurityTick => Security - MathF.Floor(Security);

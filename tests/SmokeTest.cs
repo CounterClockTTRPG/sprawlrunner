@@ -30,7 +30,7 @@ public partial class SmokeTest : Node
 
     private IEnumerable<Action> Sections() => new Action[]
     {
-        Sight, Shots, Destruction, Repathing, Explosions, Fire, Stealth, Noise, Fighting, Grenades, Abilities, Magic, Bodies, EnemyGrenades, Conditions, NonLethal, Carrying, Lures, Fixtures, Ammo, Shields, Riggers, Bosses, Allies, Basements, PlaytestFixes, Hubs, Johnsons, Grudges, Spirits, Campaign, Storylets, Consequences, Crosses, TraumaLinkStreets, Turf, Atonement, Echoes, Happenings, Election, Crew, NewJobs, MoreJobs, Fifth, LateCampaigns, NewFaces, Towers, TopTier, Verbs, RunChoices, Backgrounds, Receipts, Roadblocks, Standing, EdgePoints, DialogsClose, Crowds, LegacyChoice, HighEnd, DangerCalls, SecurityLadder, Lamplighter, Balance, Performance, Block, Visitors, LongCareer, Favours, Injuries, Legacy, Phantoms, Tutorial, Bindings, Playtest2Fixes, Twists, ContactStories, Trust, StatsAndAchievements, Rigging, Playtest3Fixes, BusinessTroubles,
+        Sight, Decking, Shots, Destruction, Repathing, Explosions, Fire, Stealth, Noise, Fighting, Grenades, Abilities, Magic, Bodies, EnemyGrenades, Conditions, NonLethal, Carrying, Lures, Fixtures, Ammo, Shields, Riggers, Bosses, Allies, Basements, PlaytestFixes, Hubs, Johnsons, Grudges, Spirits, Campaign, Storylets, Consequences, Crosses, TraumaLinkStreets, Turf, Atonement, Echoes, Happenings, Election, Crew, NewJobs, MoreJobs, Fifth, LateCampaigns, NewFaces, Towers, TopTier, Verbs, RunChoices, Backgrounds, Receipts, Roadblocks, Standing, EdgePoints, DialogsClose, Crowds, LegacyChoice, HighEnd, DangerCalls, SecurityLadder, Lamplighter, Balance, Performance, Block, Visitors, LongCareer, Favours, Injuries, Legacy, Phantoms, Tutorial, Bindings, Playtest2Fixes, Twists, ContactStories, Trust, StatsAndAchievements, Rigging, Playtest3Fixes, BusinessTroubles,
         Objectives, Extraction, LevelGenSeeds, LevelGenDebug, Bot, CityGen, Driving, Autopilot, Traffic, Police, Gangs, Couriers, Motorcycles, Shops, Karma, Board, Debriefs, Saving, Audio, GeneratedAssets, Retiring, StreetEncounters, Lighting, RoomKinds, StyleRules, EntryPoints, RivalCrews, RivalArc, Presentation,
     };
 
@@ -59,25 +59,52 @@ public partial class SmokeTest : Node
 
     private void Eq<T>(T actual, T expected, string what) => Check(Equals(actual, expected), $"{what}: expected {expected}, got {actual}");
 
-    /// <summary>A Matrix route: towards the nearest datastore not yet taken, steering clear of ICE.</summary>
-    internal static V2 MatrixMove(MatrixRun m)
+    /// <summary>
+    /// A Matrix player for the bot and the tests: spike whatever is in reach, hold E on a job's datastore
+    /// (purging a program if it won't fit), crash the core or plant the backdoor when that is the job, and
+    /// walk back to the entry to jack out when it's done -- routing through gates (pushing cracks them)
+    /// and steering clear of IC that hunts.
+    /// </summary>
+    internal static RunInput MatrixInput(MatrixRun m, int frame = 0)
     {
-        var targets = m.Stores.Where(s => !m.Taken.Contains(s)).ToList();
-        if (targets.Count == 0) return V2.Zero;
+        var inp = new RunInput { Slot = -1 };
+        inp.Fire = m.SpikeTarget != null;
+        MxFile here = m.Files.FirstOrDefault(f => f.At == m.You && f.Objective && !f.Taken && !m.Taken.Contains(f.At));
+        if (here != null)
+        {
+            if (here.Mp > m.Free) inp.NextGrenade = frame % 10 == 0;
+            inp.Interact = true;
+            return inp;
+        }
+        if (m.S.Goal == MxGoal.Plant && m.You == m.PlantAt && !m.Planted) { inp.Interact = true; return inp; }
+        Pt? target = null;
+        var dYou = m.BfsAll(m.You);
+        var left = m.Files.Where(f => f.Objective && !f.Taken && !m.Taken.Contains(f.At)).Select(f => f.At).ToList();
+        if (left.Count > 0) target = left.OrderBy(t => dYou[MatrixRun.Idx(t)]).First();
+        else if (m.S.Goal == MxGoal.Crash && !m.CoreDown)
+        {
+            if (m.Near(m.You, m.Core)) { inp.Fire = true; return inp; }
+            target = m.Core;
+        }
+        else if (m.S.Goal == MxGoal.Plant && !m.Planted) target = m.PlantAt;
+        if (target == null)
+        {
+            if (m.You == m.Entry) { inp.InteractPressed = frame % 4 == 0; return inp; }
+            target = m.Entry;
+        }
+        var dist = m.BfsAll(target.Value);
         Pt best = m.You;
         int bestScore = int.MaxValue;
-        var dYou = m.Bfs(m.You);
-        Pt target = targets.OrderBy(t => dYou[MatrixRun.Idx(t)]).First();
-        var dist = m.Bfs(target);
         foreach (Pt d in Pt.Dirs4)
         {
             Pt n = m.You + d;
             if (!m.Linked(m.You, n)) continue;
-            int danger = m.Ice.Any(i => i == n) ? 1000 : m.Ice.Any(i => i.Chebyshev(n) <= 1 && (i.X == n.X || i.Y == n.Y)) ? 6 : 0;
+            int danger = m.Ice.Where(i => (i.Hunting || i.Guard) && i.Kind != IcKind.Patrol).Sum(i => i.Pos == n ? 8 : m.Near(i.Pos, n) ? 3 : 0);
             int score = dist[MatrixRun.Idx(n)] * 2 + danger;
             if (score < bestScore) { bestScore = score; best = n; }
         }
-        return new V2(best.X - m.You.X, best.Y - m.You.Y);
+        inp.Move = new V2(best.X - m.You.X, best.Y - m.You.Y);
+        return inp;
     }
 
     // ---- tiny sites -------------------------------------------------------------------
@@ -357,7 +384,7 @@ public partial class SmokeTest : Node
         Steps(r4, 3);
         Check(r4.Alarm, "a camera that sees you raises the alarm");
         Career spoof = TestCareer();
-        spoof.Programs.Add("spoof");
+        spoof.GiveProgram("spoof");
         Run r5 = Make(Site(
             "###############",
             "#P............#",
@@ -1606,21 +1633,11 @@ public partial class SmokeTest : Node
         ds.Step(new RunInput { Slot = -1, InteractPressed = true, Interact = true });
         Check(ds.Matrix != null, "E at the mainframe jacks you in");
         ds.Matrix.Ice.Clear();
-        for (int i = 0; i < 60 * 30 && ds.Matrix != null; i++) ds.Step(new RunInput { Slot = -1, Move = MatrixMove(ds.Matrix) });
+        for (int i = 0; i < 60 * 40 && ds.Matrix != null; i++) ds.Step(MatrixInput(ds.Matrix, i));
         Check(ds.DataProgress >= 1, "the download finishes");
         Check(ds.ObjectiveDone, "datasteal objective done");
         Check(!ds.Alarm, "a clean run through the Matrix raises no alarm");
-        // ICE.
-        Run di = Make(Site(rows), JobType.Datasteal);
-        di.Player.Pos = new V2(11.5f, 1.5f);
-        di.Step(new RunInput { Slot = -1, InteractPressed = true, Interact = true });
-        MatrixRun mx = di.Matrix;
-        Pt next = Pt.Dirs4.Select(d => mx.You + d).First(n => mx.Linked(mx.You, n));
-        mx.Ice.Clear();
-        mx.Ice.Add(next);
-        float hp0 = di.Player.Hp;
-        for (int i = 0; i < 30 && di.Matrix != null; i++) di.Step(new RunInput { Slot = -1, Move = new V2(next.X - mx.You.X, next.Y - mx.You.Y) });
-        Check(di.Matrix == null && di.Alarm && di.Player.Hp < hp0, "ICE dumps you out, raises the alarm, and hurts");
+        // (IC, the trace and the rest of the Matrix: the Decking section.)
         // Hurting the body yanks you out.
         Run dh = Make(Site(rows), JobType.Datasteal);
         dh.Player.Pos = new V2(11.5f, 1.5f);

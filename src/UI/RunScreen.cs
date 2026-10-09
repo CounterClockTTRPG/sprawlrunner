@@ -506,7 +506,7 @@ public partial class RunScreen : Control
             V2? goal = r.NavTarget(objective);
             if (goal is V2 gpos) EdgeArrow(gpos, r.ObjectiveDone || r.ObjectiveLost ? UITheme.Good : UITheme.Magenta, size);
 
-            if (r.Matrix != null) DrawMatrix(r.Matrix, size, r.Time);
+            if (r.Matrix != null) DrawMatrix(r, r.Matrix, size, r.Time);
 
             if (r.Phase == RunPhase.Dead)
                 UITheme.Write(this, new Vector2(0, size.Y / 2), "FLATLINED", 72, UITheme.Bad, HorizontalAlignment.Center, size.X, heading: true);
@@ -514,46 +514,182 @@ public partial class RunScreen : Control
                 UITheme.Write(this, new Vector2(0, size.Y / 2), r.Success ? "EXTRACTED" : "GETTING OUT", 64, r.Success ? UITheme.Good : UITheme.Yellow, HorizontalAlignment.Center, size.X, heading: true);
         }
 
-        /// <summary>The Matrix: nodes and data lines over the room your body is standing in.</summary>
-        private void DrawMatrix(MatrixRun m, Vector2 size, float t)
+        /// <summary>The Matrix: the host's nodes and data lines over the room your body is sitting in, the trace across the top, the deck along the bottom.</summary>
+        private void DrawMatrix(Run r, MatrixRun m, Vector2 size, float t)
         {
-            DrawRect(new Rect2(Vector2.Zero, size), new Color(0, 0.04f, 0.02f, 0.82f));
+            DrawRect(new Rect2(Vector2.Zero, size), new Color(0, 0.04f, 0.02f, 0.85f));
             for (int y = 0; y < (int)size.Y; y += 3) DrawLine(new Vector2(0, y), new Vector2(size.X, y), new Color(0.1f, 1f, 0.5f, 0.03f), 1);
-            float gx = 150, gy = 120, sx = (size.X - 300) / (MatrixRun.W - 1), sy = (size.Y - 330) / (MatrixRun.H - 1);
+            int decking = r.C.S(Skill.Decking);
+
+            // ---- the trace and the host, across the top ----
+            var top = new Rect2(120, 40, size.X - 240, 74);
+            UITheme.DrawPanel(this, top, m.Alert ? UITheme.Bad : UITheme.Term with { A = 0.7f }, 0.8f, hazard: m.Alert);
+            string host = $"HOST RATING {m.Rating}  ·  {(m.Alert ? "ALERT" : "CALM")}{(m.SpiderIn ? $"  ·  {m.Ice.Count(i => i.Kind == IcKind.Spider)} SPIDER{(m.Ice.Count(i => i.Kind == IcKind.Spider) > 1 ? "S" : "")} IN THE SYSTEM" : "")}{(m.CoreDown ? "  ·  CORE CRASHED" : "")}";
+            UITheme.Write(this, top.Position + new Vector2(14, 26), host, 17, m.Alert ? UITheme.Bad : UITheme.Term, heading: true);
+            if (m.Locked > 0) UITheme.Write(this, top.Position + new Vector2(0, 26), $"LINK-LOCKED {m.Locked:0.0} s", 17, UITheme.Magenta, HorizontalAlignment.Right, top.Size.X - 14, heading: true);
+            Color tc = m.Trace < 0.5f ? UITheme.Term : m.Trace < 0.8f ? UITheme.Yellow : UITheme.Bad;
+            UITheme.DrawSegBar(this, new Rect2(top.Position + new Vector2(14, 38), new Vector2(top.Size.X - 220, 24)), m.Trace, tc, 40);
+            UITheme.Write(this, top.Position + new Vector2(top.Size.X - 196, 58), $"TRACE {m.Trace * 100:0} %  +{m.TraceRate * 100:0.0}/s", 15, tc, mono: true);
+
+            // ---- the host ----
+            float gx = 160, gy = 170, sx = (size.X - 560) / (MatrixRun.W - 1), sy = (size.Y - 490) / (MatrixRun.H - 1);
             Vector2 At(Pt p) => new(gx + p.X * sx, gy + p.Y * sy);
             Color line = UITheme.Term with { A = 0.5f };
             for (int y = 0; y < MatrixRun.H; y++)
             for (int x = 0; x < MatrixRun.W; x++)
             {
                 var p = new Pt(x, y);
-                if (m.Linked(p, p + new Pt(1, 0))) DrawLine(At(p), At(p + new Pt(1, 0)), line, 2);
-                if (m.Linked(p, p + new Pt(0, 1))) DrawLine(At(p), At(p + new Pt(0, 1)), line, 2);
+                foreach (Pt d in new[] { new Pt(1, 0), new Pt(0, 1) })
+                {
+                    Pt q = p + d;
+                    if (!m.Linked(p, q)) continue;
+                    if (!m.Gated(p, q)) { DrawLine(At(p), At(q), line, 2); continue; }
+                    // A firewall gate: a red dashed line, and how far it has been cracked.
+                    Vector2 a = At(p), b = At(q);
+                    for (float f = 0; f < 1; f += 0.1f) DrawLine(a.Lerp(b, f), a.Lerp(b, f + 0.05f), UITheme.Bad, 3);
+                    float c = m.CrackOf(p, q);
+                    if (c > 0) DrawLine(a, a.Lerp(b, c), UITheme.Yellow, 5);
+                    Vector2 mid = a.Lerp(b, 0.5f);
+                    DrawRect(new Rect2(mid - new Vector2(7, 7), new Vector2(14, 14)), UITheme.Bad, false, 2);
+                }
             }
             for (int y = 0; y < MatrixRun.H; y++)
             for (int x = 0; x < MatrixRun.W; x++)
                 DrawCircle(At(new Pt(x, y)), 7, new Color(0.05f, 0.25f, 0.12f));
             DrawArc(At(m.Entry), 18, 0, MathF.Tau, 24, UITheme.Cyan, 2);
-            foreach (Pt s in m.Stores)
+            UITheme.Write(this, At(m.Entry) + new Vector2(-40, 40), "JACK OUT", 11, UITheme.Cyan, HorizontalAlignment.Center, 80);
+            foreach (MxFile f in m.Files)
             {
-                bool got = m.Taken.Contains(s);
-                Vector2 c = At(s);
-                Color sc = got ? UITheme.Good : UITheme.Yellow;
-                DrawColoredPolygon(new[] { c + new Vector2(0, -16), c + new Vector2(16, 0), c + new Vector2(0, 16), c + new Vector2(-16, 0) }, sc with { A = got ? 0.4f : 0.9f });
+                Vector2 c = At(f.At);
+                Vector2[] dia = { c + new Vector2(0, -16), c + new Vector2(16, 0), c + new Vector2(0, 16), c + new Vector2(-16, 0) };
+                if (f.Objective)
+                    DrawColoredPolygon(dia, (f.Taken ? UITheme.Good : UITheme.Yellow) with { A = f.Taken ? 0.4f : 0.9f });
+                else
+                {
+                    Color fc = f.Taken ? UITheme.Faint : UITheme.Amber;
+                    DrawPolyline(dia.Append(dia[0]).ToArray(), fc, 2.5f);
+                    if (!f.Taken) UITheme.Write(this, c + new Vector2(-50, 34), $"{f.Mp} Mp  {M.Money(f.Value)}{(f.Encrypted ? "  ENC" : "")}", 11, fc, HorizontalAlignment.Center, 100, mono: true);
+                }
             }
-            foreach (Pt i in m.Ice)
+            foreach (var kv in m.ControlAt)
             {
-                Vector2 c = At(i);
-                Color ic = m.Black ? UITheme.Violet : UITheme.Bad;
-                float pulse = 1 + 0.15f * MathF.Sin(t * 12);
-                DrawColoredPolygon(new[] { c + new Vector2(0, -18) * pulse, c + new Vector2(16, 12) * pulse, c + new Vector2(-16, 12) * pulse }, ic);
+                Vector2 c = At(new Pt(kv.Key % MatrixRun.W, kv.Key / MatrixRun.W));
+                bool got = m.ControlsTaken.Contains(kv.Key);
+                Color cc = got ? UITheme.Good : UITheme.Cyan;
+                DrawRect(new Rect2(c - new Vector2(13, 13), new Vector2(26, 26)), cc with { A = got ? 0.35f : 0.85f }, false, 3);
+                string label = kv.Value switch { MxControl.Cameras => "CAMERAS", MxControl.Maglocks => "MAGLOCKS", MxControl.Turrets => "TURRETS", MxControl.Alarm => "ALARM", _ => "ACCOUNTS" };
+                UITheme.Write(this, c + new Vector2(-50, 34), label, 11, cc, HorizontalAlignment.Center, 100, heading: true);
             }
-            Vector2 y0 = At(m.You);
+            {
+                Vector2 c = At(m.Core);
+                var hex = Enumerable.Range(0, 6).Select(k => c + new Vector2(MathF.Cos(k * MathF.Tau / 6), MathF.Sin(k * MathF.Tau / 6)) * 20).ToArray();
+                DrawColoredPolygon(hex, (m.CoreDown ? UITheme.Faint : UITheme.Magenta) with { A = m.CoreDown ? 0.3f : 0.55f });
+                DrawPolyline(hex.Append(hex[0]).ToArray(), m.CoreDown ? UITheme.Faint : UITheme.Magenta, 2);
+                UITheme.Write(this, c + new Vector2(-50, 38), m.CoreDown ? "CORE (DOWN)" : "CORE", 11, UITheme.Magenta, HorizontalAlignment.Center, 100, heading: true);
+                if (!m.CoreDown && m.CoreHp < m.CoreMax) DrawRect(new Rect2(c + new Vector2(-20, 24), new Vector2(40 * m.CoreHp / m.CoreMax, 4)), UITheme.Magenta);
+            }
+            if (m.PlantAt.X >= 0)
+            {
+                Vector2 c = At(m.PlantAt);
+                DrawRect(new Rect2(c - new Vector2(14, 14), new Vector2(28, 28)), (m.Planted ? UITheme.Good : UITheme.Violet) with { A = 0.8f });
+                UITheme.Write(this, c + new Vector2(-50, 36), m.Planted ? "BACKDOOR IN" : "ARCHIVE", 11, UITheme.Violet, HorizontalAlignment.Center, 100, heading: true);
+            }
+            if (m.DecoyT > 0) DrawArc(At(m.Decoy), 14, 0, MathF.Tau, 20, UITheme.Cyan with { A = 0.4f + 0.3f * MathF.Sin(t * 10) }, 3);
+
+            // ---- IC ----
+            foreach (Ic ic in m.Ice)
+            {
+                Vector2 c = At(ic.Pos);
+                Color ic0 = IcColour(ic.Kind);
+                float pulse = 1 + 0.12f * MathF.Sin(t * 10 + ic.Pos.X);
+                if (decking >= 3 && ic.Next != ic.Pos) DrawDashedLine(c, At(ic.Next), ic0 with { A = 0.6f }, 2, 6);
+                if (ic.Kind == IcKind.Spider)
+                {
+                    DrawCircle(c, 17 * pulse, new Color(0.1f, 0, 0.06f));
+                    DrawArc(c, 17 * pulse, 0, MathF.Tau, 24, ic0, 3);
+                }
+                else
+                {
+                    Vector2[] tri = { c + new Vector2(0, -19) * pulse, c + new Vector2(17, 13) * pulse, c + new Vector2(-17, 13) * pulse };
+                    DrawColoredPolygon(tri, ic.Kind == IcKind.Black ? new Color(0.05f, 0, 0.1f) : ic0);
+                    if (ic.Kind == IcKind.Black) DrawPolyline(tri.Append(tri[0]).ToArray(), ic0, 3);
+                }
+                UITheme.Write(this, c + new Vector2(-12, 8), ic.Def.Glyph.ToString(), 15, ic.Kind is IcKind.Black or IcKind.Spider ? ic0 : new Color(0, 0, 0), HorizontalAlignment.Center, 24, heading: true, outline: 1);
+                if (decking >= 3 || ic.Hp < ic.MaxHp) DrawRect(new Rect2(c + new Vector2(-18, 18), new Vector2(36 * MathF.Max(0, ic.Hp) / ic.MaxHp, 4)), ic0);
+                if (ic.Report >= 0)
+                {
+                    UITheme.Write(this, c + new Vector2(-10, -26), "!", 22, UITheme.Yellow, HorizontalAlignment.Center, 20, heading: true);
+                    DrawArc(c, 26, -MathF.PI / 2, -MathF.PI / 2 + MathF.Tau * (1 - ic.Report / Tables.MxReport), 24, UITheme.Yellow, 3);
+                }
+            }
+
+            // ---- you ----
+            float slide = Math.Clamp(1 - m.MoveCd / 0.2f, 0, 1);
+            Vector2 y0 = At(m.From).Lerp(At(m.You), slide);
             DrawCircle(y0, 14, UITheme.Cyan);
             DrawArc(y0, 20 + MathF.Sin(t * 6) * 3, 0, MathF.Tau, 24, UITheme.Cyan with { A = 0.6f }, 2);
-            UITheme.Write(this, new Vector2(0, 80), "THE MATRIX", 30, UITheme.Term, HorizontalAlignment.Center, size.X, heading: true);
-            UITheme.Write(this, new Vector2(0, size.Y - 160), $"WASD: move along the data lines   ·   grab the 3 datastores (◆ {m.Taken.Count}/3)   ·   avoid the {(m.Black ? "BLACK " : "")}ICE (▲)   ·   E on the ring: jack out{(m.SpoofLeft ? "   ·   spoof ready" : "")}", 16, UITheme.Term, HorizontalAlignment.Center, size.X);
-            UITheme.Write(this, new Vector2(0, size.Y - 134), "Your body is standing still out there. Anything that hurts it yanks you out.", 14, UITheme.Yellow, HorizontalAlignment.Center, size.X);
+            if (m.HoldT > 0 && m.HoldNeed > 0) DrawArc(y0, 28, -MathF.PI / 2, -MathF.PI / 2 + MathF.Tau * Math.Clamp(m.HoldT / m.HoldNeed, 0, 1), 32, UITheme.Yellow, 4);
+            if (m.SpikeTarget is Ic tgt) DrawArc(At(tgt.Pos), 24, 0, MathF.Tau, 24, UITheme.Bad with { A = 0.5f }, 2);
+
+            // ---- the deck, along the bottom ----
+            var bot = new Rect2(120, size.Y - 250, size.X - 240, 150);
+            UITheme.DrawPanel(this, bot, UITheme.Term with { A = 0.6f }, 0.82f);
+            DeckDef deck = r.C.ActiveDeck;
+            Vector2 o = bot.Position + new Vector2(14, 24);
+            UITheme.Write(this, o, $"{deck.Name.ToUpper()}  ·  A {m.Attack}  S {m.Sleaze}  D {m.Data}  F {m.Firewall}{(m.Firewall < m.S.Mx[3] ? $" (of {m.S.Mx[3]})" : "")}  ·  DECKING {decking}", 15, UITheme.Term, heading: true);
+            float half = (bot.Size.X - 42) / 2;
+            UITheme.Write(this, o + new Vector2(0, 24), $"CONDITION {m.Boxes - m.Damage}/{m.Boxes}", 13, UITheme.Dim, mono: true);
+            UITheme.DrawSegBar(this, new Rect2(o + new Vector2(150, 8), new Vector2(half - 150, 20)), (m.Boxes - m.Damage) / (float)m.Boxes, m.Damage * 3 >= m.Boxes * 2 ? UITheme.Bad : UITheme.Cyan, m.Boxes);
+            // Memory: a cell per Mp -- programs violet, files yellow, the rest free.
+            int progMp = m.Programs.Sum(p => Tables.Program(p).Mp), mem = Math.Max(1, m.S.Memory);
+            UITheme.Write(this, o + new Vector2(half + 14, 24), $"MEMORY {m.Free}/{mem} Mp free", 13, UITheme.Dim, mono: true);
+            var mr = new Rect2(o + new Vector2(half + 200, 8), new Vector2(half - 200, 20));
+            DrawRect(mr, new Color(0, 0, 0, 0.65f));
+            float cw = (mr.Size.X - 2) / mem;
+            for (int k = 0; k < mem; k++)
+            {
+                Color cc = k < progMp ? UITheme.Violet : k < progMp + m.UsedMp ? UITheme.Yellow : UITheme.Term with { A = 0.12f };
+                DrawRect(new Rect2(mr.Position + new Vector2(2 + k * cw, 2), new Vector2(cw - 2, mr.Size.Y - 4)), cc);
+            }
+            var actives = m.Programs.Where(p => Tables.Program(p).Active).Take(3).ToList();
+            string keys = string.Join("   ", actives.Select((p, k) => $"[{"QFR"[k]}] {Tables.Program(p).Name}"));
+            string passive = string.Join(", ", m.Programs.Where(p => !Tables.Program(p).Active).Select(p => Tables.Program(p).Name));
+            UITheme.Write(this, o + new Vector2(0, 58), (keys.Length > 0 ? keys + "     " : "") + (passive.Length > 0 ? "running: " + passive : "no programs running") + (m.Crashed.Count > 0 ? $"     crashed: {string.Join(", ", m.Crashed.Select(p => Tables.Program(p).Name))}" : ""), 14, UITheme.Violet);
+            string hold = m.Holding != null ? $"Hold E: {m.Holding}" : m.You == m.Entry ? (m.Locked > 0 ? "Link-locked: you can't jack out yet" : "E: jack out") : m.SpikeTarget is Ic st ? $"Space / click: spike the {st.Def.Name}" : "";
+            UITheme.Write(this, o + new Vector2(0, 86), hold, 16, UITheme.Yellow, heading: true);
+            UITheme.Write(this, o + new Vector2(0, 110), "WASD: move  ·  Space/click: spike IC next to you, or brute-force a gate  ·  push into a gate to crack it quietly  ·  G: purge a program  ·  your body is sitting still out there", 12, UITheme.Dim);
+            // The IC legend, on the right.
+            var kinds = m.Ice.Select(i => i.Kind).Distinct().OrderBy(k => k).ToList();
+            float ly = 150;
+            foreach (IcKind kind in kinds)
+            {
+                IcDef def = Tables.IcOf(kind);
+                UITheme.Write(this, new Vector2(size.X - 330, ly), $"{def.Glyph}  {def.Name.ToUpper()}", 12, IcColour(kind), heading: true);
+                ly += 17;
+                // The description, wrapped by hand (custom-drawn text doesn't wrap).
+                var words = new System.Text.StringBuilder();
+                foreach (string word in def.Desc.Split(' '))
+                {
+                    if (words.Length + word.Length > 44) { UITheme.Write(this, new Vector2(size.X - 312, ly), words.ToString(), 11, UITheme.Dim); ly += 15; words.Clear(); }
+                    words.Append(words.Length > 0 ? " " : "").Append(word);
+                }
+                if (words.Length > 0) { UITheme.Write(this, new Vector2(size.X - 312, ly), words.ToString(), 11, UITheme.Dim); ly += 15; }
+                ly += 6;
+            }
         }
+
+        private static Color IcColour(IcKind k) => k switch
+        {
+            IcKind.Patrol => new Color(0.95f, 0.85f, 0.4f),
+            IcKind.Killer => UITheme.Bad,
+            IcKind.Track => UITheme.Amber,
+            IcKind.TarBaby => new Color(0.6f, 0.45f, 0.3f),
+            IcKind.Acid => new Color(0.6f, 1f, 0.2f),
+            IcKind.Crash => new Color(1f, 0.5f, 0.8f),
+            IcKind.Blaster => new Color(1f, 0.55f, 0.3f),
+            IcKind.Black => UITheme.Violet,
+            _ => UITheme.Magenta,
+        };
 
         private Image _mapImg;
         private ImageTexture _mapTex;

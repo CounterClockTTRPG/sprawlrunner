@@ -4,7 +4,7 @@ using System.Linq;
 
 namespace Sprawl;
 
-public enum ShopKind { Service, Grade, CarMod, Lifestyle, Property, Retainer, Drone, Favour, Heal, Hire, Ammo, Spell, Focus, Weapon, Grenade, Armor, Medkit, Mod, Cyber, Program, Vehicle, Upgrade, TraumaLink, Schematics, Repair, Sell, SellAll }
+public enum ShopKind { Service, Grade, CarMod, Lifestyle, Property, Retainer, Drone, Favour, Heal, Hire, Ammo, Spell, Focus, Weapon, Grenade, Armor, Medkit, Mod, Cyber, Program, Deck, Vehicle, Upgrade, TraumaLink, Schematics, Repair, Sell, SellAll }
 
 /// <summary>One line in a shop: what, how much, and why not (if not).</summary>
 public sealed class Offer
@@ -116,7 +116,14 @@ public sealed partial class Career
                 break;
             case "decker":
                 foreach (ProgramDef p in Tables.Programs.Where(p => p.Loyalty < 9))
-                    list.Add(new Offer { Kind = ShopKind.Program, Id = p.Id, Name = p.Name, Desc = p.Desc, Price = P(p.Cost, contact), Block = HasProgram(p.Id) ? "Owned." : Need(p.Loyalty) ?? EliteBlock(p.Id == "deck3") ?? (p.Id == "deck3" && !HasProgram("deck2") ? "Needs the Obsidian-class deck first." : null), Owned = HasProgram(p.Id) ? "owned" : null });
+                    list.Add(new Offer { Kind = ShopKind.Program, Id = p.Id, Name = p.Name, Desc = $"{p.Mp} Mp{(p.Active ? ", on a key" : "")}. {p.Desc}", Price = P(p.Cost, contact), Block = OwnsProgram(p.Id) ? "Owned." : Need(p.Loyalty), Owned = OwnsProgram(p.Id) ? (HasProgram(p.Id) ? "loaded" : "owned") : null });
+                foreach (DeckDef d in Tables.Decks.Where(d => !d.Builtin))
+                    list.Add(new Offer { Kind = ShopKind.Deck, Id = d.Id, Name = d.Name, Desc = $"Rating {d.Rating} ({Tables.MxBoxesBase + Tables.MxBoxesPer * d.Rating} boxes), array {string.Join(" ", d.Array)}, memory {d.Memory} Mp. {d.Desc}{DeckCompare(d)}", Price = P(d.Cost, contact),
+                        Block = Decks.Contains(d.Id) ? "Owned." : Need(d.Loyalty) ?? EliteBlock(d.Elite) ?? (d.Id == "deck3" && !Decks.Contains("deck2") ? "Needs the Obsidian-class deck first." : null), Owned = Decks.Contains(d.Id) ? (ActiveDeck.Id == d.Id ? "carried" : "owned") : null });
+                // Null buys paydata at what it is worth.
+                for (int i = 0; i < Loot.Count; i++)
+                    if (Loot[i].Name.StartsWith(PaydataPrefix))
+                        list.Add(new Offer { Kind = ShopKind.Sell, Id = i.ToString(), Name = Loot[i].Name, Desc = "Null pays what it's worth, and asks nothing.", Price = Loot[i].Value });
                 AddSchematics(list, contact);
                 break;
             case "fixer":
@@ -297,6 +304,16 @@ public sealed partial class Career
         return $"DPS {Dps(w):0}  ·  dmg {dmg}, {w.Rate:0.#}/s, mag {w.Mag}, noise {w.Noise:0}{(w.ArmorMul < 1 ? $", armour x{w.ArmorMul:0.#}" : "")}. {w.Desc}";
     }
 
+    public const string PaydataPrefix = "Paydata: ";
+
+    /// <summary>A deck against the one you carry.</summary>
+    private string DeckCompare(DeckDef d)
+    {
+        DeckDef m = ActiveDeck;
+        if (m.Id == d.Id) return "";
+        return $"  [vs your {m.Name}: rating {(d.Rating >= m.Rating ? "+" : "")}{d.Rating - m.Rating}, memory {(d.Memory >= m.Memory ? "+" : "")}{d.Memory - m.Memory} Mp, array total {(d.Array.Sum() >= m.Array.Sum() ? "+" : "")}{d.Array.Sum() - m.Array.Sum()}]";
+    }
+
     /// <summary>The same weapon against what you carry in that slot.</summary>
     public string Compare(WeaponDef w)
     {
@@ -385,7 +402,11 @@ public sealed partial class Career
                 if (err != null) { if (o.Extra != null) CyberGrade.Remove(o.Id); return err; }
                 break;
             case ShopKind.Program:
-                Programs.Add(o.Id);
+                GiveProgram(o.Id);
+                break;
+            case ShopKind.Deck:
+                Decks.Add(o.Id);
+                CarryDeck(o.Id);
                 break;
             case ShopKind.Drone:
                 Drones.Add(o.Id);
@@ -467,7 +488,7 @@ public sealed partial class Career
         ShopKind.Weapon or ShopKind.Grenade or ShopKind.Armor or ShopKind.Medkit or ShopKind.Mod or ShopKind.Ammo => "arms",
         ShopKind.Cyber or ShopKind.TraumaLink or ShopKind.Grade => "doc",
         ShopKind.Vehicle or ShopKind.Repair or ShopKind.Drone or ShopKind.CarMod => "rigger",
-        ShopKind.Program => "decker",
+        ShopKind.Program or ShopKind.Deck => "decker",
         ShopKind.Spell or ShopKind.Focus => "talismonger",
         ShopKind.Schematics => "fixer",
         _ => null,

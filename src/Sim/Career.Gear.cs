@@ -136,7 +136,6 @@ public sealed partial class Career
     // ---- derived numbers from the top tier --------------------------------------------------
 
     public int LogicEff => A(Attr.Logic) + (Has("cerebral") ? 1 : 0);
-    public float DeckMul => HasProgram("deck3") ? 1.7f : HasProgram("deck2") ? 1.3f : 1f;
     /// <summary>The power focus: rank 1 is the one Sabine has always sold; ranks 2 and 3 are refinements of it.</summary>
     public float FocusPower => FocusRank >= 2 ? Tables.FocusRanks[Math.Min(FocusRank, Tables.FocusRanks.Length) - 1].power : PowerFocus ? 1.25f : 1f;
     public bool OwnsHeli => Vehicles.Any(v => Tables.Vehicle(v).Air);

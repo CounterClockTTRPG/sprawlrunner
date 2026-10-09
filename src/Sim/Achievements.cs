@@ -23,6 +23,7 @@ public static class Achievements
         new("hundred", "Body count", "Kill 100 hostiles.", c => c.Kills >= 100),
         new("giant", "Giant killer", "Take down a boss.", c => c.Stat("bosses") >= 1),
         new("cowboy", "Console cowboy", "Pull all three datastores out of the Matrix.", c => c.Stat("matrix") >= 1),
+        new("spiderbite", "Spider bite", "Crash a security spider's persona in the Matrix.", c => c.Stat("spiders") >= 1),
         new("renewal", "Urban renewal", "Bring down 200 walls.", c => c.Stat("walls") >= 200),
         new("spells", "Spellslinger", "Cast 50 spells.", c => c.Stat("spells") >= 50),
         new("delivery", "Special delivery", "Finish a courier job.", c => c.Stat("done.Courier") >= 1),

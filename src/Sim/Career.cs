@@ -31,7 +31,7 @@ public sealed partial class Career
     public int Karma, KarmaEarned;
     public int Rep;
     public int[] Attrs = new int[6];
-    public int[] Skills = new int[7];
+    public int[] Skills = new int[8];
     public List<string> Cyber = new();
     public List<string> Programs = new();
     public List<string> Spells = new();
@@ -125,12 +125,12 @@ public sealed partial class Career
         switch (archetype)
         {
             case "decker":
-                a = new[] { 2, 2, 1, 2, 4, 2 }; s = new[] { 1, 0, 0, 0, 3, 1, 0 };
+                a = new[] { 2, 2, 1, 2, 4, 2 }; s = new[] { 1, 0, 0, 0, 2, 1, 0, 3 };
                 c.Install("deck");
-                c.Programs.Add("breaker");
+                c.GiveProgram("breaker");
                 break;
             case "face":
-                a = new[] { 2, 3, 1, 2, 2, 4 }; s = new[] { 1, 0, 0, 0, 1, 2, 1 };
+                a = new[] { 2, 3, 1, 2, 2, 4 }; s = new[] { 1, 0, 0, 0, 1, 2, 1, 0 };
                 c.Weapons.Add("whisper");
                 c.Primary = "whisper";
                 c.Cash = 6000;
@@ -138,14 +138,14 @@ public sealed partial class Career
                 c.ArmorId = "jacket";
                 break;
             case "engineer":
-                a = new[] { 3, 2, 3, 2, 2, 1 }; s = new[] { 0, 2, 0, 3, 1, 0, 0 };
+                a = new[] { 3, 2, 3, 2, 2, 1 }; s = new[] { 0, 2, 0, 3, 1, 0, 0, 0 };
                 c.Weapons.Add("breacher");
                 c.Primary = "breacher";
                 c.Grenades["frag"] = 4;
                 c.Grenades["breach"] = 1;
                 break;
             case "mage":
-                a = new[] { 3, 2, 1, 2, 4, 2 }; s = new[] { 1, 0, 0, 0, 0, 2, 0 };
+                a = new[] { 3, 2, 1, 2, 4, 2 }; s = new[] { 1, 0, 0, 0, 0, 2, 0, 0 };
                 c.Spells.AddRange(new[] { "manabolt", "heal" });
                 c.SlotQ = Ability.Manabolt;
                 c.SlotF = Ability.Heal;
@@ -154,7 +154,7 @@ public sealed partial class Career
                 break;
             default:
                 c.Archetype = "samurai";
-                a = new[] { 3, 3, 2, 3, 1, 1 }; s = new[] { 2, 0, 2, 0, 0, 0, 1 };
+                a = new[] { 3, 3, 2, 3, 1, 1 }; s = new[] { 2, 0, 2, 0, 0, 0, 1, 0 };
                 c.Install("wired");
                 c.Weapons.Add("katana");
                 c.Melee = "katana";
@@ -162,6 +162,7 @@ public sealed partial class Career
         }
         c.Attrs = a;
         c.Skills = s;
+        c.LoadedSet = true;
         c.Etiquettes.AddRange(archetype switch
         {
             "decker" => new[] { "Corporate" },
@@ -191,7 +192,9 @@ public sealed partial class Career
     /// Stories finished before the fork existed count as 1.
     /// </summary>
     public int ArcPath(string contact) => !ArcDone(contact) ? 0 : Flag("arc:" + contact) switch { 0 => 1, < 0 => 0, var v => v };
-    public bool HasProgram(string p) => Programs.Contains(p);
+    /// <summary>A program that is owned and loaded into the deck: only those run.</summary>
+    public bool HasProgram(string p) => Programs.Contains(p) && Loaded.Contains(p);
+    public bool OwnsProgram(string p) => Programs.Contains(p);
     public bool HasUpgrade(string u) => Upgrades.Contains(u);
     public bool HasMod(string weapon, string mod) => Mods.Contains(weapon + ":" + mod);
     public int A(Attr a) => Attrs[(int)a];
@@ -337,5 +340,5 @@ public sealed partial class Career
     // ---- saving ----------------------------------------------------------------
 
     public string ToJson() => JsonSerializer.Serialize(this, Json.Options);
-    public static Career FromJson(string s) => JsonSerializer.Deserialize<Career>(s, Json.Options);
+    public static Career FromJson(string s) => JsonSerializer.Deserialize<Career>(s, Json.Options)?.Migrated();
 }

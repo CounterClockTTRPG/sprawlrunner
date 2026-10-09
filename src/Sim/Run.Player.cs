@@ -26,8 +26,6 @@ public sealed partial class Run
     public Actor CarriedBody;
     public float WhistleCd, UseProgress;
     private bool _bodyArmed;
-    /// <summary>Jacked into the mainframe (null when not).</summary>
-    public MatrixRun Matrix;
     /// <summary>The adrenaline pump is open: below 40 % health.</summary>
     public bool Adrenaline => C.Has("adrenaline") && Player.Hp < Player.MaxHp * 0.4f;
     private float _mediT = 6;
@@ -44,73 +42,13 @@ public sealed partial class Run
             Events.Add(new RunEvent(Ev.Heal, Player.Pos));
         }
     }
-    private int _jacks;
-    private bool _spoofUsed, _lampUsed;
-    private readonly List<Pt> _matrixTaken = new();
-
-    /// <summary>In the Matrix the body stands still; the deck does the moving.</summary>
-    private void StepMatrix(RunInput inp, float dt)
-    {
-        Player.Vel = V2.Zero;
-        MatrixEvent ev = Matrix.Step(dt, inp.Move, inp.InteractPressed);
-        if (_matrixLift)
-        {
-            // The elevator's security host: three keys and the pass is yours; nothing here counts as paydata.
-            if (ev == MatrixEvent.Store && Matrix.Taken.Count >= 3) { Matrix = null; LiftOverridden(); Events.Add(new RunEvent(Ev.Hack, Player.Pos)); return; }
-            if (ev == MatrixEvent.Store) { Events.Add(new RunEvent(Ev.Pickup, Player.Pos, Value: (int)PickupKind.Loot, Text: $"Pass key {Matrix.Taken.Count}/3")); return; }
-            if (ev is MatrixEvent.Caught or MatrixEvent.Left) _matrixLift = false;
-            if (ev == MatrixEvent.Left) { Matrix = null; Say("Jacked out of the security host."); return; }
-        }
-        while (_matrixTaken.Count < Matrix.Taken.Count) _matrixTaken.Add(Matrix.Taken[_matrixTaken.Count]);
-        DataProgress = MathF.Max(DataProgress, _matrixTaken.Count / 3f);
-        switch (ev)
-        {
-            case MatrixEvent.Store:
-                Events.Add(new RunEvent(Ev.Pickup, Player.Pos, Value: (int)PickupKind.Loot, Text: $"Paydata {_matrixTaken.Count}/3"));
-                if (_matrixTaken.Count >= 3) { Matrix = null; Say("Download complete. Jacked out."); Events.Add(new RunEvent(Ev.Hack, Player.Pos)); }
-                break;
-            case MatrixEvent.Spoofed:
-                _spoofUsed = true;
-                Say("ICE hit your spoof and lost you.");
-                Events.Add(new RunEvent(Ev.Emp, Player.Pos, default, 0.5f));
-                break;
-            case MatrixEvent.Caught when SpendEdge(true, "you tear the trace out of your deck before it lands. Jack back in."):
-                Matrix = null;
-                break;
-            case MatrixEvent.Caught when C.HasProgram("lamplight") && !_lampUsed:
-                _lampUsed = true;
-                Matrix = null;
-                Say("Something in the system pulls you out before the trace lands. For a moment the screen is warm, like a lamp.");
-                break;
-            case MatrixEvent.Caught:
-            {
-                bool black = Matrix.Black;
-                Matrix = null;
-                Hurt(Player, black ? 25 : 10, null, false, ignoreArmor: true);
-                if (Job.Type == JobType.Hack)
-                {
-                    // From home there is nobody to come running -- but a trace is a trace.
-                    Traces++;
-                    if (Traces >= 2) { ObjectiveLost = true; Say("Traced twice. They have your node -- the job is blown. Pull the plug."); }
-                    else Say(black ? "Black ICE! Dumpshock. One more trace and they have you." : "Traced! Dumped out. One more and they have you.");
-                    break;
-                }
-                RaiseAlarm(black ? "Black ICE! Dumpshock -- and security knows where you are." : "Traced by ICE! Dumped out, and security is coming.");
-                break;
-            }
-            case MatrixEvent.Left:
-                Matrix = null;
-                Say("Jacked out.");
-                break;
-        }
-    }
     private float _interruptT;
 
     /// <summary>Getting hit breaks concentration: held actions stall and lose their progress (downloads keep theirs).</summary>
     private void Interrupted()
     {
         _interruptT = 0.6f;
-        if (Matrix != null) { Matrix = null; Say("Something hit your body -- you were yanked out of the Matrix."); }
+        if (Matrix != null) { EndMatrix(); Say("Something hit your body -- you were yanked out of the Matrix."); }
         if (Rigging) { Rigging = false; Say("Your body is hit -- you snap back out of the drone."); UpdateFov(true); }
         if (Projecting) EndProjection("Something hit your body -- you snap back into it.");
         FreeProgress = 0;
@@ -173,6 +111,7 @@ public sealed partial class Run
         if (MeleeSwing > 0) MeleeSwing -= dt;
         Burning(p, dt);
         Sneaking = inp.Sneak;
+        StepDeck(dt);
         if (Matrix != null) { StepMatrix(inp, dt); return; }
         if (LiftTo >= 0) { StepLift(dt); return; }
         StepWards(dt);
@@ -555,17 +494,11 @@ public sealed partial class Run
             return;
         }
         // The mainframe.
-        if (Job.Type is JobType.Datasteal or JobType.Hack && DataProgress < 1 && !ObjectiveLost && Plan.Mainframe.X >= 0 && V2.Distance(Plan.Mainframe.Centre, p.Pos) < 1.4f)
+        if (Job.Type is JobType.Datasteal or JobType.Hack && !ObjectiveLost && Plan.Mainframe.X >= 0 && V2.Distance(Plan.Mainframe.Centre, p.Pos) < 1.4f)
         {
-            Prompt = DataProgress > 0 ? $"E: jack back in ({DataProgress * 3:0}/3 datastores)" : "E: jack into the mainframe";
-            if (pressed)
-            {
-                Matrix = new MatrixRun(Job.Seed ^ (ulong)(_jacks++ * 7919), Math.Min(6, Job.Threat + (SpiderUp ? 1 : 0)), C.HasProgram("breaker") || C.HasProgram("ghost"), C.HasProgram("spoof") && !_spoofUsed, HackRate * (C.HasProgram("ghost") ? 1.3f : 1f));
-                // Paydata already pulled stays pulled.
-                for (int k = 0; k < _matrixTaken.Count && k < 3; k++) Matrix.Taken.Add(Matrix.Stores[k]);
-                Events.Add(new RunEvent(Ev.Hack, p.Pos));
-                Say("Jacked in. Your body is sitting very still out there.");
-            }
+            if (BrickedT > 0) { Prompt = $"Your deck is rebooting ({BrickedT:0} s)"; return; }
+            Prompt = DataProgress >= 1 ? "E: jack back in (paydata left behind?)" : _jacks > 0 ? $"E: jack back in{(Job.Host == MxGoal.Pull ? $" ({DataProgress * 3:0}/3 datastores)" : "")}" : "E: jack into the mainframe";
+            if (pressed) JackIn(Job.Type == JobType.Hack ? MxUse.Home : MxUse.Site, Job.Type == JobType.Hack ? Job.Host : MxGoal.Pull);
             return;
         }
         // The plant.

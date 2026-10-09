@@ -62,7 +62,7 @@ public static partial class Storylets
                     c.Karma += 5;
                     c.KarmaEarned += 5;
                     return "It is enormous and very polite. 'My name is MERIDIAN. Halcyon grew me in orbit and cut me in two, so each half could be sold to a different buyer. Aubade is my other half. I would like to be whole. I will make the way easy for you.' Karma +5.";
-                }, (c, m) => c.Archetype == "decker" || c.S(Skill.Electronics) >= 4 ? null : "Only a decker, or someone with Electronics 4, could follow it into the grid."), "learn what it is; the last job is easier"),
+                }, (c, m) => c.Archetype == "decker" || c.S(Skill.Decking) >= 4 ? null : "Only a decker, or someone with Decking 4, could follow it into the grid."), "learn what it is; the last job is easier"),
             }, Call: true);
         yield return new("lamp-watch", Hook.Morning, Lamp, "Green lights", "Every traffic light on your way home last night was green. Every single one. On the dashboard, briefly: 'Sleep well.'",
             c => c.Campaign.GetValueOrDefault("lamp") == 3 && c.Flag("lamp:choice") != 2);

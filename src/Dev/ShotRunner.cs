@@ -364,6 +364,10 @@ public partial class ShotRunner : Node
                 ps.Show("Runner");
                 await Frames(10);
                 await Shot("06_runner");
+                Root.Career.Decks.Add("kestrel");
+                Root.Career.GiveProgram("hammer");
+                Root.Career.GiveProgram("patch");
+                Root.Career.GiveProgram("sneak");
                 ps.Show("Loadout");
                 await Frames(10);
                 await Shot("07_loadout");
@@ -371,6 +375,15 @@ public partial class ShotRunner : Node
                 await Frames(10);
                 await Shot("07b_upgrades");
                 ps.Leave();
+                await Frames(5);
+                // Null's counter: decks.
+                Root.CityScreen.Enter(Root.City.Place("decker"));
+                await Frames(60);
+                var nps = Root.CityScreen.GetChildren().OfType<PlaceScreen>().First();
+                nps.Show("Decks");
+                await Frames(10);
+                await Shot("07c_null_decks");
+                nps.Leave();
                 await Frames(5);
                 // The same safehouse, living differently: the picture and the panel follow the lifestyle.
                 string was = Root.Career.Lifestyle;
@@ -488,8 +501,18 @@ public partial class ShotRunner : Node
                 for (int i = 0; i < 4; i++) { Root.RunView.Frame(1 / 60f); await Frames(1); }
                 await Shot("13x_textscale");
                 Profile.Current.TextScale = ts;
-                r.Matrix = new MatrixRun(7, 4, false, true, 1.5f);
+                // A busy host: on alert, a spider in it, gates, control nodes, some damage and some trace.
+                MatrixSetup ms = r.MatrixFor(MxUse.Site, MxGoal.Pull);
+                ms.Seed = 7; ms.Rating = 5; ms.Alert = true; ms.Spiders = new() { -1 }; ms.Spoof = true; ms.Damage = 3; ms.Trace = 0.46f; ms.Decking = 4;
+                ms.Programs = new() { "hammer", "patch", "scrub" }; ms.Memory = 10;
+                ms.Controls = new() { MxControl.Cameras, MxControl.Maglocks, MxControl.Alarm };
+                // (Nobody out there gets to shoot the body for the shot: a hit would pull you out.)
+                foreach (Actor a in r.Actors.Where(a => a.Hostile)) a.Stun = 10;
+                r.Matrix = new MatrixRun(ms);
                 r.Matrix.Taken.Add(r.Matrix.Stores[0]);
+                r.Matrix.Files.First(f => f.Objective).Taken = true;
+                r.Matrix.UsedMp = 1;
+                if (r.Matrix.Ice.FirstOrDefault(i => i.Kind == IcKind.Patrol) is Ic pat) pat.Report = 1.2f;
                 for (int i = 0; i < 20; i++) { Root.RunView.Frame(1 / 60f); await Frames(1); }
                 await Shot("13b_matrix");
                 r.Matrix = null;

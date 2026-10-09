@@ -1580,7 +1580,11 @@ public sealed class LevelGen
         if (_job.Faction == Faction.Halcyon && !defend && _job.Type != JobType.Bounty)
         {
             // A security spider at the deepest console (threat 5 and up): find him, or every hack is slow.
-            if (_job.Threat >= Tables.FirstThreat(EnemyKind.Spider) && PlaceSpider()) budget -= Tables.Enemy(EnemyKind.Spider).Budget;
+            // A security spider at the deepest console (threat 5, or 4 where there is data to guard): find him, or
+            // every hack is slow and he is waiting in the host. On the hardest sites he has a partner.
+            bool data = _job.Type == JobType.Datasteal || _job.Style is SiteStyle.Office or SiteStyle.Lab;
+            int spiders = _job.Threat >= Tables.FirstThreat(EnemyKind.Spider) ? (data ? 2 : 1) : _job.Threat >= 4 && data ? 1 : 0;
+            for (int k = 0; k < spiders && PlaceSpider(); k++) budget -= Tables.Enemy(EnemyKind.Spider).Budget;
             int cams = 1 + _job.Threat;
             for (int k = 0; k < cams && rooms.Count > 0; k++)
             {
@@ -1736,6 +1740,7 @@ public sealed class LevelGen
         for (int x = 1; x < L.W - 1; x++)
         {
             if (L[x, y] != Tile.Console) continue;
+            if (P.Enemies.Any(e => e.Kind == EnemyKind.Spider && Pt.Of(e.Pos).Chebyshev(new Pt(x, y)) <= 1)) continue;
             float d = V2.Distance(new Pt(x, y).Centre, P.Entry.Centre) + (P.Tower ? P.FloorAt(x) * 100 : 0);
             if (d > bd) { bd = d; best = new Pt(x, y); }
         }

@@ -116,7 +116,7 @@ public partial class PlaceScreen : Control
             "doc" => new[] { "Clinic" },
             "arms" => new[] { "Guns & gear" },
             "rigger" => new[] { "Vehicles" },
-            "decker" => new[] { "Programs" },
+            "decker" => new[] { "Programs", "Decks", "Paydata" },
             "talismonger" => new[] { "Spells" },
             "cop" => new[] { "Precinct" },
             "press" => new[] { "Newsroom" },
@@ -204,7 +204,9 @@ public partial class PlaceScreen : Control
             case "Clinic": Offers("doc", $"Essence {C.Essence:0.00} / 6.00. Chrome eats your essence; medkits work worse the lower it gets."); break;
             case "Guns & gear": Offers("arms", "Weapons, armour, grenades and medkits. Mods fit weapons you own."); break;
             case "Vehicles": Offers("rigger", "Wheels. The one you buy is the one you drive away in."); break;
-            case "Programs": Offers("decker", "Programs run off your commlink -- or your cyberdeck, if you have one."); break;
+            case "Programs": Offers("decker", $"Programs run loaded in your deck's memory ({C.ActiveDeck.Name}: {C.MemoryFree}/{C.Memory} Mp free; load them in the safehouse Loadout tab). Paydata you pull shares the same memory.", o => o.Kind is not (ShopKind.Deck or ShopKind.Sell)); break;
+            case "Decks": Offers("decker", $"Null's hardware. You carry the {C.ActiveDeck.Name} (rating {C.ActiveDeck.Rating}, {C.Memory} Mp). Arrays are Attack, Sleaze, Data processing, Firewall -- deal them out as you like in the Loadout tab.", o => o.Kind == ShopKind.Deck); break;
+            case "Paydata": Offers("decker", "Null buys paydata at what it's worth. Wen pays her cut, like for anything else.", o => o.Kind == ShopKind.Sell); break;
             case "Precinct": Offers("cop", "Dace sells what his badge is worth. Cash, and he never met you."); break;
             case "Newsroom": Offers("press", "Quill buys true stories, kills false ones, and prints the ones that hurt the right people."); break;
             case "Spells": Offers("talismonger", C.Awakened ? $"Spell power x{C.SpellPower:0.00} (essence {C.Essence:0.00})." : "Sabine only teaches the Awakened. You are not."); break;
@@ -218,7 +220,7 @@ public partial class PlaceScreen : Control
     {
         ShopKind.Weapon => "Guns", ShopKind.Grenade or ShopKind.Medkit => "Gear", ShopKind.Armor => "Armour", ShopKind.Mod or ShopKind.Ammo => "Mods",
         ShopKind.Cyber or ShopKind.Grade or ShopKind.Heal => "Chrome", ShopKind.TraumaLink => "TraumaLink", ShopKind.Vehicle or ShopKind.Repair => "Vehicles",
-        ShopKind.Drone => "Drones", ShopKind.CarMod => "Car work", ShopKind.Property or ShopKind.Retainer => "Business", ShopKind.Favour or ShopKind.Hire => "Favours",
+        ShopKind.Drone => "Drones", ShopKind.Deck => "Decks", ShopKind.Program => "Programs", ShopKind.CarMod => "Car work", ShopKind.Property or ShopKind.Retainer => "Business", ShopKind.Favour or ShopKind.Hire => "Favours",
         _ => "Other",
     };
 
@@ -339,6 +341,7 @@ public partial class PlaceScreen : Control
         Stat("Sight", $"{C.Fov} tiles{(C.Thermal ? " + thermal" : "")}");
         Stat("Throw range", $"{C.ThrowRange:0} tiles");
         Stat("Hacking speed", $"x{C.HackRate:0.0}");
+        Stat("Deck", $"{C.ActiveDeck.Name}, {C.DeckBoxes} boxes, {C.Memory} Mp");
         Stat("Dash cooldown", $"{C.DashCooldown:0.0} s");
         Stat("Grenades carried", $"{C.GrenadeCap} per type");
         d.AddChild(UITheme.Spacer(6));
@@ -473,7 +476,52 @@ public partial class PlaceScreen : Control
         if (C.Vehicle == "van") _content.AddChild(UITheme.Label("The van carries one more of each grenade type you own.", 15, UITheme.Good));
         if (C.Mods.Count > 0) _content.AddChild(UITheme.Label("Mods: " + string.Join(", ", C.Mods.Select(m => $"{Tables.Weapon(m.Split(':')[0]).Name} {Tables.Mods.First(x => x.Id == m.Split(':')[1]).Name.ToLower()}")), 15, UITheme.Dim));
         if (C.Spells.Count > 0) _content.AddChild(UITheme.Label($"Spells: {string.Join(", ", C.Spells.Select(id => Tables.Spells.First(x => x.Id == id).Name))}  (power x{C.SpellPower:0.00})", 15, UITheme.Violet));
-        _content.AddChild(UITheme.Label("Programs: " + (C.Programs.Count > 0 ? string.Join(", ", C.Programs.Select(p => Tables.Programs.First(x => x.Id == p).Name)) : "none"), 15, UITheme.Dim));
+        DeckSection();
+    }
+
+    /// <summary>The deck: which one, how its values are dealt out, which programs are loaded into its memory.</summary>
+    private void DeckSection()
+    {
+        _content.AddChild(UITheme.Rule(UITheme.Faint));
+        Choice("Deck", C.DecksOwned.ToList(), C.ActiveDeck.Id, v => C.CarryDeck(v), id => $"{Tables.Deck(id).Name} (R{Tables.Deck(id).Rating}, {Tables.Deck(id).Memory} Mp)");
+        int[] v = C.DeckValues(C.ActiveDeck.Id);
+        var row = UITheme.HBox(8);
+        var l = UITheme.Label("Array", 17, UITheme.Text, wrap: false);
+        l.CustomMinimumSize = new Vector2(160, 0);
+        row.AddChild(l);
+        row.AddChild(UITheme.Label($"Attack {v[0]}  ·  Sleaze {v[1]}  ·  Data {v[2]}  ·  Firewall {v[3]}{(C.HotSim ? "   (hot-sim)" : "")}", 16, UITheme.Term, wrap: false));
+        foreach (var (a, b) in new[] { (MxAttr.Attack, MxAttr.Sleaze), (MxAttr.Sleaze, MxAttr.Data), (MxAttr.Data, MxAttr.Firewall), (MxAttr.Attack, MxAttr.Firewall) })
+        {
+            var (aa, bb) = (a, b);
+            row.AddChild(UITheme.Button($"{Tables.MxAttrNames[(int)a][0]}<>{Tables.MxAttrNames[(int)b][0]}", () => { C.SwapDeck(aa, bb); Profile.SaveCareer(C); Show(_tab); }, 0, 30,
+                $"Swap {Tables.MxAttrNames[(int)a]} ({Tables.MxAttrDesc[(int)a]}) and {Tables.MxAttrNames[(int)b]} ({Tables.MxAttrDesc[(int)b]})."));
+        }
+        _content.AddChild(row);
+        var prow = UITheme.HBox(8);
+        var pl = UITheme.Label($"Programs\n{C.MemoryUsed}/{C.Memory} Mp", 17, UITheme.Text, wrap: false);
+        pl.CustomMinimumSize = new Vector2(160, 0);
+        prow.AddChild(pl);
+        var flow = new HFlowContainer();
+        flow.SizeFlagsHorizontal = SizeFlags.ExpandFill;
+        foreach (string id in C.Programs)
+        {
+            ProgramDef p = Tables.Program(id);
+            string pid = id;
+            var b = UITheme.Button($"{p.Name} ({p.Mp} Mp{(p.Active ? ", key" : "")})", () =>
+            {
+                string err = C.ToggleProgram(pid);
+                if (err != null) { Sfx.Instance?.Play(Sound.Error); _status.Text = err; return; }
+                Profile.SaveCareer(C);
+                Show(_tab);
+            }, 0, 34, p.Desc);
+            b.ToggleMode = true;
+            b.ButtonPressed = C.HasProgram(id);
+            flow.AddChild(b);
+        }
+        if (C.Programs.Count == 0) flow.AddChild(UITheme.Label("none -- Null sells them", 15, UITheme.Dim));
+        prow.AddChild(flow);
+        _content.AddChild(prow);
+        if (C.MemoryFree < 3) _content.AddChild(UITheme.Label($"Only {C.MemoryFree} Mp free: a datasteal's three datastores need 3 (G purges a program inside, if it comes to that).", 14, UITheme.Yellow));
     }
 
     private void Choice<T>(string label, System.Collections.Generic.List<T> options, T current, Action<T> set, Func<T, string> name)
