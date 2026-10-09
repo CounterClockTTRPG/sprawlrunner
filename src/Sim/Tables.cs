@@ -210,6 +210,9 @@ public static class Tables
     public const int BizGap = 6, BizCut = 25, BizTalkCut = 10, BizWrecked = 7, BizSafeDays = 30,
         BizBribe = 40, BizInspectShut = 4, BizCouncilShut = 8, BizCleanDays = 30, BizSkim = 15, BizSkimTip = 7;
     public const float BizChance = 0.35f;
+    /// <summary>Election week (Career.Election): first around day 25, every 30 days (+0..3 seeded), a week long; the winner's season lasts 20 days.</summary>
+    public const int ElectionFirst = 25, ElectionEvery = 30, ElectionJitter = 3, ElectionWeek = 7, SeasonDays = 20, RenewalPolice = 2, ReformPolice = 3;
+    public const float VotePay = 1.3f, RenewalPay = 1.1f, RenewalTurf = 0.1f, ReformRent = 0.85f;
     /// <summary>A crew retainer costs at least this much a week per threat level you are offered.</summary>
     public const int RetainerPerThreat = 600;
     /// <summary>Spur blades: they take the combat knife's place, heavier and slower.</summary>

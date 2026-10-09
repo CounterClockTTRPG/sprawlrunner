@@ -22,6 +22,7 @@ public sealed partial class Career
         else if (chased || Heat >= 1)
             r.Add(("SCANNER", $"All units, {here}: suspect vehicle, a {Tables.Vehicle(Vehicle).Name.ToLower()}, approach with caution{(Heat >= 3 ? ", lethal force authorised" : "")}."));
         else r.Add(("SCANNER", $"Unit nine, {here}, code four. Coffee run."));
+        if (DaysToVote >= 0) r.Add(("KBN", $"Election countdown: {DaysToVote} day{(DaysToVote == 1 ? "" : "s")} to the council vote. Vell, Tsao, Ibarra -- polls say 'Tsao, probably'."));
         foreach (string h in HappeningLines().Take(1)) r.Add(("KBN", h.Replace("TODAY: ", "")));
         if (Awareness >= 5 || Flag("story:won") > 0)
         {
@@ -58,6 +59,7 @@ public sealed partial class Career
             Faction f = Holder(d.Id);
             Tag(d.Id, f switch { Faction.Vipers => "ASH VIPERS RULE", Faction.Halcyon => "HALCYON SECURE ZONE", _ => "THE LOTUS BLOOMS" }, f switch { Faction.Vipers => 0x70ff40ffu, Faction.Halcyon => 0x60e0ffffu, _ => 0xff4080ffu }, 3);
         }
+        if (On("election")) { Tag(null, "VELL = RENEWAL", 0x60e0ffffu, 2); Tag("strip", "TSAO DELIVERS", 0xff4080ffu, 2); Tag("barrens", "IBARRA FOR KESSLER", 0xffd040ffu, 2); }
         string me = Name.ToUpperInvariant();
         if (Awareness >= 5) Tag(null, $"{me} WAS HERE", 0xffd040ffu, 3);
         if (Notoriety >= 5) Tag("barrens", $"{me} = RAT", 0xff6040ffu, 2);
