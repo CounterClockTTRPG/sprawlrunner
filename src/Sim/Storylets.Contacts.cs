@@ -117,6 +117,60 @@ public static partial class Storylets
         }
     }
 
+    // ---- penance ---------------------------------------------------------------------------------
+
+    /// <summary>
+    /// When your name shuts the clean contacts' doors (notoriety 7+), each
+    /// offers a way back through someone else: unpaid work for the people they
+    /// look after. Done, it takes 2 off your notoriety and wins back a point of
+    /// their trust (see Career.Atone).
+    /// </summary>
+    private static IEnumerable<Storylet> Penance()
+    {
+        static bool Open(Career c, string who) => c.Notoriety >= Tables.AtoneFrom && c.CityRef != null && !c.Gone(who)
+            && !c.Board.Any(b => b.Tag == "atone:" + who) && (c.Flag("atoned:" + who) == 0 || c.Day - c.Flag("atoned:" + who) >= 7);
+        static int Threat(Career c) => Math.Clamp(c.MaxThreat, 2, 4);
+        string effect = $"a job for expenses only; done, notoriety -{Tables.AtoneCut} and {{who}} trusts you a little again";
+
+        yield return new("atone-doc", Hook.Morning, Juno, "Ichikawa's other clinic",
+            "Juno: 'Ichikawa won't have your name said in her surgery. But she keeps a free clinic going in the Barrens out of her own pocket, and the {fac} lean on it for protection money. Tonight they're coming to collect. Hold the door -- for nothing -- and I'll make sure she hears who did.'",
+            c => Open(c, "doc"),
+            new[]
+            {
+                Fx(new Choice("I'll be there", (c, m) =>
+                {
+                    Faction f = (Faction)int.Parse(m.Vars["f"]);
+                    Job j = c.OfferSpecial(JobType.Defend, SiteStyle.Lab, f, "barrens", Threat(c), "Penance: the free clinic",
+                        $"Ichikawa's free clinic in the Barrens. The {Tables.FactionNames[(int)f]} are coming for their money tonight. Hold the place until they give up. Nobody's paying you; that's the point.", tag: "atone:doc", payMul: 0.25f, expires: 3);
+                    return j == null ? "Juno: 'They moved the clinic. I'll let you know.'" : "It's on your board. Get there in the next three days.";
+                }), effect),
+                Ok("Not tonight"),
+            },
+            Cooldown: 8,
+            Bind: c => { Faction f = c.Holder("barrens") == Faction.Halcyon ? Faction.Vipers : c.Holder("barrens"); return V(("f", ((int)f).ToString()), ("fac", Tables.FactionNames[(int)f]), ("who", Doc)); });
+
+        yield return new("atone-sabine", Hook.Morning, Sabine, "A note under the door",
+            "A note in Madame Sabine's hand, pushed under your door: 'Something hungry has nested under the Docks fish market. It eats the people nobody counts. I will not see you. But if it were gone, I would know who did it -- and the spirits would stop saying your name the way they do.'",
+            c => Open(c, "talismonger"),
+            new[]
+            {
+                Fx(new Choice("Go down there", (c, m) =>
+                {
+                    Job j = c.OfferSpecial(JobType.Bounty, SiteStyle.Warehouse, Faction.Vipers, "docks", Threat(c), "Penance: the nest under the market",
+                        "Under the Docks fish market something has been feeding on the people nobody counts. Clear the nest. Nobody's paying you; Sabine will know.", tag: "atone:talismonger", payMul: 0.25f, expires: 3);
+                    return j == null ? "By the time you look, the market's been bricked up. Another time." : "It's on your board. Go in the next three days.";
+                }), effect),
+                Ok("Not now"),
+            },
+            Cooldown: 8,
+            Bind: c => V(("who", Sabine)));
+
+        yield return new("atoned-doc", Hook.Debrief, Doc, "A voice message", "Ichikawa, short and tired: 'I heard about the clinic. I don't forgive easily. I'm starting.'",
+            c => c.Last?.Job?.Tag == "atone:doc" && c.Last.Success, Weight: 50);
+        yield return new("atoned-sabine", Hook.Debrief, Sabine, "Quieter", "Sabine: 'The spirits have stopped spitting when they say your name, darling. Only a little. Come by, if you like.'",
+            c => c.Last?.Job?.Tag == "atone:talismonger" && c.Last.Success, Weight: 50);
+    }
+
     // ---- the heist ----------------------------------------------------------------------------
 
     private static IEnumerable<Storylet> Heists()

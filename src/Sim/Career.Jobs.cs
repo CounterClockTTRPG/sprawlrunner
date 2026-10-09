@@ -890,9 +890,37 @@ public sealed partial class Career
         }
         else if (j.Type is not (JobType.Courier or JobType.Race or JobType.Hub or JobType.Bounty))
             d.Lines.Add(($"{who} grudge", "+0: they never knew you were there"));
+        Atone(j, r, d);
         if (j.Driving) Courier = false;
         Board.Remove(j);
         if (ActiveJob == j.Id) { ActiveJob = -1; ResumeHeld(); }
+    }
+
+    /// <summary>
+    /// The street forgives slowly: a penance done takes 2 off your notoriety
+    /// and wins back the contact who asked for it; three wins in a row on a
+    /// site with nobody hurt and no alarm take 1 (a loud or failed one starts
+    /// the count again; drives, hacks, the market and the nests don't count either way).
+    /// </summary>
+    private void Atone(Job j, RunResult r, Debrief d)
+    {
+        if (j.Tag?.StartsWith("atone:") == true && r.Success)
+        {
+            string who = j.Tag[6..];
+            int was = Notoriety;
+            Infamy(-Tables.AtoneCut);
+            Befriend(who);
+            Set("atoned:" + who, Day);
+            d.Lines.Add(("Notoriety", $"-{was - Notoriety}: {Tables.Contact(who).Name} hears what you did (now {Notoriety})"));
+        }
+        if (j.Driving || j.Type is JobType.Hack or JobType.Hub or JobType.Bounty) return;
+        if (!r.Success || r.Alarm || r.Kills > 0 || r.Died) { Set("quietruns", 0); return; }
+        Inc("quietruns");
+        if (Notoriety == 0) { Set("quietruns", 0); return; }
+        if (Flag("quietruns") < Tables.QuietStreak) { d.Lines.Add(("Quiet runs", $"{Flag("quietruns")} of {Tables.QuietStreak}: the street notices a runner who hurts nobody")); return; }
+        Set("quietruns", 0);
+        Infamy(-1);
+        d.Lines.Add(("Notoriety", $"-1: {Tables.QuietStreak} quiet jobs in a row, nobody hurt (now {Notoriety})"));
     }
 
     /// <summary>A job you dropped everything for is over: the one you put on hold is yours again.</summary>

@@ -580,6 +580,17 @@ fires (`{¥key}` prints a sum of money).
   but TraumaLink and patch-ups. Every point adds 2 % to the chance a Johnson
   sets you up. 5+: Vesper, a fixer with no scruples, offers dark work at
   double pay.
+- **Ways back from Notoriety** (it never fades by itself):
+  - three won jobs in a row with no alarm and nobody killed: -1 (a loud or
+    failed one starts the count again; drives, hacks, the market and nests
+    don't count);
+  - restitution through Juno: ¥2,000 a point (her prices), once a week, -1;
+  - Mara Quill's favour: -1, every five days at loyalty 2;
+  - penance, at 7+: Juno passes on that Ichikawa's free clinic in the Barrens
+    is being shaken down (a Defend), and Sabine leaves a note about a nest under
+    the Docks fish market (a Bounty). Expenses only (0.25 x pay); done, -2 and
+    that contact's trust +1; each comes back a week after it is done;
+  - Quill's story run (to 0) and the corporate past's ending (to 0).
 - **Public Awareness** (0-10, -1 every four days): +1 each for an alarm on a
   threat 3+ site, 10+ kills, a boss; leaks add more. Every morning starts
   with `max(0, Awareness - 3) x 0.5` stars of heat; 6+ invites a raid on the

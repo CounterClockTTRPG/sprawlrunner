@@ -87,7 +87,7 @@ public sealed partial class Career
     public void Infamy(int by)
     {
         Notoriety = M.Clamp(Notoriety + by, 0, 10);
-        if (by > 0) Explain("notoriety", "Notoriety: the street remembers what you did. It never fades -- the clean contacts charge more, and Johnsons set you up more often.");
+        if (by > 0) Explain("notoriety", "Notoriety: the street remembers what you did. It doesn't fade on its own -- the clean contacts charge more, and Johnsons set you up more often. Quiet jobs, restitution through Juno and penance bring it down.");
     }
 
     public void Fame(int by)

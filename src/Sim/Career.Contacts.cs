@@ -23,7 +23,7 @@ public sealed partial class Career
         if (k == null) return null;
         if (Gone(contact)) return $"{k.Name} has left Kessler Bay. The shop is empty.";
         if (ClosedNow(contact)) return $"{k.Name}'s shutters are down. A note says: back on day {Flag("closed:" + contact) + 1}.";
-        if (contact is "doc" or "talismonger" && Notoriety >= 9) return $"{k.Name} won't open the door to you. Not with your name.";
+        if (contact is "doc" or "talismonger" && Notoriety >= 9) return $"{k.Name} won't open the door to you. Not with your name. (Notoriety {Notoriety}: a penance, restitution through Juno or a run of quiet jobs brings it down.)";
         return null;
     }
 

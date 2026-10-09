@@ -302,6 +302,55 @@ public partial class SmokeTest
         Check(c.TurfOf("docks")[(int)Faction.Lotus] < lotus, "each week the city drifts back towards how it was");
     }
 
+    private void Atonement()
+    {
+        City city = City.Generate(55);
+        Career c = TestCareer();
+        c.CityRef = city;
+        c.Cash = 200000;
+        c.Notoriety = 9;
+        Check(c.Shut("doc") != null && c.Shut("talismonger") != null, "at notoriety 9 Ichikawa and Sabine shut their doors");
+        Check(c.Eligible(Hook.Morning).Any(s => s.Id == "atone-doc") && c.Eligible(Hook.Morning).Any(s => s.Id == "atone-sabine"), "and each offers a way back");
+        // Ichikawa's: hold her free clinic, for expenses.
+        Check(c.Choose(c.Send("atone-doc"), 0) == null, "taking the clinic");
+        Job clinic = c.Board.FirstOrDefault(b => b.Tag == "atone:doc");
+        Check(clinic != null && clinic.Type == JobType.Defend && clinic.District == "barrens", "puts a defend in the Barrens on the board");
+        Check(!c.Eligible(Hook.Morning).Any(s => s.Id == "atone-doc"), "and isn't offered twice");
+        int trust = c.Loyalty.GetValueOrDefault("doc");
+        c.Finish(clinic, Won(c, alarm: true, kills: 4));
+        Eq(c.Notoriety, 9 - Tables.AtoneCut, "held, it takes 2 off your notoriety");
+        Eq(c.Loyalty.GetValueOrDefault("doc"), trust + 1, "and wins back a point of Ichikawa's trust");
+        Check(c.Shut("doc") == null, "and her door opens again");
+        Check(!c.Eligible(Hook.Morning).Any(s => s.Id == "atone-doc"), "not again for a week");
+        // Sabine's: clear the nest under the market; a failed penance changes nothing.
+        Check(c.Choose(c.Send("atone-sabine"), 0) == null, "Sabine's note");
+        Job nest = c.Board.FirstOrDefault(b => b.Tag == "atone:talismonger");
+        Check(nest != null && nest.Type == JobType.Bounty, "is a nest to clear");
+        c.Finish(nest, Lost(c));
+        Eq(c.Notoriety, 7, "failing it forgives nothing");
+        // Going quiet: three clean wins in a row take one off; a loud one starts the count again.
+        c.Notoriety = 5;
+        c.Finish(StoryJob(seed: 41), Won(c));
+        c.Finish(StoryJob(seed: 42), Won(c));
+        c.Finish(StoryJob(seed: 43), Won(c, alarm: true));
+        c.Finish(StoryJob(seed: 44), Won(c));
+        Eq(c.Notoriety, 5, "a loud job breaks the streak");
+        c.Finish(StoryJob(seed: 45), Won(c));
+        c.Finish(StoryJob(seed: 46), Won(c));
+        Eq(c.Notoriety, 4, "three quiet jobs in a row: notoriety -1");
+        // Juno's restitution: by the point, once a week.
+        c.Notoriety = 2;
+        int two = c.Offers("fixer").First(o => o.Id == "restitution").Price;
+        c.Notoriety = 4;
+        Offer rest = c.Offers("fixer").First(o => o.Id == "restitution");
+        Check(rest.Block == null && Math.Abs(rest.Price - 2 * two) <= 100, $"restitution costs by the point ({two} at 2, {rest.Price} at 4)");
+        long cash = c.Cash;
+        Check(c.Buy(rest) == null && c.Notoriety == 3 && c.Cash == cash - rest.Price, "paid, notoriety -1");
+        Check(c.Offers("fixer").First(o => o.Id == "restitution").Block != null, "and not again this week");
+        c.Notoriety = 0;
+        Check(c.Offers("fixer").First(o => o.Id == "restitution").Block != null, "nor with nothing to atone for");
+    }
+
     private void Happenings()
     {
         City city = City.Generate(55);

@@ -122,6 +122,11 @@ public sealed partial class Career
             case "fixer":
                 AddSchematics(list, contact);
                 AddFactionItems(list, contact);
+                {
+                    int rest = Flag("restday");
+                    list.Add(new Offer { Kind = ShopKind.Service, Id = "restitution", Name = "Pay restitution", Desc = $"Juno sees that the people you hurt are paid, quietly, and that the street hears it: notoriety -1 (now {Notoriety}). Once a week.", Price = P(Tables.RestitutionPer * Math.Max(1, Notoriety), contact),
+                        Block = Notoriety == 0 ? "Nobody's owed anything." : rest > 0 && Day < rest + 6 ? $"Too soon -- it looks bought. Come back on day {rest + 6}." : null });
+                }
                 if (Active is Job hj && !hj.Driving)
                     foreach (var h in Tables.Hires)
                     {
@@ -219,7 +224,7 @@ public sealed partial class Career
         // Past a point, they only patch you up.
         if (contact is "doc" or "talismonger" && Notoriety >= 7)
             foreach (Offer o in list.Where(o => o.Block == null && o.Kind is not (ShopKind.TraumaLink or ShopKind.Favour)))
-                o.Block = $"{Tables.Contact(contact).Name} won't sell that to someone with your name.";
+                o.Block = $"{Tables.Contact(contact).Name} won't sell that to someone with your name (notoriety {Notoriety}; under {Tables.AtoneFrom} they will -- quiet jobs, restitution or a penance bring it down).";
         if (contact == "doc" && Injuries > 0)
             list.Insert(0, new Offer { Kind = ShopKind.Heal, Id = "heal", Name = $"Patch up your injuries ({Injuries})", Desc = "Stitches, nanites and a lecture. Back to full health.", Price = P(400 * Injuries, contact) });
         foreach (Offer o in list)
@@ -343,6 +348,7 @@ public sealed partial class Career
                 switch (o.Id)
                 {
                     case "file": Heat = 0; break;
+                    case "restitution": Infamy(-1); Set("restday", Day + 1); break;
                     case "page": Fame(-2); break;
                     case "warrant": Set("hitters", 0); Set("vendetta", 0); break;
                     case "plans": Tick("lonestar", -3); break;
