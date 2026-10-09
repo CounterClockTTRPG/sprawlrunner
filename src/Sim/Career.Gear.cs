@@ -216,5 +216,7 @@ public sealed partial class Career
             }
         }
         if (LifeTier >= 4) { Karma += Tables.LuxuryKarma; KarmaEarned += Tables.LuxuryKarma; }
+        // A cat on the end of the bed (Storylets.Home).
+        if (Flag("cat") > 0) { Karma += Tables.CatKarma; KarmaEarned += Tables.CatKarma; }
     }
 }

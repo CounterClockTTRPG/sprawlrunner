@@ -753,6 +753,34 @@ Awareness drops by 3.
   their den, or Gang etiquette), and Pip, a street kid who will be your
   lookout for ¥2,000 (half the ambushes on the way home, and warnings when
   someone is circling).
+- **Visitors** (`Storylets.Home.cs`): scenes as you walk in, from day 5, at most
+  one every `VisitGap` (3) days -- the first time you come home after a job, or
+  after `VisitQuiet` (6) quiet days; never while Mrs. Halloran is owed. Who comes
+  depends on the lifestyle:
+  - A **stray cat** (in through the squat's broken window ... on the luxury
+    balcony): keep it for ¥150 and it is +1 karma every week turn while it
+    stays; 12 days on its bowl is untouched -- walk the block (60 %), pay the
+    kids ¥300 (always found), or let it go. Shoo it: nothing.
+  - **Juno at 3 a.m.**, drunk after a bad deal (trust 1+, day 8+, every 30 days
+    at most): let her crash and listen (trust +1, she drinks your ¥150 bottle,
+    and lets slip a job paying x1.8 onto the board -- the floor plans if there
+    is no lot), or put her in a cab.
+  - A **crew member on the couch** (trust 2+, they were on the last job, and it
+    was lost, loud or 8+ kills): yes is trust +1 and they sit out tomorrow; no
+    keeps them free.
+  - **Neighbours**: squatter/low, a kid whose brother needs ¥300 of pills (or a
+    medkit) -- two mornings later the kids send whoever is waiting for you to
+    the wrong building (hitters and vendetta cleared, awareness -1); middle, 4B
+    after a loud job -- ¥400 for his door, Corporate etiquette, or brush him off
+    (awareness +1, heat); high/luxury, the concierge sees blood on your coat
+    after a job with kills, an alarm or a failure -- ¥1,000 / ¥2,500 for
+    discretion, or awareness +2.
+  - **A knock** at heat 2+ or notoriety 6+ (every 10 days at most): someone who
+    knows the door warns of hitters (the `hitters` flag is set: an ambush after
+    your next job). Move out tonight (a week's rent, hitters gone, awareness
+    -1), set a trap (the raid machinery, one threat lower: hold the safehouse
+    tonight, sleep through it and they take a third), pay them to point the
+    hitters elsewhere (¥1,000 + ¥250 per notoriety), or just lock the door.
 
 ### People who only write
 Mara Quill (KBN stringer: buys footage of loud runs, the leak channel), Sgt.

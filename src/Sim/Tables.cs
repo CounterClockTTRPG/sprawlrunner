@@ -213,6 +213,12 @@ public static class Tables
     /// <summary>Election week (Career.Election): first around day 25, every 30 days (+0..3 seeded), a week long; the winner's season lasts 20 days.</summary>
     public const int ElectionFirst = 25, ElectionEvery = 30, ElectionJitter = 3, ElectionWeek = 7, SeasonDays = 20, RenewalPolice = 2, ReformPolice = 3;
     public const float VotePay = 1.3f, RenewalPay = 1.1f, RenewalTurf = 0.1f, ReformRent = 0.85f;
+    /// <summary>Visitors at the safehouse: at most one every <c>VisitGap</c> days -- after a job, or after
+    /// <c>VisitQuiet</c> quiet days. The cat: food to keep it, karma a week while it stays, the kids to find it.</summary>
+    public const int VisitGap = 3, VisitQuiet = 6, CatFood = 150, CatKarma = 1, CatLostAfter = 12, CatSearch = 300;
+    /// <summary>Neighbours: the squat kid's medicine, the door a loud night broke, the concierge's silence (high, luxury);
+    /// Juno's bottle; the stranger's price for sending your hitters elsewhere (plus this much per point of notoriety).</summary>
+    public const int KidMedicine = 300, NoiseDoor = 400, DiscretionHigh = 1000, DiscretionLuxury = 2500, JunoBottle = 150, KnockPay = 1000, KnockPayPer = 250;
     /// <summary>A crew retainer costs at least this much a week per threat level you are offered.</summary>
     public const int RetainerPerThreat = 600;
     /// <summary>Spur blades: they take the combat knife's place, heavier and slower.</summary>
