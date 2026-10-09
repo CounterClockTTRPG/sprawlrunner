@@ -203,6 +203,12 @@ public static class Tables
     /// <summary>Ways back from notoriety: the penance jobs open at 7+ and take 2 off; three quiet wins in a row take 1;
     /// Juno's restitution costs this much per point, once a week, and takes 1.</summary>
     public const int AtoneFrom = 7, AtoneCut = 2, QuietStreak = 3, RestitutionPer = 2000;
+    /// <summary>Visitors at the safehouse: at most one every <c>VisitGap</c> days -- after a job, or after
+    /// <c>VisitQuiet</c> quiet days. The cat: food to keep it, karma a week while it stays, the kids to find it.</summary>
+    public const int VisitGap = 3, VisitQuiet = 6, CatFood = 150, CatKarma = 1, CatLostAfter = 12, CatSearch = 300;
+    /// <summary>Neighbours: the squat kid's medicine, the door a loud night broke, the concierge's silence (high, luxury);
+    /// Juno's bottle; the stranger's price for sending your hitters elsewhere (plus this much per point of notoriety).</summary>
+    public const int KidMedicine = 300, NoiseDoor = 400, DiscretionHigh = 1000, DiscretionLuxury = 2500, JunoBottle = 150, KnockPay = 1000, KnockPayPer = 250;
     /// <summary>A crew retainer costs at least this much a week per threat level you are offered.</summary>
     public const int RetainerPerThreat = 600;
     /// <summary>Spur blades: they take the combat knife's place, heavier and slower.</summary>
