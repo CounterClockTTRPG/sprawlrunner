@@ -203,6 +203,8 @@ public static class Tables
     /// <summary>Ways back from notoriety: the penance jobs open at 7+ and take 2 off; three quiet wins in a row take 1;
     /// Juno's restitution costs this much per point, once a week, and takes 1.</summary>
     public const int AtoneFrom = 7, AtoneCut = 2, QuietStreak = 3, RestitutionPer = 2000;
+    /// <summary>How many jobs are remembered; an echo comes 10-30 days after its job, and no two within 4 days.</summary>
+    public const int MemoryCap = 20, EchoMin = 10, EchoSpread = 21, EchoGap = 4;
     /// <summary>Business troubles (Career.Business.cs): at most one every BizGap days across all you own, on BizChance of the mornings that may;
     /// a shakedown's weekly cut (%) and the cut talked down to, the days a business is shut when it is wrecked, how long seeing them off buys;
     /// the inspector's bribe (% of a week), the days shut for refusing him (and under a Lotus council), the days a refusal keeps him away;

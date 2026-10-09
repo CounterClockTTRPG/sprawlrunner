@@ -32,8 +32,6 @@ public sealed partial class Career
     /// <summary>The last jobs, oldest first, for the echoes.</summary>
     public List<PastJob> Memories = new();
 
-    /// <summary>How many jobs are remembered; an echo comes 10-30 days after its job, and no two within 4 days.</summary>
-    public const int MemoryCap = 20, EchoMin = 10, EchoSpread = 21, EchoGap = 4;
 
     /// <summary>A job closes: remember it.</summary>
     private void Remember(Job j, RunResult r)
@@ -47,7 +45,7 @@ public sealed partial class Career
             Type = j.Type, Faction = j.Faction, Title = j.Title, Target = j.Target, District = j.District, Johnson = j.JohnsonId,
             Fate = fate, Success = r.Success, Alarm = r.Alarm, Crossed = r.Trap || r.Success && j.Stiff,
         });
-        while (Memories.Count > MemoryCap) Memories.RemoveAt(0);
+        while (Memories.Count > Tables.MemoryCap) Memories.RemoveAt(0);
     }
 
     /// <summary>Something decided after the job (a mail answered days later): tag the job it was about.</summary>

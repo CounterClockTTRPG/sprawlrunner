@@ -37,7 +37,7 @@ public partial class SmokeTest
         PastJob p = c.Memories.LastOrDefault();
         Check(p != null && p.Title == "Get Ines out" && p.Fate == "rescued" && p.District == "barrens" && p.Target == "Ines Moreau", "a closed job is remembered: its name, place and what became of the target");
         int delay = global::Sprawl.Storylets.EchoDelay(p, "echo-nurse");
-        Check(delay >= Career.EchoMin && delay <= Career.EchoMin + Career.EchoSpread - 1, $"its echo is due 10-30 days later ({delay})");
+        Check(delay >= Tables.EchoMin && delay <= Tables.EchoMin + Tables.EchoSpread - 1, $"its echo is due 10-30 days later ({delay})");
         Eq(global::Sprawl.Storylets.EchoDelay(Clone(c).Memories.Last(), "echo-nurse"), delay, "on the same day on every run, and the memory survives a save");
 
         // ---- the hostage, now a nurse at Ichikawa's ------------------------------------------
@@ -172,7 +172,7 @@ public partial class SmokeTest
         Mail wim = wi.Send("echo-witness");
         Check(wim.Call, "the witness is a call");
         Check(!Has(wi, "echo-guard"), "but never two echoes in four days");
-        wi.Day += Career.EchoGap - 1;
+        wi.Day += Tables.EchoGap - 1;
         Check(!Has(wi, "echo-guard"), "not even three days later");
         wi.Day++;
         Check(Has(wi, "echo-guard"), "four days later the next one can come");
@@ -214,7 +214,7 @@ public partial class SmokeTest
 
         // ---- bounded -------------------------------------------------------------------------
         Career many = New();
-        for (int i = 0; i < Career.MemoryCap + 5; i++) many.Finish(StoryJob(JobType.Retrieve, seed: (ulong)(100 + i)), Won(many));
-        Eq(many.Memories.Count, Career.MemoryCap, "only the last jobs are remembered");
+        for (int i = 0; i < Tables.MemoryCap + 5; i++) many.Finish(StoryJob(JobType.Retrieve, seed: (ulong)(100 + i)), Won(many));
+        Eq(many.Memories.Count, Tables.MemoryCap, "only the last jobs are remembered");
     }
 }

@@ -15,9 +15,9 @@ namespace Sprawl;
 public static partial class Storylets
 {
     /// <summary>How long after its job this echo comes back: 10 to 30 days, the same on every run.</summary>
-    public static int EchoDelay(PastJob p, string kind) => Career.EchoMin + (int)(Career.Stable($"{kind}:{p.Seed}:{p.Id}") % Career.EchoSpread);
+    public static int EchoDelay(PastJob p, string kind) => Tables.EchoMin + (int)(Career.Stable($"{kind}:{p.Seed}:{p.Id}") % Tables.EchoSpread);
 
-    private static bool EchoQuiet(Career c) => c.Flag("echo:last") == 0 || c.Day - c.Flag("echo:last") >= Career.EchoGap;
+    private static bool EchoQuiet(Career c) => c.Flag("echo:last") == 0 || c.Day - c.Flag("echo:last") >= Tables.EchoGap;
 
     /// <summary>The oldest remembered job that is due to send this echo back, if any (and if the last echo was long enough ago).</summary>
     public static PastJob EchoOf(Career c, string kind, Func<PastJob, bool> fits) =>
