@@ -549,6 +549,13 @@ public partial class SmokeTest
         Steps(d, d.DefendFor + 2);
         Check(d.Waves >= 3 && d.Success && d.Phase == RunPhase.Extracted, $"hold out through the waves and it's yours ({d.Waves} waves)");
         Check(d.Result().Alarm, "a defence is never quiet");
+        Job dj2 = TestJob(JobType.Defend, Faction.Vipers);
+        dj2.Hired = "ox";
+        var d2 = new Run(dj2, TestCareer(), Site(rows));
+        d2.Player.MaxHp = d2.Player.Hp = 1e7f;
+        d2.Hurt(d2.Ally, 1e6f, null, false);
+        Steps(d2, d2.DefendFor + 2);
+        Check(d2.Success && d2.Ally.Dead && d2.AllyCarriedOut && !d2.Result().AllyDied, "a hire down in a defence you held mends; nobody had to carry them out");
         // Generated sites.
         for (ulong seed = 1; seed <= 12; seed++)
         foreach (SiteStyle st in new[] { SiteStyle.Warehouse, SiteStyle.Office, SiteStyle.Den, SiteStyle.Lab, SiteStyle.Club })
