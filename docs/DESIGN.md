@@ -591,6 +591,36 @@ fires (`{¥key}` prints a sum of money).
     the Docks fish market (a Bounty). Expenses only (0.25 x pay); done, -2 and
     that contact's trust +1; each comes back a week after it is done;
   - Quill's story run (to 0) and the corporate past's ending (to 0).
+- **Echoes** (`Career.Echoes.cs`, `Storylets.Echoes.cs`): every closed job
+  (not drives, the market or the tutorial) is remembered -- name, district,
+  day, faction, kills, alarm, guards spared and knocked out, the target's fate,
+  the Johnson and whether they sold you out, and what you decided later
+  (`Career.Memories`, the last 20). 10-30 days after a job (seeded per job and
+  echo) somebody from it comes back, naming the job, the place and the day.
+  Each echo fires once per job, only if that past exists, and no two echoes
+  come within 4 days of each other:
+  - the hostage you got out is a nurse at Ichikawa's now (a scene there): every
+    injury patched free, or two medkits if you're whole;
+  - a guard you spared or knocked out works another of that faction's sites:
+    the next job you accept against them starts with the locked doors open
+    (or two guards off sick if you bought the doors already);
+  - a target you killed (half of them): the widow on your landing -- give her
+    ¥2,000 (Notoriety -1, karma +1), say sorry (karma +1), threaten her
+    (Notoriety +1) or shut the door (hitters after your next job); the other
+    half, her brother with a gun (¥1,500 to Juno to talk him down, Street:
+    meet him alone, karma +1, or hitters);
+  - the one who got away, after they've written once: half offer you a
+    job against the faction that paid for the hit (x1.5 pay, and a friend),
+    half have been talking to their people (¥1,500, or that grudge +2);
+  - the Johnson who sold you out wants back in: take half the old pay as an
+    apology and their jobs come back, give the name to Quill (Awareness +1,
+    karma +2), or never answer;
+  - a witness to a loud job (alarm, and 3+ kills or a hit or a demolition)
+    has your description and a buyer at KBN: ¥300 + 300 x threat, the cop's
+    old favour, or let it air (Awareness +2, heat +1);
+  - the kids you let go from a cleared den: one runs messages for you, and
+    every six days or so has a tip -- the heat off your block (-1), the floor
+    plans of your next site, or a buyer at Wen's paying double.
 - **Public Awareness** (0-10, -1 every four days): +1 each for an alarm on a
   threat 3+ site, 10+ kills, a boss; leaks add more. Every morning starts
   with `max(0, Awareness - 3) x 0.5` stars of heat; 6+ invites a raid on the

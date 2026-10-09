@@ -574,6 +574,7 @@ public sealed partial class Career
         BringRetained(j);
         // A gift from someone you once got out: the floor plans.
         if (Flag("freeschem") > 0 && j.Type is not (JobType.Courier or JobType.Race or JobType.Hub)) { j.Schematics = true; Set("freeschem", 0); }
+        Inside(j);
         return null;
     }
 
@@ -894,6 +895,7 @@ public sealed partial class Career
         Atone(j, r, d);
         BusinessHeld(j, r, d);
         Ballot(j, r, d);
+        Remember(j, r);
         if (j.Driving) Courier = false;
         Board.Remove(j);
         if (ActiveJob == j.Id) { ActiveJob = -1; ResumeHeld(); }

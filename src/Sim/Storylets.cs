@@ -19,7 +19,7 @@ public static partial class Storylets
     private static IEnumerable<Storylet> Build() =>
         Basics().Concat(Fates()).Concat(RunChoices()).Concat(Crosses()).Concat(ContactLives()).Concat(Writers())
             .Concat(World()).Concat(CrewStories()).Concat(Block()).Concat(Story()).Concat(Tide())
-            .Concat(Forks()).Concat(Danger()).Concat(Penance()).Concat(Heists()).Concat(Campaigns()).Concat(Night()).Concat(Pasts()).Concat(Backgrounds()).Concat(CrewHome()).Concat(Lamp()).Concat(Streets()).Concat(Rivals()).Concat(BusinessTroubles()).Concat(Election()).Concat(Visitors());
+            .Concat(Forks()).Concat(Danger()).Concat(Penance()).Concat(Heists()).Concat(Campaigns()).Concat(Night()).Concat(Pasts()).Concat(Backgrounds()).Concat(CrewHome()).Concat(Lamp()).Concat(Streets()).Concat(Rivals()).Concat(BusinessTroubles()).Concat(Election()).Concat(Visitors()).Concat(Echoes());
 
     // ---- shorthand ------------------------------------------------------------------------
 
@@ -253,10 +253,10 @@ public static partial class Storylets
             c => Decides(c) && c.Last.Job.Type == JobType.Clear,
             new[]
             {
-                Fx(new Choice("Let them go", (c, m) => { c.Karma += 1; c.KarmaEarned += 1; return "'They'll be back on a corner by Friday,' Juno says. 'But fine.' Karma +1."; }), "karma +1"),
+                Fx(new Choice("Let them go", (c, m) => { c.Recall(m, "kids:free", JobType.Clear); c.Karma += 1; c.KarmaEarned += 1; return "'They'll be back on a corner by Friday,' Juno says. 'But fine.' Karma +1."; }), "karma +1"),
                 Fx(new Choice("Call Lone Star (¥500)", (c, m) => { c.Cash += 500; c.Count("earned", 500); c.Infamy(1); return "Lone Star pays ¥500 a head for two of them. The third ran. Notoriety +1."; }), "+¥500, notoriety +1"),
-                Past("street", "Tell them about the roofs", (c, m) => { c.Karma += 2; c.KarmaEarned += 2; return "You tell them how you got out. One of them listens. Karma +2."; }),
-                Talk("Gang", "Give them a message for their boss", (c, m) => { c.Grudge[c.Last.Job.Faction] = Math.Max(0, c.Grudge.GetValueOrDefault(c.Last.Job.Faction) - 2); return "You send them home with a message: business, not personal. It lands. Grudge -2."; }),
+                Past("street", "Tell them about the roofs", (c, m) => { c.Recall(m, "kids:free", JobType.Clear); c.Karma += 2; c.KarmaEarned += 2; return "You tell them how you got out. One of them listens. Karma +2."; }),
+                Talk("Gang", "Give them a message for their boss", (c, m) => { c.Recall(m, "kids:free", JobType.Clear); c.Grudge[c.Last.Job.Faction] = Math.Max(0, c.Grudge.GetValueOrDefault(c.Last.Job.Faction) - 2); return "You send them home with a message: business, not personal. It lands. Grudge -2."; }),
             },
             Call: true);
 
