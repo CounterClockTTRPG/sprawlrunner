@@ -777,8 +777,8 @@ public sealed partial class Run
         KnockOuts = KnockOuts, Bosses = BossKills, Walls = WallsBroken, Spells = SpellsCast, Datastores = (int)MathF.Round(DataProgress * 3), SpidersCrashed = SpidersCrashed, GrenadesLeft = new Dictionary<string, int>(Nades), MedkitsLeft = Medkits, Seconds = Time,
     };
 
-    /// <summary>The crew member went down, and you carried them to the way out.</summary>
-    public bool AllyCarriedOut => Ally != null && Ally.Dead && CarriedBody == Ally && InExtraction(Player.Pos);
+    /// <summary>The crew member went down, and you carried them to the way out -- or held the place, so nobody has to leave it.</summary>
+    public bool AllyCarriedOut => Ally != null && Ally.Dead && (CarriedBody == Ally && InExtraction(Player.Pos) || Job.Type == JobType.Defend && Success);
     private bool _secondWind;
 
     public int Kills, CashFound, BossKills, WallsBroken, SpellsCast;

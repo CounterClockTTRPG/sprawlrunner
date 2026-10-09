@@ -153,7 +153,7 @@ public sealed partial class Career
         if (r.AllyCarried)
         {
             s.OutUntil = Day + 2;
-            d.Lines.Add(($"You carried {h.name} out", "3 days to mend"));
+            d.Lines.Add((j.Type == JobType.Defend ? $"{h.name} was down, but you held" : $"You carried {h.name} out", "3 days to mend"));
         }
         if (!r.Success) return;
         if (s.Trust < 5)

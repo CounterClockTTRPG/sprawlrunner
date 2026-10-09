@@ -371,6 +371,9 @@ public partial class ShotRunner : Node
                 ps.Show("Runner");
                 await Frames(10);
                 await Shot("06_runner");
+                ps.Show("Loadout");
+                await Frames(10);
+                await Shot("07_loadout_bare");
                 Root.Career.Decks.Add("kestrel");
                 Root.Career.GiveProgram("hammer");
                 Root.Career.GiveProgram("patch");

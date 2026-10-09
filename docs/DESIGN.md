@@ -733,9 +733,9 @@ The three hires keep a **trust** (0-5): +1 for each job finished together.
   ward); they come along, and finishing it drops their cut by 5 points for
   good.
 - **Permadeath**: a crew member who goes down on a run is gone for the
-  career -- unless you carry them to the extraction (hold E on them) or have
-  TraumaLink Gold; then they sit out three days. A funeral mail follows a
-  death.
+  career -- unless you carry them to the extraction (hold E on them), hold
+  the place on a Defend (nobody has to leave), or have TraumaLink Gold; then
+  they sit out three days. A funeral mail follows a death.
 - **Romance** (`Storylets.Romance.cs`): at trust 5, after their second talk at
   the safehouse, Ox, Wisp, Patch, Ade or Rook asks (Byte is a kid and never
   does). Stay: they are your partner, one at a time. Not yet: asked again in
