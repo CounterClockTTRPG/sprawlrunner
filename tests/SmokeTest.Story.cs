@@ -1409,6 +1409,11 @@ public partial class SmokeTest
         Job rj2 = rc.Board.First(b => !b.Driving && b.Type != JobType.Hack && !b.Johnson && b.Hired == null);
         Accept(rc, rj2);
         Check(rj2.Hired == null, "a recovering retainee stays home");
+        rc.Loyalty["fixer"] = 5;
+        rc.Buy(rc.Offers("fixer").First(o => o.Kind == ShopKind.Retainer && o.Id == "ox"));
+        Check(rj2.Hired == "ox", $"put someone on retainer mid-job: they join it now ({rj2.Hired})");
+        rc.Retained.Remove("ox");
+        rj2.Hired = null;
         rc.Drop();
         rc.CrewOf("wisp").OutUntil = 0;
         Job rd = rc.Board.FirstOrDefault(b => b.Driving) ?? rj2;

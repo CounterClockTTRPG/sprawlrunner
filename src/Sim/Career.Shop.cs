@@ -360,7 +360,7 @@ public sealed partial class Career
             }
             case ShopKind.Lifestyle: Lifestyle = o.Id; Say($"You moved to a {LifestyleName.ToLower()} lifestyle. Rent is now {M.Money(RentDue)} a week, {M.Money(DailyRent)} every morning."); break;
             case ShopKind.Property: Property.Add(o.Id); break;
-            case ShopKind.Retainer: if (!Retained.Remove(o.Id)) Retained.Add(o.Id); break;
+            case ShopKind.Retainer: if (!Retained.Remove(o.Id)) { Retained.Add(o.Id); BringRetained(Active); } break;
             case ShopKind.Service:
                 switch (o.Id)
                 {
