@@ -381,6 +381,11 @@ public partial class ShotRunner : Node
                 ps.Show("Loadout");
                 await Frames(10);
                 await Shot("07_loadout");
+                Root.Career.Cyber.AddRange(new[] { "eyes", "dermal" });
+                Root.Career.CyberGrade["dermal"] = "alpha";
+                ps.Show("Deck");
+                await Frames(10);
+                await Shot("07a_deck");
                 ps.Show("Upgrades");
                 await Frames(10);
                 await Shot("07b_upgrades");
