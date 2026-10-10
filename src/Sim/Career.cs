@@ -188,7 +188,8 @@ public sealed partial class Career
     public bool ArcDone(string contact) => ArcStep.GetValueOrDefault(contact) >= 3;
     /// <summary>
     /// How a finished contact story ended: 1 the way they hoped, 2 the other
-    /// way (see the fork storylets), 0 not finished or not yet decided.
+    /// way (see the fork storylets), 3 Ichikawa's files burned but his chrome
+    /// declined, 0 not finished or not yet decided.
     /// Stories finished before the fork existed count as 1.
     /// </summary>
     public int ArcPath(string contact) => !ArcDone(contact) ? 0 : Flag("arc:" + contact) switch { 0 => 1, < 0 => 0, var v => v };
@@ -216,7 +217,7 @@ public sealed partial class Career
     public float CooldownMul => (1 - 0.06f * Reflexes) * (NextFastSpells ? 0.5f : 1f) * (Has("synaptic") ? 0.9f : 1f);
     public float GrenadeDamageMul => 1 + 0.1f * S(Skill.Demolitions);
     public float DrivingMul => 1 + 0.06f * S(Skill.Driving);
-    public float MedkitHeal => Tables.MedkitHeal * (0.5f + Essence / 12f);
+    public float MedkitHeal => Tables.MedkitHeal * (0.5f + Essence / 12f) * (ArcPath("doc") == 3 ? 1.5f : 1f);
     public int GrenadeCap => 3 + (S(Skill.Demolitions) >= 2 ? 1 : 0) + (S(Skill.Demolitions) >= 4 ? 1 : 0) + (HasUpgrade("armory") ? 1 : 0);
     public int VehicleCap => HasUpgrade("garage") ? 5 : 2;
     public int BoardSize => 4 + (HasUpgrade("rig1") ? 2 : 0) + (HasUpgrade("rig2") ? 2 : 0);
