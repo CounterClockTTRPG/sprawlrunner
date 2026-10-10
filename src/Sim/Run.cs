@@ -73,6 +73,8 @@ public sealed class Actor
     public bool Drunk, Badge, Cleaner;
     /// <summary>One of the rival crew (team 3: fights the guards and you).</summary>
     public bool Rival;
+    /// <summary>Something from a bounty's nest (a ghoul, a hellhound), not somebody's guard: drawn as one.</summary>
+    public bool Wild;
     public float CallT;
     public EnemyKind Kind => Def?.Kind ?? EnemyKind.Ganger;
     public bool Hostile => Team == 1 && !Dead;
@@ -336,6 +338,7 @@ public sealed partial class Run
         };
         if (alt != null) { WeaponDef aw = Tables.Weapon(alt); a.Gun = new Gun { Def = aw, Ammo = aw.Mag, Mag = aw.Mag }; }
         if (kind == EnemyKind.Hound && Job.Faction == Faction.Halcyon) a.Name = "K9 unit";
+        if (Job.Type == JobType.Bounty && !Job.Hive) a.Wild = kind is EnemyKind.Hound or EnemyKind.Bruiser;
         if (Job.Type == JobType.Bounty) a.Name = kind switch { EnemyKind.Hound => "Hellhound", EnemyKind.Bruiser => "Ghoul", EnemyKind.Spirit => "Hungry spirit", _ => a.Name };
         if (kind == EnemyKind.EggSac) a.EggT = R.Range(0, 8);
         if (kind is EnemyKind.Barghest) a.HowlCd = R.Range(1, 3);

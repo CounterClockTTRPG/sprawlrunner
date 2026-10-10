@@ -675,11 +675,14 @@ public partial class ShotRunner : Node
             if (Want("people"))
             {
                 // Close-ups of each faction's people: gear, shadows, the breath at rest, a gun kicking.
-                foreach (Faction pf in Enum.GetValues<Faction>())
+                // The last pass is a bounty's nest: ghouls, hellhounds and a barghest.
+                foreach (int pass in Enumerable.Range(0, 4))
                 {
+                    bool nest = pass == 3;
+                    Faction pf = nest ? Faction.Vipers : (Faction)pass;
                     Root.EnterCity();
                     await Frames(5);
-                    var pj = new Job { Id = 953 + (int)pf, Type = JobType.Clear, Style = SiteStyle.Warehouse, Threat = 3, Seed = 77, Faction = pf, District = "docks", Target = "x", Item = "case", Title = "People", Lot = -1 };
+                    var pj = new Job { Id = 953 + pass, Type = nest ? JobType.Bounty : JobType.Clear, Style = SiteStyle.Warehouse, Threat = 3, Seed = 77, Faction = pf, District = "docks", Target = "x", Item = "case", Title = "People", Lot = -1 };
                     Root.StartRun(pj);
                     await Frames(10);
                     Sprawl.Run pr = Root.RunScreen.R;
@@ -688,7 +691,7 @@ public partial class ShotRunner : Node
                     V2 c0 = pr.Player.Pos;
                     for (int k = 0; k < 40; k++) { V2 t = pr.Player.Pos + new V2(0, 3 + k * 0.25f); if (Enumerable.Range(-4, 9).All(dx => pr.L[Pt.Of(t + new V2(dx, 1.4f))] == Tile.Floor && pr.L[Pt.Of(t + new V2(dx, -1.2f))] == Tile.Floor)) { c0 = t; break; } }
                     pr.Player.Pos = c0 - new V2(0, 1.2f);
-                    EnemyKind[] who = pf switch
+                    EnemyKind[] who = nest ? new[] { EnemyKind.Bruiser, EnemyKind.Bruiser, EnemyKind.Hound, EnemyKind.Hound, EnemyKind.Barghest } : pf switch
                     {
                         Faction.Vipers => new[] { EnemyKind.Ganger, EnemyKind.Bruiser, EnemyKind.Firebug, EnemyKind.Hound, EnemyKind.Barghest },
                         Faction.Lotus => new[] { EnemyKind.Guard, EnemyKind.Blade, EnemyKind.Mage, EnemyKind.Bruiser, EnemyKind.Heavy },
@@ -702,7 +705,7 @@ public partial class ShotRunner : Node
                     }
                     Root.RunView.Cam.Zoom = new Vector2(3.2f, 3.2f);
                     for (int i = 0; i < 4; i++) { pr.Time = 0.08f; Root.RunView.Frame(1 / 60f); pr.Events.Clear(); await Frames(1); }
-                    await Shot($"23z_people_{pf.ToString().ToLowerInvariant()}");
+                    await Shot($"23z_people_{(nest ? "nest" : pf.ToString().ToLowerInvariant())}");
                 }
                 Root.EnterCity();
             }

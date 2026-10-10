@@ -93,6 +93,9 @@ public static class Art
     public static Look LookFor(Actor a, Faction f)
     {
         if (a.IsPlayer) return PlayerLook("samurai");
+        // A ghoul: grey-skinned, hairless, in what's left of someone else's clothes; no faction's colours.
+        if (a.Wild && a.Kind == EnemyKind.Bruiser)
+            return new Look { Body = new Color(0.24f, 0.22f, 0.2f), Trim = new Color(0.42f, 0.36f, 0.3f), Skin = new Color(0.62f, 0.66f, 0.6f), Hair = new Color(0.55f, 0.58f, 0.54f), Heavy = true };
         if (a.IsHostage) return new Look { Body = new Color(0.85f, 0.85f, 0.8f), Trim = new Color(0.6f, 0.6f, 0.65f), Skin = new Color(0.75f, 0.58f, 0.45f), Hair = new Color(0.25f, 0.2f, 0.15f) };
         Color skin = new(0.8f, 0.62f, 0.5f);
         var l = f switch

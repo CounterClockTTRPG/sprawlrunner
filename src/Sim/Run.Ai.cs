@@ -713,11 +713,14 @@ public sealed partial class Run
             Actor e = AddEnemy(kind, p, M.Angle(Player.Pos - p));
             BecomeAlert(e, Player.Pos, false);
         }
-        Events.Add(new RunEvent(Ev.Wave, at, Text: "Reinforcements inbound."));
+        Events.Add(new RunEvent(Ev.Wave, at, Text: Job.Type == JobType.Bounty ? "More of them, out of the dark." : "Reinforcements inbound."));
     }
 
-    /// <summary>Who comes as reinforcements: the faction's roster, gated by threat the way the site's own guards are.</summary>
-    private (EnemyKind kind, float weight)[] WaveRoster() => Tables.Roster(Job.Faction)
+    /// <summary>Who comes as reinforcements: the faction's roster, gated by threat the way the site's own guards are --
+    /// or, on a bounty, more of what lives in the nest.</summary>
+    private (EnemyKind kind, float weight)[] WaveRoster() => Job.Hive ? LevelGen.Hive
+        : Job.Type == JobType.Bounty ? LevelGen.Critters.Where(e => Job.Threat >= (e.kind switch { EnemyKind.Barghest => 3, EnemyKind.Spirit => 3, _ => 1 })).ToArray()
+        : Tables.Roster(Job.Faction)
         .Where(e => (Job.Threat >= 2 || e.kind is not (EnemyKind.Heavy or EnemyKind.Sniper or EnemyKind.Mage))
             && (Job.Threat >= 3 || e.kind is not (EnemyKind.Shield or EnemyKind.Rigger or EnemyKind.Spirit))
             && Job.Threat >= Tables.FirstThreat(e.kind)

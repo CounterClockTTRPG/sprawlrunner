@@ -1179,7 +1179,9 @@ public partial class RunView : Node2D
                 float alpha = a.IsPlayer && r.CloakT > 0 ? 0.3f : 1f;
                 if (a.Kind == EnemyKind.Hound && !a.IsPlayer && a.Def != null)
                 {
-                    Hound(p, a.Facing, rad, flash, walk, r.Job.Faction == Faction.Halcyon);
+                    // A hellhound is black, with embers for eyes; a K9 unit is a corporate dog.
+                    if (a.Wild) Hound(p, a.Facing, rad, flash, walk, coat: new Color(0.06f, 0.05f, 0.05f), eyes: new Color(1f, 0.45f, 0.1f));
+                    else Hound(p, a.Facing, rad, flash, walk, r.Job.Faction == Faction.Halcyon);
                 }
                 else if (a.Is(EnemyKind.Barghest))
                 {

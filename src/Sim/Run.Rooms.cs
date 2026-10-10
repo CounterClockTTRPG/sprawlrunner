@@ -123,7 +123,9 @@ public sealed partial class Run
     }
 
     /// <summary>What this site's style does, in a few words (null on a peaceful site).</summary>
-    public (string name, string what)? StyleRule => Peaceful || Job.Type is JobType.Defend or JobType.Hack ? null : Job.Style switch
+    public (string name, string what)? StyleRule => Peaceful || Job.Type is JobType.Defend or JobType.Hack ? null
+        : Job.Type == JobType.Bounty ? (Job.Hive ? ("HIVE", "resin walls, egg sacs that hatch") : ("NEST", "they hunt by scent, and they're hungry"))
+        : Job.Style switch
     {
         SiteStyle.Lab => ("LAB", Plan.CleanRoom.W > 0 ? "toxic vats, sprinklers, a clean room" : "toxic vats, sprinklers"),
         SiteStyle.Office => ("OFFICE", L.Keycards.Count > 0 || HasBadge ? "night cleaners, keycard doors" : "night cleaners"),
