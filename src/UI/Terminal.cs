@@ -236,14 +236,14 @@ public partial class Terminal : PanelContainer
         Line($"JOB BOARD  ·  day {C.Day}  ·  rep {C.Rep} (threat up to {C.MaxThreat})", G);
         var grudges = C.Grudge.Where(g => g.Value > 0).Select(g => $"{Tables.FactionNames[(int)g.Key].ToLower()} {g.Value}").ToList();
         if (grudges.Count > 0) Line($"grudges: {string.Join(", ", grudges)}  (each job against a faction adds one; 3: their sites get elite security; 5: they send hitters; fades a point a week)", GDim);
-        Line(" #   TYPE        DISTRICT     THREAT    PAY       KARMA  DAYS", GDim);
+        Line(" #   TYPE        FROM           DISTRICT     THREAT    PAY       KARMA  DAYS", GDim);
         if (board.Count == 0) Line("  nothing on the board. sleep on it.", GDim);
         for (int i = 0; i < board.Count; i++)
         {
             Job j = board[i];
             int idx = i + 1;
             bool active = j.Id == C.ActiveJob;
-            string line = $"{(active ? "*" : j.Tutorial ? "T" : j.Story > 0 ? "S" : j.Arc != null ? "C" : j.Tag != null ? "!" : j.Contested ? "R" : j.Johnson ? "J" : " ")}{idx,-3} {Tables.JobNames[(int)j.Type],-11} {Tables.District(j.District).Name,-12} {Threat(j.Threat),-9} {M.Money(j.Pay),-9} +{j.Karma,-5} {j.Expires - C.Day + 1}";
+            string line = $"{(active ? "*" : j.Tutorial ? "T" : j.Story > 0 ? "S" : j.Arc != null ? "C" : j.Tag != null ? "!" : j.Contested ? "R" : j.Johnson ? "J" : " ")}{idx,-3} {Tables.JobNames[(int)j.Type],-11} {Tables.Contact(j.Employer).Name,-14} {Tables.District(j.District).Name,-12} {Threat(j.Threat),-9} {M.Money(j.Pay),-9} +{j.Karma,-5} {j.Expires - C.Day + 1}";
             Line(line, active ? UITheme.Magenta : G, () => Info(idx));
         }
         Line("click a job, or 'info N'.  (* active  T tutorial  S story  C a contact's own story", GDim);
