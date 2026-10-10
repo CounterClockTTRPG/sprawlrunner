@@ -436,6 +436,13 @@ public partial class RunView : Node2D
                         }
                         Glow.Burst(FxKind.Spark, to, 14, 200, 0.3f, 1.5f, new Color(0.85f, 0.6f, 1f));
                     }
+                    else if (spell == Ability.Heal)
+                    {
+                        // The circle it knit, where it was cast.
+                        var hr = Glow.Add(FxKind.Ring, to, Vector2.Zero, 0.7f, Run.AreaRadius(spell) * T, UITheme.Good with { A = 0.85f });
+                        hr.Drag = 0;
+                        Glow.Burst(FxKind.Ember, to, 18, 70, 0.8f, 2, UITheme.Good);
+                    }
                     break;
                 }
             }
@@ -1076,6 +1083,17 @@ public partial class RunView : Node2D
                     }
                     float rad = Tables.Grenade(r.NadeSel).Radius * T;
                     DrawArc(b, rad, 0, MathF.Tau, 32, UITheme.Yellow with { A = 0.5f }, 1.5f);
+                }
+                // An area spell ready on Q or F: the circle it would cover, where it would land.
+                foreach (Ability ab in new[] { r.C.SlotQ, r.C.SlotF })
+                {
+                    float rad = Run.AreaRadius(ab);
+                    if (rad <= 0 || r.AbilityCd.GetValueOrDefault(ab) > 0 || !r.C.Abilities.Contains(ab)) continue;
+                    V2 at = r.AreaPoint(ab, V.Aim);
+                    Color ac = ab == Ability.Heal ? UITheme.Good : new Color(1, 0.55f, 0.2f);
+                    Vector2 c = Art.G(at, T);
+                    DrawArc(c, rad * T, 0, MathF.Tau, 40, ac with { A = 0.35f }, 1.5f);
+                    if (V2.Distance(at, V.Aim) > 0.3f) DrawDashedLine(c, Art.G(V.Aim, T), ac with { A = 0.3f }, 1, 5);
                 }
                 if (r.MeleeSwing > 0)
                 {

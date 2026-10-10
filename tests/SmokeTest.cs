@@ -544,9 +544,22 @@ public partial class SmokeTest : Node
         r.AbilityCd[Ability.Manabolt] = 0;
         r.Step(new RunInput { Slot = -1, AbilityQ = true, Aim = d.Pos });
         Eq(d.Hp, d.MaxHp, "Manabolt does nothing to machines");
+        // Heal lands on the cursor: whoever on your side stands in the circle there, you only if you do.
         r.Player.Hp = 20;
-        r.Step(new RunInput { Slot = -1, AbilityF = true });
-        Check(r.Player.Hp > 50, "Heal heals");
+        Actor mate = r.AddEnemy(EnemyKind.Guard, new V2(10.5f, 2.5f), 0);
+        mate.Team = 0;
+        mate.IsAlly = true;
+        mate.Hp = 20;
+        g.Hp = 20;
+        r.Step(new RunInput { Slot = -1, AbilityF = true, Aim = new V2(10.5f, 1.5f) });
+        Check(mate.Hp > 50 && r.Player.Hp < 25, $"Heal at the cursor heals the ally there ({mate.Hp:0}), not you across the room ({r.Player.Hp:0})");
+        Check(g.Hp < 25, "and never a hostile in the circle");
+        Check(V2.Distance(r.AreaPoint(Ability.Heal, new V2(10.5f, 1.5f)), new V2(10.5f, 1.5f)) < 0.01f, "its preview sits on the cursor");
+        r.AbilityCd[Ability.Heal] = 0;
+        r.Step(new RunInput { Slot = -1, AbilityF = true, Aim = r.Player.Pos });
+        Check(r.Player.Hp > 50, "Heal aimed at yourself heals you");
+        V2 far = r.AreaPoint(Ability.Heal, r.Player.Pos + new V2(40, 0));
+        Check(far.X < 13 && V2.Distance(far, r.Player.Pos) <= Tables.SpellRange, $"aimed past a wall it stops short of it ({far.X:0.0})");
         float power = mage.SpellPower;
         mage.Install("wired");
         Check(mage.SpellPower < power, "chrome weakens magic");
@@ -568,6 +581,14 @@ public partial class SmokeTest : Node
         rf.Step(new RunInput { Slot = -1, AbilityQ = true, Aim = t.Pos });
         Steps(rf, 1.5f, new RunInput { Slot = -1, Aim = t.Pos });
         Check(t.Hp < t.MaxHp, "a fireball burns a guard");
+        // Aimed at open floor, it bursts there -- not on the far wall behind the cursor.
+        Run rb = Make(q, JobType.Datasteal, mage);
+        Actor near = rb.AddEnemy(EnemyKind.Guard, new V2(5.5f, 2.5f), 0), beyond = rb.AddEnemy(EnemyKind.Guard, new V2(12.5f, 1.5f), 0);
+        V2 spot = new V2(5.5f, 1.5f);
+        Check(V2.Distance(rb.AreaPoint(Ability.Fireball, spot), spot) < 0.01f, "the fireball's preview sits on the cursor");
+        rb.Step(new RunInput { Slot = -1, AbilityQ = true, Aim = spot });
+        Steps(rb, 1.5f, new RunInput { Slot = -1, Aim = spot });
+        Check(near.Hp < near.MaxHp && beyond.Hp >= beyond.MaxHp, $"a fireball bursts at the cursor (beside it {near.Hp:0}/{near.MaxHp:0}, past it {beyond.Hp:0}/{beyond.MaxHp:0})");
     }
 
     private void Bodies()
