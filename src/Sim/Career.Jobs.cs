@@ -897,8 +897,6 @@ public sealed partial class Career
         return 1;
     }
 
-    public static string GrudgeNote(int g) => $"now {g}; at {Tables.GrudgeElite} their sites field elites, at {DangerGrudge} they come after you and your contacts";
-
     private void CloseJob(Job j, RunResult r, Debrief d)
     {
         InRun = -1;
@@ -907,7 +905,7 @@ public sealed partial class Career
         if (by != 0)
         {
             Grudge[j.Faction] = M.Clamp(Grudge.GetValueOrDefault(j.Faction) + by, 0, 9);
-            d.Lines.Add(($"{who} grudge", $"{(by > 0 ? "+" : "")}{by} ({GrudgeNote(Grudge[j.Faction])})"));
+            d.Lines.Add(($"{who} grudge", $"{(by > 0 ? "+" : "")}{by} (now {Grudge[j.Faction]})"));
             if (by > 0) WarnGrudge(j.Faction);
         }
         else if (j.Type is not (JobType.Courier or JobType.Race or JobType.Hub or JobType.Bounty))
