@@ -46,7 +46,8 @@ public sealed partial class Run
 
     private void OfferChoices()
     {
-        if (!Ordinary || Pending != null) return;
+        // Not while jacked in: the Matrix covers the box, and a choice stops the clock -- you'd be stuck in there.
+        if (!Ordinary || Pending != null || Matrix != null) return;
         // At the exit, with the hostage behind you: one in three wants to be let go.
         if (!_beggedAsked && Job.Type == JobType.Rescue && Hostage != null && Hostage.State == AiState.Follow && NearExit(Player.Pos) && Begs)
         {
