@@ -19,6 +19,8 @@ public static partial class Storylets
             {
                 Theirs("doc", "Burn them -- and take the booster", "Ichikawa watches them burn, then opens a case. 'The best chrome I ever made. Reaction +2.'"),
                 new("Sell them to Sorensen-Aoki (¥10,000)", (c, m) => { c.Set("arc:doc", 2); c.Cash += 10000; c.Count("earned", 10000); c.Infamy(1); c.Loyalty["doc"] = Math.Max(0, c.Loyalty.GetValueOrDefault("doc") - 1); return "¥10,000. Ichikawa doesn't say anything. Nothing needs saying. Notoriety +1, trust -1."; }),
+                // For a runner who'd rather keep their essence (a mage, say): the files burn, the chrome stays in its case.
+                Fx(new Choice("Burn them -- thanks, but no chrome", (c, m) => { c.Set("arc:doc", 3); return "Ichikawa shrugs and closes the case. 'Your body, your call.' He fills your bag from his own shelf instead: the good medkits, the ones he keeps for himself. (Medkits heal 50 % more.)"; }), "medkits heal 50 % more"),
             }, Call: true);
         yield return new("fork-arms", Hook.Debrief, Sal, "Thunder", "Big Sal, holding the LMG he built for himself: 'She's yours if you want her. Or -- leave her here, on the wall, and I'll see you right every week for as long as I'm in business.'",
             c => false, new[]

@@ -971,6 +971,14 @@ public partial class SmokeTest
         fc.Send("fork-talismonger");
         fc.Choose(fc.Inbox.Last(), 1);
         Check(fc.ArcPath("talismonger") == 2 && fc.Essence < ess && fc.ArmorValue == TestCareer().ArmorValue, "drawing on the circle costs essence, and no ward");
+        // Ichikawa's files burned, his chrome declined: no booster, better medkits.
+        Career nc = TestCareer();
+        nc.ArcStep["doc"] = 3;
+        nc.Set("arc:doc", -1);
+        float heal = nc.MedkitHeal, essN = nc.Essence;
+        nc.Send("fork-doc");
+        nc.Choose(nc.Inbox.Last(), 2);
+        Check(nc.ArcPath("doc") == 3 && !nc.Cyber.Contains("booster") && nc.Essence == essN && MathF.Abs(nc.MedkitHeal - heal * 1.5f) < 0.01f, "no thanks to the booster: essence kept, medkits heal half as much again");
         Career oc = TestCareer();
         oc.ArcStep["arms"] = 3;
         Eq(oc.ArcPath("arms"), 1, "a story finished before the forks counts as the usual ending");
