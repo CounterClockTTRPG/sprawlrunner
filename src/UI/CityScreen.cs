@@ -308,8 +308,16 @@ public partial class CityScreen : Control
         if (today.Count == 0 && !C.Today.Any()) m.Add(UITheme.Label("A quiet morning. Rain on the window.", 15, UITheme.Dim));
         int unread = C.Unread, waiting = C.Inbox.Count(C.Waiting);
         if (unread + waiting > 0) m.Add(UITheme.Label($"{unread} new message(s), {waiting} waiting on an answer -- P for the PDA.", 15, UITheme.Amber));
-        foreach (Job u in C.Board.Where(b => b.Tag != null && b.Tag.StartsWith("danger:")))
-            m.Add(UITheme.Label($"URGENT: {u.Title} -- {(u.Expires <= C.Day ? "today is the last chance" : $"by the end of day {u.Expires}")}. Miss it and they're shut for a week{(C.Flag("dangerfail:" + u.Tag[7..]) >= 1 ? " -- and this time, gone for good" : "")}.", 15, UITheme.Bad));
+        // Every job somebody is counting on, every morning it is waiting: a
+        // contact's call for help, or the next night of the heist. A heist night
+        // used to sit on the board unannounced until it lapsed.
+        foreach (Job u in C.Board.Where(Career.CountedOn))
+        {
+            bool last = u.Expires <= C.Day;
+            string kind = u.Tag.StartsWith("heist:") ? "HEIST" : "URGENT";
+            m.Add(UITheme.Label($"{kind}: {u.Title} -- {C.DeadlineOf(u)}. {C.StakeOf(u)}", 15,
+                last || kind == "URGENT" ? UITheme.Bad : UITheme.Amber));
+        }
         foreach (ContactDef k in Tables.Contacts.Where(k => C.Shut(k.Id) != null && C.Loyalty.GetValueOrDefault(k.Id) > 0)) m.Add(UITheme.Label(C.Shut(k.Id), 14, UITheme.Bad));
         var row = UITheme.HBox();
         row.Alignment = BoxContainer.AlignmentMode.Center;
@@ -475,10 +483,10 @@ public partial class CityScreen : Control
             if (j != null)
             {
                 // Someone's counting on you: the deadline in plain words, flashing on the last day.
-                bool urgent = j.Tag != null && j.Tag.StartsWith("danger:");
+                bool urgent = Career.CountedOn(j);
                 bool lastDay = j.Expires <= c.Day;
-                UITheme.Write(this, new Vector2(30, 142), urgent ? "URGENT  " + j.Title : j.Title, 17, urgent ? UITheme.Bad : UITheme.Magenta, heading: true);
-                string when = urgent ? (lastDay ? "TODAY is the last chance" : $"by the end of day {j.Expires} (tomorrow)") : $"{j.Expires - c.Day + 1} day(s) left";
+                UITheme.Write(this, new Vector2(30, 142), urgent ? (j.Tag.StartsWith("heist:") ? "HEIST  " : "URGENT  ") + j.Title : j.Title, 17, urgent ? UITheme.Bad : UITheme.Magenta, heading: true);
+                string when = urgent ? (lastDay ? "TODAY is the last chance" : c.DeadlineOf(j)) : $"{j.Expires - c.Day + 1} day(s) left";
                 UITheme.Write(this, new Vector2(30, 166), $"{Tables.District(j.District).Name}  {j.Skulls}  {M.Money(j.Pay)}  ·  {when}", 15, urgent && lastDay && MathF.Sin(sim.Time * 6) > 0 ? UITheme.Bad : UITheme.Text);
             }
             else UITheme.Write(this, new Vector2(30, 144), "No job on. The terminal at the safehouse has work.", 15, UITheme.Dim);

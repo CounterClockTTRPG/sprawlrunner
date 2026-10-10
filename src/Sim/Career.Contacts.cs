@@ -72,12 +72,46 @@ public sealed partial class Career
         Explain("danger", $"A faction with a grudge of {DangerGrudge} goes after your contacts in the districts it holds. When one calls for help, go: it's a defend job at their door, today or tomorrow. Miss it and their shop is shut for a week; twice, and they leave town for good.");
     }
 
+    /// <summary>
+    /// A job somebody is counting on, where letting it lapse costs more than the
+    /// pay: a contact's call for help, or a night of Juno's heist. These are the
+    /// ones the morning card and the HUD warn about by name.
+    /// </summary>
+    public static bool CountedOn(Job j) =>
+        j.Tag != null && (j.Tag.StartsWith("danger:") || j.Tag.StartsWith("heist:"));
+
+    /// <summary>
+    /// What happens if a counted-on job lapses, in a line: the warning shown
+    /// every morning it is on the board.
+    /// </summary>
+    public string StakeOf(Job j)
+    {
+        if (j.Tag == null) return "";
+        if (j.Tag.StartsWith("danger:"))
+            return Flag("dangerfail:" + j.Tag[7..]) >= 1
+                ? "Miss it and they're shut for a week -- and this time, gone for good."
+                : "Miss it and they're shut for a week.";
+        if (j.Tag.StartsWith("heist:"))
+            return "Miss it and Juno's crew scatters: the whole heist is off.";
+        return "";
+    }
+
+    /// <summary>A counted-on job's deadline in plain words.</summary>
+    public string DeadlineOf(Job j) =>
+        j.Expires <= Day ? "today is the last chance"
+        : j.Expires == Day + 1 ? $"by the end of day {j.Expires} (tomorrow)"
+        : $"by the end of day {j.Expires} ({j.Expires - Day + 1} days)";
+
     /// <summary>A job someone was counting on ran out: what follows from it.</summary>
     private void Lapsed(Job j)
     {
         RivalTookIt(j);
         BusinessAbandoned(j);
         if (j.Tag != null && j.Tag.StartsWith("danger:")) HurtContact(j.Tag[7..]);
-        if (j.Tag != null && j.Tag.StartsWith("heist:")) { Set("heist:stage", 0); Say("The heist crew scattered when you didn't show."); }
+        if (j.Tag != null && j.Tag.StartsWith("heist:"))
+        {
+            Set("heist:stage", 0);
+            Say($"You never showed for \"{j.Title}\". Juno's crew has scattered and the vault is off.");
+        }
     }
 }
