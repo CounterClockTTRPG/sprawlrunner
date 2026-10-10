@@ -230,6 +230,19 @@ public partial class SmokeTest
         pd.Matrix.You = pf.At;
         Steps(pd, 12, new RunInput { Slot = -1, Interact = true });
         Check(pd.LootFound.Any(l => l.Name.StartsWith(Career.PaydataPrefix) && l.Value == pf.Value), "paydata goes into the loot");
+        // The second folder waits until you're out: asked in the Matrix, it froze the host under a hidden box.
+        Job dj = TestJob(JobType.Datasteal);
+        while (!new Rng(dj.Seed ^ 0xD127UL).Chance(1 / 3f)) dj.Seed++;
+        Run dr = new Run(dj, dk, Site(rows));
+        dr.Player.Pos = new V2(11.5f, 1.5f);
+        dr.Step(new RunInput { Slot = -1, InteractPressed = true, Interact = true });
+        dr.Matrix.Ice.Clear();
+        for (int i = 0; i < 60 * 60 && dr.DataProgress < 1; i++) dr.Step(MatrixInput(dr.Matrix, i));
+        Check(dr.DataProgress >= 1 && dr.Matrix != null && dr.Pending == null, "the last datastore in: no decision while you're still jacked in");
+        for (int i = 0; i < 60 * 40 && dr.Matrix != null; i++) dr.Step(MatrixInput(dr.Matrix, i));
+        Check(dr.Matrix == null, "and E at the entry still jacks you out");
+        dr.Step(new RunInput { Slot = -1 });
+        Check(dr.Pending?.Id == "dirt", "the second folder is asked about once you're out");
 
         // ---- Null's jobs from home ----
         var hj = new Job { Id = 1, Type = JobType.Hack, Host = MxGoal.Crash, Faction = Faction.Halcyon, Style = SiteStyle.Office, Threat = 2, Seed = 5, Target = "x", Item = "x", Title = "x", Lot = -1, Pay = 1000 };
