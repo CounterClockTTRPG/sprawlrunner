@@ -40,7 +40,7 @@ public static class Controls
         [Act.Up] = "Move up / throttle", [Act.Down] = "Move down / brake", [Act.Left] = "Move left / steer left", [Act.Right] = "Move right / steer right",
         [Act.Sneak] = "Sneak (hold)", [Act.Interact] = "Use / enter", [Act.Reload] = "Reload", [Act.Dash] = "Dash", [Act.Medkit] = "Medkit",
         [Act.AbilityQ] = "Ability 1", [Act.AbilityF] = "Ability 2", [Act.Grenade] = "Next grenade", [Act.Whistle] = "Whistle (lure)", [Act.Map] = "Map",
-        [Act.Weapon1] = "Primary", [Act.Weapon2] = "Secondary", [Act.Weapon3] = "Melee", [Act.Handbrake] = "Handbrake", [Act.Pause] = "Pause / back", [Act.Pda] = "PDA (in the city)", [Act.Rig] = "Jack into your drone", [Act.Horn] = "Horn (in the car)",
+        [Act.Weapon1] = "Primary", [Act.Weapon2] = "Secondary", [Act.Weapon3] = "Melee", [Act.Handbrake] = "Handbrake", [Act.Pause] = "Pause / back", [Act.Pda] = "PDA (city, safehouse)", [Act.Rig] = "Jack into your drone", [Act.Horn] = "Horn (in the car)",
     };
 
     private static readonly Dictionary<Act, JoyButton> Pad = new()

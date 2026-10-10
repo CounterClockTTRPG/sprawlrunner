@@ -91,6 +91,7 @@ public partial class PlaceScreen : Control
         left.AddChild(_status);
         left.AddChild(UITheme.Spacer(10));
         if (home) left.AddChild(UITheme.Button("Sleep until tomorrow", Sleep, 0, 42, "A new day: the board refreshes. Saves the career."));
+        if (home) left.AddChild(UITheme.Button(C.Unread > 0 ? $"PDA ({C.Unread} new)  [P]" : "PDA  [P]", OpenPda, 0, 42, "Inbox, travel, contacts, factions, the city."));
         // A career with a story to end on can end by choice, not only by death.
         if (home && C.Active == null && C.RetireReason() is string why)
             left.AddChild(UITheme.Button("Retire...", () => Modal.Confirm(this, "WALK AWAY?", $"{why} You could stop here: the career ends, with its receipt and whatever legacy it earned. There is no coming back.", "Retire", () =>
@@ -139,11 +140,27 @@ public partial class PlaceScreen : Control
 
     public override void _UnhandledKeyInput(InputEvent e)
     {
-        if (e is InputEventKey { Pressed: true, Keycode: Key.Escape } && Modal.Open == 0)
+        if (Modal.Open > 0 || Pda.Open > 0) return;
+        if (e is InputEventKey { Pressed: true, Keycode: Key.Escape })
         {
             Leave();
             GetViewport().SetInputAsHandled();
         }
+        else if (_kind is "home" or "loft" && Controls.Is(e, Act.Pda))
+        {
+            OpenPda();
+            GetViewport().SetInputAsHandled();
+        }
+    }
+
+    /// <summary>The PDA from the sofa. Travelling from it walks you out to the car, now parked somewhere else.</summary>
+    private void OpenPda()
+    {
+        if (Pda.Open > 0) return;
+        GetViewport().GuiReleaseFocus(); // or the terminal's prompt would take Esc and walk you out
+        var pda = new Pda(C, _root.CitySim) { Travelled = Leave, Here = _lot };
+        pda.TreeExited += () => { if (!IsQueuedForDeletion() && IsInsideTree()) { Refresh(); Show(_tab); } };
+        AddChild(pda);
     }
 
     public void Leave()
@@ -193,7 +210,7 @@ public partial class PlaceScreen : Control
         switch (tab)
         {
             case "Terminal":
-                var term = new Terminal { Root = _root, Changed = Refresh, Escape = Leave, SizeFlagsVertical = SizeFlags.ExpandFill };
+                var term = new Terminal { Root = _root, Changed = Refresh, Escape = Leave, Pda = _kind is "home" or "loft" ? OpenPda : null, SizeFlagsVertical = SizeFlags.ExpandFill };
                 _content.AddChild(term);
                 break;
             case "Runner": RunnerTab(); break;

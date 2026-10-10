@@ -15,6 +15,8 @@ public partial class Terminal : PanelContainer
     public Root Root;
     public Action Changed;
     public Action Escape;
+    /// <summary>The 'pda' command (the safehouse's terminal; P would only type a p).</summary>
+    public Action Pda;
     private VBoxContainer _out;
     private ScrollContainer _scroll;
     private LineEdit _in;
@@ -137,6 +139,7 @@ public partial class Terminal : PanelContainer
                 Line("  drop         walk away from the active job (-1 rep)", GDim);
                 Line("  news         what the street is saying", GDim);
                 Line("  mail         your inbox;  read N  opens one;  reply N K  answers it", GDim);
+                if (Pda != null) Line("  pda          your PDA (inbox, travel, contacts, the city)", GDim);
                 Line("  clear        clear the screen", GDim);
                 break;
             case "jobs": case "ls": case "list": Jobs(); break;
@@ -158,6 +161,7 @@ public partial class Terminal : PanelContainer
             case "mail": case "inbox": Mailbox(); break;
             case "read": case "r": Read(n); break;
             case "reply": Reply(n, w.Length > 2 && int.TryParse(w[2], out int kk) ? kk : -1); break;
+            case "pda" when Pda != null: Pda(); break;
             case "clear": case "cls":
                 foreach (Node c in _out.GetChildren()) c.QueueFree();
                 break;
