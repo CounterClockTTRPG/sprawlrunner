@@ -52,8 +52,14 @@ public partial class Terminal : PanelContainer
         // A long line runs off the glass instead of widening the whole monitor.
         _scroll.HorizontalScrollMode = ScrollContainer.ScrollMode.ShowNever;
         v.AddChild(_scroll);
-        var row = UITheme.HBox(4);
-        row.AddChild(UITheme.Label(">", 18, G, mono: true));
+        // Follow the output down: the bar's range only grows a layout after a line is added, so scroll when it does.
+        _scroll.GetVScrollBar().Changed += () => _scroll.ScrollVertical = (int)_scroll.GetVScrollBar().MaxValue;
+        // A gap above the prompt, so the last line never sits on the input box.
+        v.AddChild(UITheme.Spacer(8));
+        var row = UITheme.HBox(6);
+        var prompt = UITheme.Label(">", 18, G, mono: true);
+        prompt.CustomMinimumSize = new Vector2(14, 0);
+        row.AddChild(prompt);
         _in = new LineEdit { CustomMinimumSize = new Vector2(0, 32), PlaceholderText = "type 'help'", CaretBlink = true };
         _in.AddThemeFontOverride("font", UITheme.Mono);
         _in.AddThemeColorOverride("font_color", G);
