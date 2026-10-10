@@ -121,7 +121,7 @@ twice that). A crashed IC is gone; an alert core makes more.
 
 ## 4. Decks
 
-Owned hardware, chosen in the safehouse Loadout tab; Null sells them on a
+Owned hardware, chosen on the safehouse Deck tab; Null sells them on a
 new **Decks** counter. Every runner has the stock commlink; the cyberdeck
 implant is a deck of its own and, with any other deck, runs it **hot-sim**
 (moves 15 % faster in the Matrix). It still gives the Hack ability.
@@ -149,7 +149,7 @@ into the deck list.
 
 ## 5. Programs and memory
 
-Programs are **loaded** into the deck in the Loadout tab, up to its memory;
+Programs are **loaded** into the deck on the safehouse Deck tab, up to its memory;
 an unloaded program does nothing. Downloaded files fill the rest, so a deck
 full of programs has no room for paydata. In the Matrix, **G purges** the
 last program loaded (it frees its memory for the rest of the run) when a

@@ -111,7 +111,7 @@ public partial class PlaceScreen : Control
 
         string[] tabs = _kind switch
         {
-            "home" or "loft" => new[] { "Terminal", "Runner", "Loadout", "Upgrades", "Garage" },
+            "home" or "loft" => new[] { "Terminal", "Runner", "Loadout", "Deck", "Upgrades", "Garage" },
             "fixer" => new[] { "Terminal", "Intel" },
             "doc" => new[] { "Clinic" },
             "arms" => new[] { "Guns & gear" },
@@ -198,14 +198,15 @@ public partial class PlaceScreen : Control
                 break;
             case "Runner": RunnerTab(); break;
             case "Loadout": LoadoutTab(); break;
+            case "Deck": DeckTab(); break;
             case "Upgrades": Offers("home", $"Safehouse upgrades, bought once and kept for good -- and how you live (now {Career.Lifestyles[C.LifeTier].name.ToLower()}: {M.Money(C.RentDue)} a week).", o => o.Kind is ShopKind.Upgrade or ShopKind.Lifestyle); break;
             case "Garage": GarageTab(); break;
             case "Intel": Offers("fixer", "Juno sells what she knows about your current job's site."); break;
             case "Clinic": Offers("doc", $"Essence {C.Essence:0.00} / 6.00. Chrome eats your essence; medkits work worse the lower it gets."); break;
             case "Guns & gear": Offers("arms", "Weapons, armour, grenades and medkits. Mods fit weapons you own."); break;
             case "Vehicles": Offers("rigger", "Wheels. The one you buy is the one you drive away in."); break;
-            case "Programs": Offers("decker", $"Programs run loaded in your deck's memory ({C.ActiveDeck.Name}: {C.MemoryFree}/{C.Memory} Mp free; load them in the safehouse Loadout tab). Paydata you pull shares the same memory.", o => o.Kind is not (ShopKind.Deck or ShopKind.Sell)); break;
-            case "Decks": Offers("decker", $"Null's hardware. You carry the {C.ActiveDeck.Name} (rating {C.ActiveDeck.Rating}, {C.Memory} Mp). Arrays are Attack, Sleaze, Data processing, Firewall -- deal them out as you like in the Loadout tab.", o => o.Kind == ShopKind.Deck); break;
+            case "Programs": Offers("decker", $"Programs run loaded in your deck's memory ({C.ActiveDeck.Name}: {C.MemoryFree}/{C.Memory} Mp free; load them on the safehouse Deck tab). Paydata you pull shares the same memory.", o => o.Kind is not (ShopKind.Deck or ShopKind.Sell)); break;
+            case "Decks": Offers("decker", $"Null's hardware. You carry the {C.ActiveDeck.Name} (rating {C.ActiveDeck.Rating}, {C.Memory} Mp). Arrays are Attack, Sleaze, Data processing, Firewall -- deal them out as you like on the safehouse Deck tab.", o => o.Kind == ShopKind.Deck); break;
             case "Paydata": Offers("decker", "Null buys paydata at what it's worth. Wen pays her cut, like for anything else.", o => o.Kind == ShopKind.Sell); break;
             case "Precinct": Offers("cop", "Dace sells what his badge is worth. Cash, and he never met you."); break;
             case "Newsroom": Offers("press", "Quill buys true stories, kills false ones, and prints the ones that hurt the right people."); break;
@@ -345,10 +346,6 @@ public partial class PlaceScreen : Control
         Stat("Dash cooldown", $"{C.DashCooldown:0.0} s");
         Stat("Grenades carried", $"{C.GrenadeCap} per type");
         d.AddChild(UITheme.Spacer(6));
-        d.AddChild(UITheme.Label("CYBERWARE", 15, UITheme.Dim));
-        if (C.Cyber.Count == 0) d.AddChild(UITheme.Label("All meat.", 15, UITheme.Dim));
-        foreach (string id in C.Cyber) d.AddChild(UITheme.Label($"{Tables.CyberById(id).Name} ({Tables.CyberById(id).Essence:0.0})", 15, UITheme.Violet));
-        d.AddChild(UITheme.Spacer(6));
         d.AddChild(UITheme.Label($"Jobs {C.JobsDone} done, {C.JobsFailed} failed.  Kills {C.Kills}.", 15, UITheme.Dim));
         if (C.Spells.Count > 0)
         {
@@ -476,13 +473,36 @@ public partial class PlaceScreen : Control
         if (C.Vehicle == "van") _content.AddChild(UITheme.Label("The van carries one more of each grenade type you own.", 15, UITheme.Good));
         if (C.Mods.Count > 0) _content.AddChild(UITheme.Label("Mods: " + string.Join(", ", C.Mods.Select(m => $"{Tables.Weapon(m.Split(':')[0]).Name} {Tables.Mods.First(x => x.Id == m.Split(':')[1]).Name.ToLower()}")), 15, UITheme.Dim));
         if (C.Spells.Count > 0) _content.AddChild(UITheme.Label($"Spells: {string.Join(", ", C.Spells.Select(id => Tables.Spells.First(x => x.Id == id).Name))}  (power x{C.SpellPower:0.00})", 15, UITheme.Violet));
+    }
+
+    // ---- deck and chrome --------------------------------------------------------------
+
+    /// <summary>What you jack in with and what's in you: the deck, its array and programs, then the cyberware.</summary>
+    private void DeckTab()
+    {
+        _content.AddChild(UITheme.Label("The deck you carry, and the chrome you carry in you.", 16, UITheme.Dim));
         DeckSection();
+        _content.AddChild(UITheme.Spacer(6));
+        _content.AddChild(UITheme.Rule(UITheme.Faint));
+        _content.AddChild(UITheme.Label($"CYBERWARE   essence {C.Essence:0.00} / 6.00", 15, UITheme.Dim));
+        if (C.Cyber.Count == 0) _content.AddChild(UITheme.Label("All meat. The doc's clinic fits chrome.", 15, UITheme.Dim));
+        foreach (string id in C.Cyber)
+        {
+            CyberDef cd = Tables.CyberById(id);
+            var g = C.GradeOf(id);
+            var row = UITheme.HBox(12);
+            var n = UITheme.Label(cd.Name + (g.id is null or "standard" ? "" : $" ({g.name.ToLower()})"), 16, UITheme.Violet, wrap: false);
+            n.CustomMinimumSize = new Vector2(280, 0);
+            row.AddChild(n);
+            row.AddChild(UITheme.Label($"{C.EssenceOf(id):0.00}", 16, UITheme.Cyan, wrap: false));
+            row.AddChild(UITheme.Grow(UITheme.Label(cd.Desc, 13, UITheme.Dim)));
+            _content.AddChild(row);
+        }
     }
 
     /// <summary>The deck: which one, how its values are dealt out, which programs are loaded into its memory.</summary>
     private void DeckSection()
     {
-        _content.AddChild(UITheme.Rule(UITheme.Faint));
         Choice("Deck", C.DecksOwned.ToList(), C.ActiveDeck.Id, v => C.CarryDeck(v), id => $"{Tables.Deck(id).Name} (R{Tables.Deck(id).Rating}, {Tables.Deck(id).Memory} Mp)");
         int[] v = C.DeckValues(C.ActiveDeck.Id);
         var row = UITheme.HBox(8);
