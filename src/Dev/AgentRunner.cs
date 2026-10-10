@@ -533,7 +533,7 @@ public partial class AgentRunner : Node
         if (r.Deadline > 0) sb.AppendLine($"deadline: {r.TimeLeft:0} s left");
         if (r.Job.Mods.Count > 0 || r.C.Weather != Career.Sky.Clear) sb.AppendLine($"conditions: {r.C.Weather}{string.Concat(r.Job.Mods.Select(m => ", " + m))}");
         if (r.CarriedBody != null) sb.AppendLine("carrying a body (E drops it)");
-        sb.AppendLine($"security: level {r.SecurityLevel}/6 {Run.SecurityLevels[r.SecurityLevel].name} ({r.SecurityTick * 100:0} % to the next){(r.Alarm ? ", ALARM raised" : "")}{(r.CoolingOff ? ", cooling off" : "")} | kills {r.Kills} | cash found {r.CashFound}");
+        sb.AppendLine($"security: level {r.SecurityLevel}/6 {r.Levels[r.SecurityLevel].name} ({r.SecurityTick * 100:0} % to the next){(r.Alarm ? ", ALARM raised" : "")}{(r.CoolingOff ? ", cooling off" : "")} | kills {r.Kills} | cash found {r.CashFound}");
         if (r.Prompt != null) sb.AppendLine($"prompt: {r.Prompt} {(r.PromptProgress >= 0 ? $"{MathF.Min(1, r.PromptProgress) * 100:0}%" : "")}");
         if (r.Matrix is MatrixRun mx)
         {

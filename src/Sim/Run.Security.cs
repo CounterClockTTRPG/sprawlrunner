@@ -32,6 +32,21 @@ public sealed partial class Run
         ("KILL TEAM", "an elite squad comes in"),
     };
 
+    /// <summary>The same levels in a bounty's nest, where nobody calls anybody: the noise wakes more of it.</summary>
+    public static readonly (string name, string does)[] NestLevels =
+    {
+        ("QUIET", "nothing has your scent yet"),
+        ("SCENTED", "they notice you faster"),
+        ("STIRRING", "more of them are prowling"),
+        ("AWAKE", "the whole nest; more come every 25 s"),
+        ("CUT OFF", "something waits by the way out"),
+        ("HUNTED", "they know where you are"),
+        ("THE BIG ONES", "the worst of them come up from below"),
+    };
+
+    /// <summary>The security levels as this site has them.</summary>
+    public (string name, string does)[] Levels => Job.Type == JobType.Bounty ? NestLevels : SecurityLevels;
+
     /// <summary>Push security up (never past 6); the levels crossed happen at once.</summary>
     public void RaiseSecurity(float by)
     {
@@ -42,10 +57,12 @@ public sealed partial class Run
 
     private void OnLevel(int level)
     {
+        // A bounty's nest has no guards to call anybody: the noise just wakes more of what lives there.
+        bool nest = Job.Type == JobType.Bounty;
         switch (level)
         {
             case 1:
-                Say("They know someone's here. The guards are on edge.");
+                Say(nest ? "Something in the dark has caught your scent." : "They know someone's here. The guards are on edge.");
                 break;
             case 2:
                 for (int k = 0; k < Tables.SecurityPatrols; k++)
@@ -59,10 +76,10 @@ public sealed partial class Run
                         g.Patrol.AddRange(new[] { from, a.Centre, b.Centre });
                     }
                 }
-                Say("Security level 2: extra patrols are walking the site.");
+                Say(nest ? "More of them are stirring, nosing through the rooms." : "Security level 2: extra patrols are walking the site.");
                 break;
             case 3:
-                RaiseAlarm(Job.Faction == Faction.Halcyon ? "Security level 3: the alarm is raised!" : "They called for backup!");
+                RaiseAlarm(nest ? "A howl goes up -- the whole nest is awake!" : Job.Faction == Faction.Halcyon ? "Security level 3: the alarm is raised!" : "They called for backup!");
                 break;
             case 4:
             {
@@ -76,7 +93,7 @@ public sealed partial class Run
                     e.Bodyguard = true;
                     BecomeAlert(e, ex, false);
                 }
-                Events.Add(new RunEvent(Ev.Wave, at, Text: "Security level 4: a response team is covering the exit."));
+                Events.Add(new RunEvent(Ev.Wave, at, Text: nest ? "Something has got between you and the way out." : "Security level 4: a response team is covering the exit."));
                 break;
             }
             case 5:
@@ -86,7 +103,9 @@ public sealed partial class Run
             case 6:
             {
                 V2 at = Plan.Reinforce.OrderByDescending(p => V2.Distance(p, Player.Pos)).First();
-                EnemyKind[] squad = Job.Faction == Faction.Halcyon && Job.Threat >= 5 ? new[] { EnemyKind.Bulwark, EnemyKind.Cloaker, EnemyKind.Heavy } : new[] { EnemyKind.Heavy, EnemyKind.Heavy, EnemyKind.Guard };
+                EnemyKind[] squad = Job.Hive ? new[] { EnemyKind.HiveWorker, EnemyKind.HiveWorker, EnemyKind.HiveWorker }
+                    : nest ? new[] { Job.Threat >= 3 ? EnemyKind.Barghest : EnemyKind.Bruiser, EnemyKind.Bruiser, EnemyKind.Bruiser }
+                    : Job.Faction == Faction.Halcyon && Job.Threat >= 5 ? new[] { EnemyKind.Bulwark, EnemyKind.Cloaker, EnemyKind.Heavy } : new[] { EnemyKind.Heavy, EnemyKind.Heavy, EnemyKind.Guard };
                 foreach (EnemyKind k in squad)
                 {
                     Actor e = AddEnemy(k, at + new V2(R.Range(-1f, 1f), R.Range(-1f, 1f)), M.Angle(Player.Pos - at));
@@ -95,7 +114,7 @@ public sealed partial class Run
                     e.Hp = e.MaxHp;
                     BecomeAlert(e, Player.Pos, false);
                 }
-                Events.Add(new RunEvent(Ev.Wave, at, Text: "Security level 6: a kill team is in the building."));
+                Events.Add(new RunEvent(Ev.Wave, at, Text: nest ? "The biggest of them have come up from below." : "Security level 6: a kill team is in the building."));
                 break;
             }
         }

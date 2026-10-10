@@ -817,6 +817,18 @@ public partial class SmokeTest
             var bj = new Job { Type = JobType.Bounty, Style = SiteStyle.Den, Faction = Faction.Vipers, Threat = 1 + (int)seed % 5, Seed = seed, Title = "x", Target = "x", Item = "x" };
             var bp = LevelGen.Generate(bj);
             Check(bp.Enemies.Count > 0 && bp.Enemies.All(x => x.Kind is EnemyKind.Hound or EnemyKind.Bruiser or EnemyKind.Spirit or EnemyKind.Barghest), $"a nest is critters ({string.Join(",", bp.Enemies.Select(x => x.Kind).Distinct())})");
+            Check(bp.Enemies.All(x => x.Mood != Mood.OffDuty), "nothing in a nest is on its break");
+        }
+        // Stirred all the way up, a nest sends more of itself, never somebody's gangers.
+        {
+            var bj = new Job { Id = 6, Type = JobType.Bounty, Style = SiteStyle.Den, Faction = Faction.Vipers, Threat = 4, Seed = 3, Title = "x", Target = "x", Item = "x", Lot = -1 };
+            var br = new Run(bj, TestCareer(), LevelGen.Generate(bj));
+            br.RaiseSecurity(6);
+            for (int i = 0; i < 60 * 60; i++) br.Step(new RunInput { Slot = -1, Aim = br.Player.Pos + new V2(1, 0) });
+            var foes = br.Actors.Where(a => a.Team == 1 && a.Def != null).ToList();
+            Check(br.Alarm && foes.All(a => a.Kind is EnemyKind.Hound or EnemyKind.Bruiser or EnemyKind.Spirit or EnemyKind.Barghest),
+                $"a stirred nest sends only critters ({string.Join(",", foes.Select(a => a.Kind).Distinct())})");
+            Check(foes.Where(a => a.Kind is EnemyKind.Hound or EnemyKind.Bruiser).All(a => a.Wild), "and draws them as ghouls and hellhounds");
         }
         // The board: races for the rigger, hacks for the decker, all with a place to be.
         City city = City.Generate(55);

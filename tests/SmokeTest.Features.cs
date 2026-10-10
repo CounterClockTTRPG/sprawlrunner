@@ -513,6 +513,20 @@ public partial class SmokeTest
             Check(Pt.Of(r.Player.Pos) == pp.Entries.First(e => e.Id == "sewer").At && r.Entry?.Id == "sewer", "the run starts at the hatch");
             Check(!r.InExtraction(r.Player.Pos), "and the way out is still outside");
         }
+        // An escort's client comes in with you, not at the front gate.
+        Job esc = null;
+        for (ulong seed = 1; seed < 60 && esc == null; seed++)
+        {
+            var job = new Job { Id = 1, Type = JobType.Escort, Style = SiteStyle.Office, Threat = 3, Seed = seed * 53, Faction = Faction.Halcyon, Count = 2, Target = "T", Item = "I", Title = "escort" };
+            LevelPlan p = LevelGen.Generate(job);
+            if (p.Entries.FirstOrDefault(e => e.Id != "front" && e.Id != "roof") is EntryPoint side) { job.Entry = side.Id; esc = job; }
+        }
+        Check(esc != null, "an escort site with a side way in");
+        if (esc != null)
+        {
+            Run r = new Run(esc, TestCareer(), LevelGen.Generate(esc));
+            Check(r.Hostage != null && V2.Distance(r.Hostage.Pos, r.Player.Pos) < 1.5f, $"the client starts beside you at the {esc.Entry}");
+        }
         var tower = new Job { Id = 1, Type = JobType.Datasteal, Style = SiteStyle.Office, Threat = 5, Seed = 21, Floors = 3, Faction = Faction.Halcyon, Count = 2, Target = "T", Item = "I", Title = "tower" };
         LevelPlan tp = LevelGen.Generate(tower);
         Check(tp.Entries.Any(e => e.Id == "roof"), "a tower can be entered from the roof");
