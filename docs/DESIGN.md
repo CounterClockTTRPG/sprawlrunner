@@ -256,13 +256,13 @@ Abilities go in slots Q and F. Everyone also has **Dash**.
 Only the Street Mage is Awakened. Spells are abilities on Q/F with
 cooldowns; their power is `(0.4 + 0.6 x Essence/6) x (1 + 0.08 x Logic)`,
 x1.25 with a power focus -- so every implant dims the magic (the doc says by
-how much).
+how much). Area spells land on the cursor; a faint ring there shows the area of each one ready on Q/F.
 
 | Spell | Cooldown | Effect | Cost |
 |---|---|---|---|
 | Manabolt | 3.5 s | 55 x power to one living target in sight, ignores armour; nothing on machines | start |
-| Heal | 16 s | +45 x power HP, puts out burning | start |
-| Fireball | 9 s | slow fireball, bursts r 2.2 for 70 x power, sets fires | 9,000 |
+| Heal | 16 s | +45 x power HP and puts out burning for you and your side within r 2 of the cursor (range 15, stops at walls) | start |
+| Fireball | 9 s | slow fireball, bursts at the cursor (range 16, or on what it hits first) r 2.2 for 70 x power, sets fires | 9,000 |
 | Invisibility | 25 s | as Cloak | 14,000 |
 
 ## Vehicles
