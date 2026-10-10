@@ -1192,6 +1192,11 @@ public partial class RunView : Node2D
                     Hound(p, a.Facing, rad * 1.1f, flash, walk, coat: new Color(0.62f, 0.64f, 0.68f), eyes: new Color(0.55f, 0.9f, 1f));
                     if (a.HowlT > 0) DrawArc(p, rad * (1.5f + 2.5f * (1 - a.HowlT / Tables.HowlWind)), 0, MathF.Tau, 32, spectral with { A = 0.85f }, 3);
                 }
+                else if (a.Wild && a.Is(EnemyKind.Bruiser))
+                {
+                    float moving = r.Time - a.MovedAt < 0.12f ? 1 : 0;
+                    Ghoul(p, a.Facing, rad * 1.15f, flash, moving < 0.3f ? 0 : walk, time + a.Id * 0.7f);
+                }
                 else
                 {
                     // A ghost operative in plain sight is still half there: the camouflage shimmers.
@@ -1225,7 +1230,7 @@ public partial class RunView : Node2D
                     DrawColoredPolygon(new[] { c0 + sd * rad * 1.1f, c0 + sd * rad * 1.1f + f * 4, c0 - sd * rad * 1.1f + f * 4, c0 - sd * rad * 1.1f }, new Color(0.6f, 0.7f, 0.8f, 0.85f));
                     DrawLine(c0 + sd * rad * 1.1f + f * 2, c0 - sd * rad * 1.1f + f * 2, new Color(0.9f, 0.95f, 1f), 1);
                 }
-                if (a.Is(EnemyKind.Bruiser))
+                if (a.Is(EnemyKind.Bruiser) && !a.Wild)
                 {
                     Vector2 bf = new(MathF.Cos(a.Facing), MathF.Sin(a.Facing)), bs = new(-bf.Y, bf.X);
                     DrawLine(p + bf * rad * 0.6f + bs * rad * 0.5f, p + bf * rad * 1.7f + bs * rad * 0.2f, new Color(0.45f, 0.45f, 0.5f), 3);
@@ -1301,6 +1306,81 @@ public partial class RunView : Node2D
             DrawCircle(new Vector2(-r * 0.25f, -r * 0.2f), r * 0.35f, new Color(0.9f, 1f, 0.6f, 0.35f));
             DrawSetTransform(Vector2.Zero, 0, Vector2.One);
             DrawCircle(p, r * 0.35f * (0.5f + ripe), new Color(0.15f, 0.18f, 0.05f, 0.8f));
+        }
+
+        /// <summary>
+        /// A ghoul from above, nothing like a person: bent double, so the bald head hangs out in
+        /// front of a wide, bony back with the spine and ribs showing; long arms reach past the
+        /// head to hooked claws; corpse-pale grey-green skin, no clothes but a rag, milky eyes
+        /// that glow. It lurches -- the body rolls side to side and one foot drags.
+        /// </summary>
+        /// <param name="breathe">A clock for the idle heave of the back.</param>
+        private void Ghoul(Vector2 p, float facing, float r, float flash, float walk, float breathe)
+        {
+            Color skin = new Color(0.56f, 0.63f, 0.5f).Lerp(Colors.White, flash);
+            Color dark = new Color(0.3f, 0.36f, 0.27f).Lerp(Colors.White, flash);
+            Color claw = new(0.9f, 0.88f, 0.74f);
+            Color eye = new(0.85f, 1f, 0.7f);
+            // The lurch: a slow roll across the facing, the head swinging with it.
+            float roll = walk == 0 ? 0 : MathF.Sin(walk * 0.5f);
+            facing += roll * 0.18f;
+            Vector2 f = new(MathF.Cos(facing), MathF.Sin(facing)), s = new(-f.Y, f.X);
+            p += s * roll * r * 0.12f;
+            Art.DrawGlow(this, p + f * r * 0.4f, r * 2.4f, eye with { A = 0.14f });
+            DrawTextureRect(Art.Glow, new Rect2(p + new Vector2(2, 3) - Vector2.One * r * 1.8f, Vector2.One * r * 3.6f), false, new Color(0, 0, 0, 0.6f));
+            // Feet splayed behind: the right one strides, the left only drags after it.
+            float sw = MathF.Sin(walk) * r * 0.35f;
+            DrawCircle(p - f * r * 0.35f + s * r * 0.5f + f * sw, r * 0.2f, dark.Darkened(0.4f));
+            DrawCircle(p - f * r * 0.55f - s * r * 0.5f - f * MathF.Abs(sw) * 0.4f, r * 0.2f, dark.Darkened(0.4f));
+            // Long arms, shoulder to elbow (bowed outward) to a clawed hand past the head, swinging in turn.
+            float arm = walk == 0 ? MathF.Sin(breathe * 1.3f) * r * 0.05f : MathF.Sin(walk) * r * 0.3f;
+            foreach (float e in new[] { 1f, -1f })
+            {
+                Vector2 sh = p + s * e * r * 0.9f + f * r * 0.1f;
+                Vector2 el = p + s * e * r * 1.2f + f * (r * 0.55f + e * arm * 0.5f);
+                Vector2 hand = p + s * e * r * 0.78f + f * (r * 1.4f + e * arm);
+                DrawLine(sh, el, skin.Darkened(0.12f), r * 0.26f);
+                DrawLine(el, hand, skin.Darkened(0.05f), r * 0.2f);
+                DrawCircle(hand, r * 0.15f, skin);
+                for (int k = -1; k <= 1; k++)
+                {
+                    Vector2 c0 = hand + s * e * k * r * 0.1f;
+                    // Hooked: out, then curling in toward the head.
+                    Vector2 c1 = c0 + f * r * 0.24f + s * e * k * r * 0.07f;
+                    DrawLine(c0, c1, claw, 1.6f);
+                    DrawLine(c1, c1 + f * r * 0.1f - s * e * r * 0.1f, claw, 1.3f);
+                }
+            }
+            // The back: wider and deeper than a man's, heaving at rest.
+            float bw = r * 1.1f, bd = r * 0.82f;
+            if (walk == 0) { float br = 1 + 0.05f * MathF.Sin(breathe * 3.1f); bw *= br; bd *= br; }
+            var pts = new Vector2[12];
+            for (int i = 0; i < 12; i++)
+            {
+                float a = i / 12f * MathF.Tau;
+                // Hunched: the back bulges behind the shoulders, not round like a person's.
+                float back = MathF.Sin(a) < 0 ? 1.15f : 0.9f;
+                pts[i] = p + s * MathF.Cos(a) * bw + f * MathF.Sin(a) * bd * back;
+            }
+            DrawColoredPolygon(pts, skin.Darkened(0.18f));
+            // What's left of a rag round the hips, the colour of dirt.
+            DrawColoredPolygon(new[] { p - f * bd * 0.65f + s * bw * 0.75f, p - f * bd * 1.05f + s * bw * 0.3f, p - f * bd * 0.85f - s * bw * 0.1f, p - f * bd * 1.0f - s * bw * 0.55f, p - f * bd * 0.55f - s * bw * 0.8f }, new Color(0.2f, 0.18f, 0.15f));
+            // The spine down the middle and the ribs either side of it.
+            for (int k = 0; k < 4; k++) DrawCircle(p + f * r * (0.25f - k * 0.27f), r * 0.09f, skin.Lightened(0.15f));
+            for (int k = 0; k < 3; k++)
+                foreach (float e in new[] { 1f, -1f })
+                    DrawLine(p + f * r * (0.1f - k * 0.27f) + s * e * r * 0.18f, p + f * r * (-0.05f - k * 0.27f) + s * e * r * 0.75f, dark, 1.3f);
+            // The head, hung low and forward; pointed ears; the eyes.
+            Vector2 hd = p + f * r * 0.85f;
+            foreach (float e in new[] { 1f, -1f })
+                DrawColoredPolygon(new[] { hd + s * e * r * 0.22f + f * r * 0.08f, hd + s * e * r * 0.55f - f * r * 0.22f, hd + s * e * r * 0.15f - f * r * 0.12f }, skin.Darkened(0.1f));
+            DrawCircle(hd, r * 0.33f, skin.Lightened(0.08f));
+            foreach (float e in new[] { 1f, -1f })
+            {
+                Vector2 ey = hd + f * r * 0.18f + s * e * r * 0.14f;
+                Art.DrawGlow(this, ey, r * 0.45f, eye with { A = 0.6f });
+                DrawCircle(ey, r * 0.08f, eye);
+            }
         }
 
         /// <param name="coat">Fur colour (default: the hellhound's rust, or a K9's grey); <paramref name="eyes"/> likewise.</param>
