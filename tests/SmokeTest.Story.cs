@@ -1016,6 +1016,25 @@ public partial class SmokeTest
             hc.Finish(h, Won(hc));
         }
         Check(hc.Flag("heists") == 1 && hc.Flag("heist:stage") == 0, "the score of the decade");
+        // And the heist you don't show up for: warned every morning, named when it lapses.
+        Career hl = TestCareer();
+        hl.CityRef = city;
+        hl.Rep = 9;
+        hl.Day = 12;
+        hl.Choose(hl.Send("heist"), 0);
+        Job night = hl.Board.FirstOrDefault(x => x.Tag == "heist:1");
+        Check(night != null && Career.CountedOn(night), "a heist night is one somebody is counting on");
+        Check(night != null && hl.StakeOf(night).Contains("heist") && hl.DeadlineOf(night).Contains($"day {night.Expires}"),
+            "and the morning card says what missing it costs, and by when");
+        if (night != null)
+        {
+            hl.Day = night.Expires;
+            Check(hl.DeadlineOf(night) == "today is the last chance", "on its last day it says so");
+            hl.Day = night.Expires + 1;
+            hl.RefreshBoard(city);
+            Check(hl.Flag("heist:stage") == 0 && hl.News.Any(n => n.Contains("never showed") && n.Contains(night.Title)),
+                "a lapsed night calls the heist off, and says which night was missed");
+        }
     }
 }
 

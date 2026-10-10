@@ -189,12 +189,12 @@ public static partial class Storylets
                     c.Set("heist:stage", 1);
                     c.OfferSpecial(JobType.Investigate, SiteStyle.Office, Faction.Halcyon, d, Math.Min(5, c.MaxThreat), "Heist 1/3: case the vault",
                         "Juno: 'Night one. Get in, find the guard rota, the vault specs and the grid's maintenance codes, and get out. Nobody can know you were there.'", tag: "heist:1", lot: lot, payMul: 0.8f, expires: 6);
-                    return "Night one is on your board.";
+                    return "Night one is on your board -- six days, then Juno's crew moves on. Every night after has the same clock.";
                 }),
                 Ok("Not my kind of job"),
             },
             Bind: c => V(("district", c.MaxThreat >= 4 ? "Spire" : "Industrial district")), Cooldown: 18);
-        yield return new("heist-2", Hook.Debrief, Juno, "Night two", "Juno: 'You've got the codes. Now the grid: their security mainframe is in the same building. Jack in and kill it -- tomorrow, the vault is dark.'",
+        yield return new("heist-2", Hook.Debrief, Juno, "Night two", "Juno: 'You've got the codes. Now the grid: their security mainframe is in the same building. Jack in and kill it -- tomorrow, the vault is dark.' (Night two is on your board. Six days, or the crew scatters.)",
             c => c.Last?.Job?.Tag == "heist:1" && c.Last.Success,
             Fire: (c, m) =>
             {
@@ -203,7 +203,7 @@ public static partial class Storylets
                 c.OfferSpecial(JobType.Datasteal, SiteStyle.Office, Faction.Halcyon, last.District, last.Threat, "Heist 2/3: kill the grid",
                     "Juno: 'Night two. The mainframe runs their cameras and the vault's locks. Pull its brain out and the vault opens dark.'", tag: "heist:2", lot: c.Flag("heist:lot") - 1, payMul: 1f, expires: 6);
             });
-        yield return new("heist-3", Hook.Debrief, Juno, "Night three", "Juno: 'The grid is down. Cameras dead, locks dead, half the guards sent home because the building is \"under maintenance\". The vault. Tonight.'",
+        yield return new("heist-3", Hook.Debrief, Juno, "Night three", "Juno: 'The grid is down. Cameras dead, locks dead, half the guards sent home because the building is \"under maintenance\". The vault. Tonight.' (Night three is on your board. Six days, or the crew scatters.)",
             c => c.Last?.Job?.Tag == "heist:2" && c.Last.Success,
             Fire: (c, m) =>
             {
