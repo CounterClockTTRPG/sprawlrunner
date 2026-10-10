@@ -1086,6 +1086,14 @@ public partial class SmokeTest
             Check(visit?.Story == $"past-{bg}-visit" && pj != null && visit.Text.Contains(pj.Title), $"{bg}: go and see them and they tell you about it");
             Check(pc.Tell(Hook.Place, place).All(m => m.Story != $"past-{bg}-visit"), $"{bg}: once");
         }
+        // Story work can't fill the whole board: half of it stays ordinary jobs.
+        Career full = TestCareer();
+        full.CityRef = city;
+        for (int k = 0; k < full.BoardSize; k++)
+            full.Board.Add(new Job { Id = full.NextJobId++, Story = 1 + k, Type = JobType.Retrieve, Employer = "fixer", District = "docks", Expires = full.Day + 30, Lot = -1, Title = $"story {k}", Target = "x", Item = "x" });
+        full.RefreshBoard(city);
+        Check(full.Board.Count(Career.Ordinary) >= (full.BoardSize + 1) / 2, "a board full of story work still gets ordinary jobs: half of it");
+        Check(full.Board.Count(j => !Career.Ordinary(j)) >= full.BoardSize, "and the story jobs all stay");
         // The Wyrm's Ledger.
         for (int ch = 1; ch <= 4; ch++)
         {

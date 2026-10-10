@@ -136,7 +136,8 @@ public sealed partial class Career
                 });
         }
         int added = 0;
-        while (Board.Count < BoardSize && added < maxNew)
+        // Story and personal work never crowds out the street: at least half the board is ordinary jobs, even if that makes it longer.
+        while ((Board.Count < BoardSize || Board.Count(Ordinary) < (BoardSize + 1) / 2) && added < maxNew)
         {
             Job j = MakeJob(city);
             if (j == null) break;
@@ -147,7 +148,10 @@ public sealed partial class Career
         OfferFactionWork(city);
     }
 
-    private static readonly string[] Employers = { "fixer", "fixer", "fixer", "decker", "arms", "rigger", "doc", "fence", "talismonger", "cop", "press" };
+    /// <summary>A job off the street (any contact's, Johnsons and favours included), not a story, a contact's own story or a special.</summary>
+    public static bool Ordinary(Job j) => j.Story == 0 && j.Arc == null && j.Tag == null && !j.Tutorial;
+
+    private static readonly string[] Employers ={ "fixer", "fixer", "fixer", "decker", "arms", "rigger", "doc", "fence", "talismonger", "cop", "press" };
 
     // ---- the story ---------------------------------------------------------------------
 
