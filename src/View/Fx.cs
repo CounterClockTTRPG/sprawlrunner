@@ -52,7 +52,8 @@ public partial class FxLayer : Node2D
             Particle p = Items[i];
             p.Life -= dt;
             if (p.Life <= 0) { Items.RemoveAt(i); continue; }
-            p.Pos += p.Vel * dt;
+            // A ring's velocity is how fast it grows, not where it goes: it stays where it was set off.
+            if (p.Kind != FxKind.Ring) p.Pos += p.Vel * dt;
             p.Vel *= MathF.Exp(-p.Drag * dt);
             if (p.Kind == FxKind.Smoke) p.Size += dt * 18;
             if (p.Kind == FxKind.Ring) p.Size += dt * p.Vel.X;
