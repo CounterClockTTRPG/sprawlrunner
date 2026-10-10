@@ -1853,6 +1853,12 @@ public partial class SmokeTest : Node
         foreach (ContactDef k in Tables.Contacts)
             Eq(c.Place(k.Id).District, k.District, $"{k.Name} is in the {k.District}");
         Check(City.Landmarks.All(m => c.Lots.Any(l => l.Landmark == m.id)), "every landmark is in the city");
+        foreach (ulong seed in new ulong[] { 12345, 55, 7, 99999 })
+        {
+            City sc = City.Generate(seed);
+            Check(sc.Place("loft")?.Landmark == "arcology", $"city {seed}: the Spire loft is in the Spire");
+            Check(sc.Lots.Count(l => l.Place == "loft") == 1, $"city {seed}: and only there");
+        }
         foreach (Lot l in c.Lots.Where(l => l.Kind == LotKind.Building && l.Landmark == null).Take(400))
             Check(c[l.Door.X, l.Door.Y] == CTile.Sidewalk, $"lot {l.Index} door on pavement");
         for (int i = 0; i < c.RoadX.Count; i++)

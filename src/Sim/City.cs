@@ -230,6 +230,18 @@ public sealed class City
         foreach (var h in Hubs) Claim(h.id, h.district, r);
         // Contacts added later move into whatever is free, so every older city keeps its addresses.
         foreach (ContactDef k in Tables.Contacts.Where(k => k.Late)) Claim(k.Id, k.District, r);
+        // The Spire loft is in the Spire: the arcology's upper floors. Moved in after every claim (and with no draw),
+        // so all the other addresses stay where they were; the lot the loft was dealt goes back to being a building.
+        if (Lots.FirstOrDefault(l => l.Landmark == "arcology") is Lot spire && Lots.FirstOrDefault(l => l.Place == "loft") is Lot dealt)
+        {
+            dealt.Place = null;
+            dealt.Sign = 0;
+            spire.Place = "loft";
+            spire.Sign = SafehouseColour;
+            // A landmark fills its block, so every side is on a road: the door is the middle of the south face.
+            spire.Door = new Pt(spire.R.X + spire.R.W / 2, spire.R.Bottom);
+            spire.Facing = new Pt(0, 1);
+        }
     }
 
     /// <summary>Places you can walk around in.</summary>

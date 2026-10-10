@@ -604,6 +604,9 @@ public partial class CityView : Node2D
                 }
             }
             UITheme.Write(this, label + new Vector2(-150, 6), name, 15, new Color(0.9f, 0.9f, 0.95f, 0.75f), HorizontalAlignment.Center, 300, heading: true);
+            // Your loft is up there once you've bought it: the safehouse's lime under the tower's name.
+            if (l.Place == "loft" && V.Sim.C.HasUpgrade("loft"))
+                UITheme.Write(this, label + new Vector2(-150, 26), UITheme.Caps(City.PlaceName("loft")), 17, Art.C(City.SafehouseColour), HorizontalAlignment.Center, 300, heading: true);
         }
 
         /// <summary>
