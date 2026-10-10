@@ -23,6 +23,8 @@ public partial class CityView : Node2D
     private Vector2 _camPos;
     private float _zoom = 1;
     public float Time;
+    /// <summary>The zoom right now; it eases back to what the speed wants (the walkthrough pulls it out for a wide shot).</summary>
+    public float Zoom { get => _zoom; set => _zoom = value; }
     public float Shake;
 
     /// <summary>The planned route, drawn on the street (set by the city screen).</summary>
@@ -183,6 +185,9 @@ public partial class CityView : Node2D
 
     /// <summary>The roof offset of a building of height h whose base centre is at p.</summary>
     public Vector2 Lean(Vector2 p, float h) => (p - CamCentre) * h * 0.055f;
+
+    /// <summary>The Spire's crown and the tip of its mast, as multiples of its lot's height.</summary>
+    public const float SpireCrown = 1.56f, SpireTip = 2.45f;
 
     // ---- layers ---------------------------------------------------------------------
 
@@ -452,7 +457,8 @@ public partial class CityView : Node2D
             {
                 if (l.Kind != LotKind.Building && l.Landmark == null) continue;
                 var rect = new Rect2(l.R.X * T, l.R.Y * T, l.R.W * T, l.R.H * T);
-                if (view.Intersects(rect)) list.Add((l, rect, (rect.GetCenter() - cam).LengthSquared(), list.Count));
+                // The Spire towers over everything round it, so it goes last whatever the distance.
+                if (view.Intersects(rect)) list.Add((l, rect, l.Landmark == "arcology" ? -1 : (rect.GetCenter() - cam).LengthSquared(), list.Count));
             }
             list.Sort(FarFirst);
             foreach (var (l, rect, _, _) in list) DrawBuilding(l, rect);
@@ -499,23 +505,8 @@ public partial class CityView : Node2D
             switch (l.Landmark)
             {
                 case "arcology":
-                {
-                    // Four stepped tiers of dark glass, a beacon on top.
-                    Color glass = new(0.16f, 0.24f, 0.32f);
-                    Vector2 prev = Vector2.Zero;
-                    for (int k = 0; k < 4; k++)
-                    {
-                        float inset = k * 0.13f;
-                        var tier = new Rect2(b.Position + b.Size * inset, b.Size * (1 - 2 * inset));
-                        Vector2 top = Lean(l.Height * (k + 1) / 4);
-                        Box(tier, prev, top, glass.Lightened(k * 0.05f));
-                        for (float y = 6; y < tier.Size.Y - 4; y += 10)
-                            DrawLine(tier.Position + top + new Vector2(4, y), tier.Position + top + new Vector2(tier.Size.X - 4, y), new Color(0.5f, 0.85f, 1f, 0.25f), 1);
-                        prev = top;
-                        label = tier.GetCenter() + top;
-                    }
+                    label = DrawSpire(l, b);
                     break;
-                }
                 case "pagoda":
                 {
                     // Tiers with wide eaves, each edged in neon.
@@ -614,6 +605,86 @@ public partial class CityView : Node2D
             }
             UITheme.Write(this, label + new Vector2(-150, 6), name, 15, new Color(0.9f, 0.9f, 0.95f, 0.75f), HorizontalAlignment.Center, 300, heading: true);
         }
+
+        /// <summary>
+        /// The Halcyon Arcology, the Spire: a podium, then a needle tapering through three
+        /// stages and an observation crown to a mast far above every other roof in the city.
+        /// Returns where its name goes.
+        /// </summary>
+        private Vector2 DrawSpire(Lot l, Rect2 b)
+        {
+            Vector2 cen = b.GetCenter();
+            float s = MathF.Min(b.Size.X, b.Size.Y) / 2, h = l.Height, t = V.Time;
+            // Overbright on purpose: the night's CanvasModulate takes a third off, and the Spire should still blaze.
+            Color gold = new(1.5f, 1.1f, 0.38f), white = new(1.45f, 1.42f, 1.34f), cyan = new(0.45f, 1.45f, 1.5f), magenta = new(1.5f, 0.3f, 0.65f);
+            // The podium fills the lot, pale stone with a gold parapet round a dark roof terrace.
+            var podium = b.Grow(-6);
+            Vector2 pr = V.Lean(cen, h * 0.24f);
+            Box(podium, Vector2.Zero, pr, new Color(0.7f, 0.68f, 0.64f));
+            DrawRect(new Rect2(podium.Position + pr, podium.Size).Grow(-5), gold, false, 3);
+            DrawRect(new Rect2(podium.Position + pr, podium.Size).Grow(-14), new Color(0.2f, 0.22f, 0.27f));
+            DrawRect(new Rect2(podium.Position + pr, podium.Size).Grow(-22), cyan with { A = 0.5f }, false, 2);
+            // Lit walks run in from the corners of the terrace to the foot of the tower.
+            for (int i = 0; i < 4; i++)
+                DrawDashedLine(cen + pr + Corners[i] * (s - 24), cen + pr + Corners[i] * s * 0.5f, gold with { A = 0.8f }, 3, 8, true);
+            // A gold plinth steps up to the foot of the shaft.
+            Frustum(cen, s * 0.5f, h * 0.24f, s * 0.42f, h * 0.34f, gold.Darkened(0.2f), cyan, 1, t);
+            // The shaft: gold glass, then white, each stage narrower, neon running up the corners.
+            Frustum(cen, s * 0.34f, h * 0.34f, s * 0.24f, h * 0.9f, gold, cyan, 10, t);
+            Frustum(cen, s * 0.29f, h * 0.9f, s * 0.29f, h * 0.96f, new Color(0.2f, 0.22f, 0.28f), magenta, 0, t);
+            Frustum(cen, s * 0.22f, h * 0.96f, s * 0.15f, h * 1.42f, white, magenta, 8, t);
+            // The observation crown: a dark glass drum flaring out, ringed in cyan -- the top of the Spire.
+            Frustum(cen, s * 0.18f, h * 1.42f, s * 0.23f, SpireCrown * h, new Color(0.08f, 0.12f, 0.18f), cyan, 2, t, crown: true);
+            Frustum(cen, s * 0.12f, SpireCrown * h, s * 0.035f, h * 1.84f, gold, cyan, 4, t);
+            // The mast, thinning to a point, with rings of light running up it.
+            Vector2 m0 = cen + V.Lean(cen, h * 1.84f), tip = cen + V.Lean(cen, SpireTip * h);
+            DrawLine(m0, m0.Lerp(tip, 0.4f), white, 5);
+            DrawLine(m0.Lerp(tip, 0.4f), m0.Lerp(tip, 0.8f), white, 3.5f);
+            DrawLine(m0.Lerp(tip, 0.8f), tip, white.Lightened(0.3f), 2);
+            for (int k = 0; k < 3; k++) DrawCircle(m0.Lerp(tip, (t * 0.5f + k / 3f) % 1), 3.5f, cyan);
+            DrawCircle(tip, 4.5f, MathF.Sin(t * 3) > 0.3f ? new Color(1, 0.25f, 0.2f) : white);
+            return cen + pr + new Vector2(0, podium.Size.Y / 2 - 26);
+        }
+
+        private readonly Vector2[] _lo = new Vector2[4], _hi = new Vector2[4];
+        private static readonly Vector2[] Corners = { new(-1, -1), new(1, -1), new(1, 1), new(-1, 1) };
+
+        /// <summary>
+        /// A tapering square block round cen, half-size lo at height h0 up to hi at h1. Walls are
+        /// culled by their winding rather than the lean (from overhead you see every side of a taper),
+        /// with rows of windows and a neon strip up each corner that a pulse of light climbs.
+        /// </summary>
+        private void Frustum(Vector2 cen, float lo, float h0, float hi, float h1, Color c, Color edge, int floors, float t, bool crown = false)
+        {
+            Vector2 l0 = cen + V.Lean(cen, h0), l1 = cen + V.Lean(cen, h1);
+            for (int i = 0; i < 4; i++) { _lo[i] = l0 + Corners[i] * lo; _hi[i] = l1 + Corners[i] * hi; }
+            for (int i = 0; i < 4; i++)
+            {
+                Vector2 a = _lo[i], bb = _lo[(i + 1) % 4], tb = _hi[(i + 1) % 4], ta = _hi[i];
+                if (Cross(a, bb, tb, ta) <= 0) continue;
+                _quad[0] = a; _quad[1] = bb; _quad[2] = tb; _quad[3] = ta;
+                Poly(_quad, c.Darkened(i switch { 0 => 0.05f, 1 => 0.25f, 2 => 0.14f, _ => 0.3f }));
+                for (int f = 1; f <= floors; f++)
+                {
+                    float u = f / (floors + 1f);
+                    Vector2 p1 = a.Lerp(ta, u), p2 = bb.Lerp(tb, u);
+                    if (p1.DistanceTo(p2) < 6) continue;
+                    float lit = Art.Hash(f, i, (int)(h0 * 10));
+                    Color win = crown ? edge : lit > 0.45f ? new Color(1.5f, 1.4f, 1.1f, 0.9f) : lit > 0.15f ? new Color(0.7f, 1.3f, 1.5f, 0.8f) : new Color(0.12f, 0.1f, 0.08f, 0.8f);
+                    DrawDashedLine(p1.Lerp(p2, 0.05f), p2.Lerp(p1, 0.05f), win, crown ? 4 : 2.5f, crown ? 10 : 5, true);
+                }
+                DrawLine(a, ta, edge, 2.5f);
+                DrawLine(bb, tb, edge, 2.5f);
+                float up = (t * 0.6f + i * 0.25f) % 1;
+                DrawLine(a.Lerp(ta, up), a.Lerp(ta, MathF.Min(1, up + 0.15f)), new Color(1.5f, 1.5f, 1.5f), 3.5f);
+            }
+            DrawColoredPolygon(_hi, c.Lightened(0.15f));
+            for (int i = 0; i < 4; i++) DrawLine(_hi[i], _hi[(i + 1) % 4], edge, 2);
+        }
+
+        /// <summary>Twice the signed area of a quad: positive when it winds the way a wall facing you does.</summary>
+        private static float Cross(Vector2 a, Vector2 b, Vector2 c, Vector2 d) =>
+            a.X * b.Y - b.X * a.Y + b.X * c.Y - c.X * b.Y + c.X * d.Y - d.X * c.Y + d.X * a.Y - a.X * d.Y;
 
         private void DrawBuilding(Lot l, Rect2 b)
         {
@@ -799,9 +870,16 @@ public partial class CityView : Node2D
                 switch (l.Landmark)
                 {
                     case "arcology":
-                        if (MathF.Sin(V.Time * 3) > 0.3f) Art.DrawGlow(this, cen + V.Lean(cen, l.Height), 60, new Color(1, 0.1f, 0.1f, 0.7f));
-                        Art.DrawGlow(this, cen + V.Lean(cen, l.Height * 0.5f), b.Size.X * 0.7f, new Color(0.3f, 0.7f, 1f, 0.12f));
+                    {
+                        // The Spire's light: gold off the shaft, the crown's cyan ring, and the beacon on the mast.
+                        float h = l.Height, pulse = 0.75f + 0.25f * MathF.Sin(V.Time * 2);
+                        Art.DrawGlow(this, cen + V.Lean(cen, h * 0.6f), b.Size.X * 0.4f, new Color(1f, 0.7f, 0.25f, 0.3f));
+                        Art.DrawGlow(this, cen + V.Lean(cen, h * SpireCrown), b.Size.X * 0.3f, new Color(0.3f, 0.9f, 1f, 0.6f * pulse));
+                        Art.DrawGlow(this, cen + V.Lean(cen, h * 2.2f), 50, new Color(0.9f, 0.95f, 1f, 0.3f));
+                        bool on = MathF.Sin(V.Time * 3) > 0.3f;
+                        Art.DrawGlow(this, cen + V.Lean(cen, h * SpireTip), on ? 150 : 50, on ? new Color(1, 0.15f, 0.1f, 1f) : new Color(1, 0.9f, 0.9f, 0.5f));
                         break;
+                    }
                     case "pagoda": Art.DrawGlow(this, cen + V.Lean(cen, l.Height * 0.6f), b.Size.X * 0.8f, new Color(1, 0.2f, 0.6f, 0.18f)); break;
                     case "cathedral": Art.DrawGlow(this, cen + V.Lean(cen, l.Height), 70, new Color(1f, 0.75f, 0.35f, 0.25f)); break;
                     case "stadium":

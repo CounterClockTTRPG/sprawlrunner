@@ -337,6 +337,19 @@ public partial class ShotRunner : Node
                     await Frames(5);
                     await Shot($"04d_landmark_{l.Landmark}");
                 }
+                // The Spire over its neighbours: from the street along its west side, at rest and at
+                // the zoom of driving fast, then pulled out further from the corner of its block.
+                Lot sp = Root.City.Lots.First(x => x.Landmark == "arcology");
+                float west = Root.City.RoadX.Where(x => x < sp.R.X).Max() + City.Road / 2f;
+                float south = Root.City.RoadY.Where(y => y >= sp.R.Bottom).Min() + City.Road / 2f;
+                foreach (var (at, zoom, name) in new[] { (new V2(west, sp.R.Y + sp.R.H / 2f), 1.35f, "04e_spire_street"), (new V2(west, sp.R.Y + sp.R.H / 2f), 0.85f, "04f_spire_passing"), (new V2(west, south), 0.6f, "04g_spire_far") })
+                {
+                    Root.CitySim.Player.Pos = at;
+                    Root.CitySim.Player.Vel = V2.Zero;
+                    for (int i = 0; i < 90; i++) { Root.CitySim.Step(1 / 60f, default); Root.CityView.Frame(1 / 60f); }
+                    for (int i = 0; i < 4; i++) { Root.CityView.Zoom = zoom; await Frames(1); }
+                    await Shot(name);
+                }
                 Root.CitySim.ParkAt(Root.CitySim.HomeLot);
             }
             if (Want("bike"))
