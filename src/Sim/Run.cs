@@ -240,6 +240,12 @@ public sealed partial class Run
         {
             Hostage = new Actor { Id = _nextId++, IsHostage = true, Team = 0, Name = job.Target, Pos = Plan.Hostage, Radius = 0.3f, MaxHp = 100, Hp = 100, Speed = 3.6f, State = job.Type == JobType.Escort ? AiState.Follow : AiState.Tied };
             Actors.Add(Hostage);
+            // The client comes in with you, whichever way you chose.
+            if (job.Type == JobType.Escort && Entry != null)
+            {
+                Hostage.Pos = Player.Pos + new V2(0.7f, 0);
+                if (L.Solid((int)Hostage.Pos.X, (int)Hostage.Pos.Y)) Hostage.Pos = Player.Pos;
+            }
         }
         if (job.Hired != null)
         {
