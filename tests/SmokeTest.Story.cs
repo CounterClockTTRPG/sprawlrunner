@@ -1072,6 +1072,20 @@ public partial class SmokeTest
         s.RefreshBoard(city);
         Job fin = s.Board.FirstOrDefault(x => x.Story == 12);
         Check(fin != null && fin.Has(RunMod.ShiftChange) && fin.Has(RunMod.Elite), "a sneaky gunslinger meets double patrols in heavy armour");
+        // Your past: "come and see me" means something when you do.
+        foreach (var (bg, place, first) in new[] { ("street", "fence", 17), ("corp", "press", 21), ("cop", "cop", 25), ("shaman", "talismonger", 29), ("barrens", "rigger", 33) })
+        {
+            Career pc = TestCareer();
+            pc.CityRef = city;
+            pc.Background = bg;
+            pc.JobsDone = 4;
+            pc.RefreshBoard(city);
+            Job pj = pc.Board.FirstOrDefault(x => x.Story == first);
+            Check(pj != null && pc.Inbox.Any(m => m.Story == $"past-{bg}-open"), $"{bg}: the mail, and the first chapter on the board");
+            Mail visit = pc.Tell(Hook.Place, place).FirstOrDefault();
+            Check(visit?.Story == $"past-{bg}-visit" && pj != null && visit.Text.Contains(pj.Title), $"{bg}: go and see them and they tell you about it");
+            Check(pc.Tell(Hook.Place, place).All(m => m.Story != $"past-{bg}-visit"), $"{bg}: once");
+        }
         // The Wyrm's Ledger.
         for (int ch = 1; ch <= 4; ch++)
         {
