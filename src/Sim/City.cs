@@ -239,6 +239,12 @@ public sealed class City
         ("bazaar", "Barrens bazaar", "barrens", 0xff8040ff),
     };
 
+    /// <summary>The safehouse's sign and map pin: a lime no contact or hub wears.</summary>
+    public const uint SafehouseColour = 0xc8ff3cff;
+
+    /// <summary>Your safehouse (the docks flat or the Spire loft).</summary>
+    public static bool IsSafehouse(string place) => place is "home" or "loft";
+
     public static bool IsHub(string place) => Hubs.Any(h => h.id == place);
 
     /// <summary>What a place is called on signs and maps.</summary>
@@ -265,7 +271,7 @@ public sealed class City
         lot.Place = place;
         lot.Sign = place switch
         {
-            "home" or "loft" => 0x40ffb0ff,
+            "home" or "loft" => SafehouseColour,
             _ when IsHub(place) => Hubs.First(h => h.id == place).colour,
             _ => Tables.Contact(place).Colour,
         };
