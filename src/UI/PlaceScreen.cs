@@ -323,7 +323,7 @@ public partial class PlaceScreen : Control
         }
         a.AddChild(UITheme.Spacer(6));
         a.AddChild(UITheme.Label("SKILLS", 15, UITheme.Dim));
-        for (int i = 0; i < 7; i++)
+        for (int i = 0; i < Tables.SkillNames.Length; i++)
         {
             var sk = (Skill)i;
             int cost = C.SkillCost(sk);
