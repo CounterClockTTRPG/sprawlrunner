@@ -67,6 +67,15 @@ public partial class SmokeTest
         b.Day += Tables.RomanceAskAgain + 5;
         Check(!global::Sprawl.Storylets.ById("romance-wisp").When(b), "and she doesn't ask again");
 
+        // Dying on them: the last receipt's epilogue doesn't say they're still with you.
+        Career w = RichCareer(city);
+        w.CrewOf("wisp").Trust = 5;
+        w.Partner = "wisp";
+        w.TraumaLinks = 0;
+        Debrief wd = w.Finish(StoryJob(seed: 63), new RunResult { Died = true, GrenadesLeft = w.RunGrenades(), MedkitsLeft = w.RunMedkits() });
+        Check(wd.CareerOver && w.Dead, "flatlined with no TraumaLink: the career is over");
+        Check(!w.Ending().Any(e => e.Contains("still with you")) && w.Ending().Any(e => e.StartsWith("Wisp buried you")), "and the ending has them bury you, not stay with you");
+
         // Losing them.
         Career d = TestCareer();
         d.CityRef = city;

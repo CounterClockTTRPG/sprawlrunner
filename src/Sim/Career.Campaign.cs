@@ -375,7 +375,10 @@ public sealed partial class Career
         if (Flag("tide:choice") == 2) d.Epilogue.Add("Doc Ichikawa's clinic treats four hundred people who drank the water. Most of them get better. Some of them remember your name.");
     }
 
-    /// <summary>The epilogue: the city, the contacts, the crew, by what you did.</summary>
+    /// <summary>
+    /// The epilogue: the city, the contacts, the crew, by what you did. The last receipt
+    /// prints it too, so a dead runner's lines are about the people left behind.
+    /// </summary>
     public List<string> Ending()
     {
         var e = new List<string>();
@@ -391,12 +394,12 @@ public sealed partial class Career
         if (Flag("cut:won") > 0) e.Add("Kade Marrow's chair in the Viper den is still empty. Nobody wants to be the next runner who studies you.");
         e.Add(Flag("wyrm:choice") switch
         {
-            1 => "A dragon pays you a retainer every month, in a currency that doesn't exist yet. You try not to think about it.",
+            1 => Dead ? "A dragon paid you a retainer every month, in a currency that doesn't exist yet. Nobody knows who it pays now." : "A dragon pays you a retainer every month, in a currency that doesn't exist yet. You try not to think about it.",
             2 => "Half the city still thinks the dragon was a hoax. The other half watches the sky over the Spire, and remembers who told them.",
             3 => "Veyrasz's rivals bought the ledger and started a war you only read about. Things are very expensive in the Spire now.",
             _ => null,
         });
-        if (Flag("lamp:won") == 1) e.Add("Some nights the whole city's grid hums, very softly, like someone humming to themselves. The traffic lights are always green for you.");
+        if (Flag("lamp:won") == 1) e.Add("Some nights the whole city's grid hums, very softly, like someone humming to themselves." + (Dead ? " The night you died, every traffic light in Kessler Bay went red." : " The traffic lights are always green for you."));
         if (Flag("lamp:won") == 2) e.Add("The Registry closed its file on MERIDIAN. Some nights, for no reason anyone can find, every streetlight on your road goes out.");
         foreach (CampaignDef c in Campaigns.Where(c => c.Id.StartsWith("past-") && Flag(c.Id + ":won") > 0))
             e.Add(c.Id switch
@@ -420,7 +423,7 @@ public sealed partial class Career
                 "fence" => "Old Wen burned the ledger and retired to a flat over his shop. He still opens on Thursdays.",
                 "cop" => "Sgt. Dace still wears the badge. Nobody can work out how.",
                 "press" => "Mara Quill won an award nobody in Kessler Bay has heard of. She keeps it in a drawer.",
-                _ => "Madame Sabine's ward still hangs in your window. The spirits, she says, still ask after you.",
+                _ => Dead ? "Madame Sabine took her ward down from your window herself. The spirits, she says, still ask after you." : "Madame Sabine's ward still hangs in your window. The spirits, she says, still ask after you.",
             });
         }
         foreach (DistrictDef d in Tables.Districts)
@@ -432,8 +435,12 @@ public sealed partial class Career
         foreach (var (id, s) in Crew)
         {
             string name = Tables.Hires.First(x => x.id == id).name;
-            if (s.Dead && Flag("partnerdead:" + id) > 0) e.Add($"{name} is buried in the Barrens. You still go, every year, and don't tell anyone.");
+            // Gone before you: only a living runner still visits.
+            if (s.Dead && Flag("partnerdead:" + id) > 0 && !Dead) e.Add($"{name} is buried in the Barrens. You still go, every year, and don't tell anyone.");
+            else if (s.Dead && Flag("partnerdead:" + id) > 0) e.Add($"{name} is buried in the Barrens. They put you in the next plot over.");
             else if (s.Dead) e.Add($"{name} is buried in the Barrens, under a plain stone.");
+            // Left behind: the partner buries you instead.
+            else if (id == Partner && Dead) e.Add($"{name} buried you in the Barrens, and still goes, every year, and doesn't tell anyone.");
             else if (id == Partner) e.Add($"{name} is still with you. Some mornings that's the only part of it you'd keep.");
             else if (s.Trust >= 3) e.Add($"{name} still runs. Still tells stories about you, a little bigger every time.");
         }
