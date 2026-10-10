@@ -384,6 +384,8 @@ public partial class RunView : Node2D
                 case Ev.Ability:
                     Sfx.Instance?.Play(Sound.Ability);
                     var ab = (Ability)(int)e.Value;
+                    // An area spell marks where it lands (Ev.Spell), not the caster: a pulse here would read as the spell going off on you.
+                    if (Run.AreaRadius(ab) > 0) break;
                     var rr = Glow.Add(FxKind.Ring, p, new Vector2(400, 0), 0.4f, 10, ab == Ability.Cloak ? new Color(0.6f, 0.8f, 1f, 0.8f) : UITheme.Cyan);
                     rr.Drag = 0;
                     break;
@@ -438,8 +440,8 @@ public partial class RunView : Node2D
                     }
                     else if (spell == Ability.Heal)
                     {
-                        // The circle it knit, where it was cast.
-                        var hr = Glow.Add(FxKind.Ring, to, Vector2.Zero, 0.7f, Run.AreaRadius(spell) * T, UITheme.Good with { A = 0.85f });
+                        // The circle it knit, where it was cast: a pulse out to its true edge.
+                        var hr = Glow.Add(FxKind.Ring, to, new Vector2((Run.AreaRadius(spell) * T - 10) / 0.4f, 0), 0.4f, 10, UITheme.Good with { A = 0.9f });
                         hr.Drag = 0;
                         Glow.Burst(FxKind.Ember, to, 18, 70, 0.8f, 2, UITheme.Good);
                     }
