@@ -310,8 +310,11 @@ public partial class PlaceScreen : Control
     private void RunnerTab()
     {
         _content.AddChild(UITheme.Label($"{C.Name} -- {C.ArchetypeName}.   Karma to spend: {C.Karma}", 20, UITheme.Cyan, heading: true));
+        // Scrolls when a mage's spells run long.
         var cols = UITheme.HBox(30);
-        _content.AddChild(cols);
+        var scroll = UITheme.Scroll(cols, 0);
+        scroll.SizeFlagsVertical = SizeFlags.ExpandFill;
+        _content.AddChild(scroll);
         var a = UITheme.VBox(4);
         a.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         cols.AddChild(a);
@@ -345,6 +348,27 @@ public partial class PlaceScreen : Control
         Stat("Deck", $"{C.ActiveDeck.Name}, {C.DeckBoxes} boxes, {C.Memory} Mp");
         Stat("Dash cooldown", $"{C.DashCooldown:0.0} s");
         Stat("Grenades carried", $"{C.GrenadeCap} per type");
+        // Edge and etiquette before the lists that grow (chrome, spells), so they stay on screen.
+        d.AddChild(UITheme.Spacer(6));
+        d.AddChild(UITheme.Label($"EDGE  {C.EdgeMax} a run", 15, UITheme.Dim));
+        d.AddChild(UITheme.Label("Luck you make: the last point saves you from a killing blow; spare points slip a detection or a Matrix trace. Charisma gives some; karma buys up to two more.", 13, UITheme.Faint));
+        int ec = C.EdgeCost;
+        var eb = UITheme.Button(ec < 0 ? "Edge: as lucky as anyone gets" : $"+1 edge ({ec} karma)", () => Spend(C.BuyEdge), 0, 30, ec < 0 ? "Bought all there is." : $"Spend {ec} karma.");
+        eb.Disabled = ec < 0 || C.Karma < ec || C.EdgeMax >= Tables.EdgeMax;
+        d.AddChild(eb);
+        d.AddChild(UITheme.Spacer(6));
+        d.AddChild(UITheme.Label("ETIQUETTE", 15, UITheme.Dim));
+        d.AddChild(UITheme.Label("The codes you can talk. They open choices when people talk to you.", 13, UITheme.Faint));
+        var et = new HFlowContainer();
+        foreach (string e in Career.AllEtiquettes)
+        {
+            string ee = e;
+            int cost = (int)MathF.Round(Career.EtiquetteCost * C.KarmaMul);
+            var b = UITheme.Button(C.Talks(e) ? $"{e} ✓" : $"{e} ({cost})", () => Spend(() => C.LearnEtiquette(ee)), 0, 30, C.Talks(e) ? "You talk it." : $"Learn it for {cost} karma.");
+            b.Disabled = C.Talks(e) || C.Karma < cost;
+            et.AddChild(b);
+        }
+        d.AddChild(et);
         d.AddChild(UITheme.Spacer(6));
         d.AddChild(UITheme.Label($"Jobs {C.JobsDone} done, {C.JobsFailed} failed.  Kills {C.Kills}.", 15, UITheme.Dim));
         if (C.Spells.Count > 0)
@@ -357,56 +381,25 @@ public partial class PlaceScreen : Control
                 int cost = C.SpellRankCost(sp);
                 var srow = UITheme.HBox(8);
                 srow.AddChild(UITheme.Grow(UITheme.Label($"{Tables.Spells.First(x => x.Id == sp).Name}  {new string('■', C.SpellRank.GetValueOrDefault(sp))}{new string('□', 3 - C.SpellRank.GetValueOrDefault(sp))}", 15, UITheme.Violet)));
-                var sb = UITheme.Button(cost < 0 ? "mastered" : $"+ ({cost})", () =>
-                {
-                    string err = C.RaiseSpell(spp);
-                    if (err != null) { Sfx.Instance?.Play(Sound.Error); _status.Text = err; return; }
-                    Sfx.Instance?.Play(Sound.Heal);
-                    Profile.SaveCareer(C);
-                    Show(_tab);
-                    Refresh();
-                }, 0, 28, cost < 0 ? "Mastered." : $"Spend {cost} karma.");
+                var sb = UITheme.Button(cost < 0 ? "mastered" : $"+ ({cost})", () => Spend(() => C.RaiseSpell(spp)), 0, 28, cost < 0 ? "Mastered." : $"Spend {cost} karma.");
                 sb.Disabled = cost < 0 || C.Karma < cost;
                 srow.AddChild(sb);
                 d.AddChild(srow);
             }
         }
-        d.AddChild(UITheme.Spacer(6));
-        d.AddChild(UITheme.Label($"EDGE  {C.EdgeMax} a run", 15, UITheme.Dim));
-        d.AddChild(UITheme.Label("Luck you make: the last point saves you from a killing blow; spare points slip a detection or a Matrix trace. Charisma gives some; karma buys up to two more.", 13, UITheme.Faint));
-        int ec = C.EdgeCost;
-        var eb = UITheme.Button(ec < 0 ? "Edge: as lucky as anyone gets" : $"+1 edge ({ec} karma)", () =>
-        {
-            string err = C.BuyEdge();
-            if (err != null) { Sfx.Instance?.Play(Sound.Error); _status.Text = err; return; }
-            Sfx.Instance?.Play(Sound.Heal);
-            Profile.SaveCareer(C);
-            Show(_tab);
-            Refresh();
-        }, 0, 30, ec < 0 ? "Bought all there is." : $"Spend {ec} karma.");
-        eb.Disabled = ec < 0 || C.Karma < ec || C.EdgeMax >= Tables.EdgeMax;
-        d.AddChild(eb);
-        d.AddChild(UITheme.Spacer(6));
-        d.AddChild(UITheme.Label("ETIQUETTE", 15, UITheme.Dim));
-        d.AddChild(UITheme.Label("The codes you can talk. They open choices when people talk to you.", 13, UITheme.Faint));
-        var et = new HFlowContainer();
-        foreach (string e in Career.AllEtiquettes)
-        {
-            string ee = e;
-            int cost = (int)MathF.Round(Career.EtiquetteCost * C.KarmaMul);
-            var b = UITheme.Button(C.Talks(e) ? $"{e} ✓" : $"{e} ({cost})", () =>
-            {
-                string err = C.LearnEtiquette(ee);
-                if (err != null) { Sfx.Instance?.Play(Sound.Error); _status.Text = err; return; }
-                Sfx.Instance?.Play(Sound.Heal);
-                Profile.SaveCareer(C);
-                Show(_tab);
-                Refresh();
-            }, 0, 30, C.Talks(e) ? "You talk it." : $"Learn it for {cost} karma.");
-            b.Disabled = C.Talks(e) || C.Karma < cost;
-            et.AddChild(b);
-        }
-        d.AddChild(et);
+    }
+
+    /// <summary>Spend karma on the Runner tab, then redraw it where it was scrolled to.</summary>
+    private void Spend(Func<string> raise)
+    {
+        string err = raise();
+        if (err != null) { Sfx.Instance?.Play(Sound.Error); _status.Text = err; return; }
+        Sfx.Instance?.Play(Sound.Heal);
+        Profile.SaveCareer(C);
+        int scroll = FindScroll(_content)?.ScrollVertical ?? 0;
+        Show(_tab);
+        GetTree().CreateTimer(0.05).Timeout += () => { if (IsInstanceValid(this) && FindScroll(_content) is ScrollContainer sc) sc.ScrollVertical = scroll; };
+        Refresh();
     }
 
     private Control StatRow(string name, int value, string desc, int cost, Func<string> raise)
@@ -419,15 +412,7 @@ public partial class PlaceScreen : Control
         row.AddChild(n);
         row.AddChild(UITheme.Label(new string('■', value) + new string('□', 6 - value), 17, UITheme.Cyan, wrap: false));
         row.AddChild(UITheme.Grow(UITheme.Label(desc, 13, UITheme.Dim)));
-        var b = UITheme.Button(cost < 0 ? "max" : $"+ ({cost} karma)", () =>
-        {
-            string err = raise();
-            if (err != null) { Sfx.Instance?.Play(Sound.Error); _status.Text = err; return; }
-            Sfx.Instance?.Play(Sound.Heal);
-            Profile.SaveCareer(C);
-            Show(_tab);
-            Refresh();
-        }, 130, 30, cost < 0 ? "Already at the maximum." : C.Karma < cost ? $"Needs {cost} karma (you have {C.Karma})." : $"Spend {cost} karma.");
+        var b = UITheme.Button(cost < 0 ? "max" : $"+ ({cost} karma)", () => Spend(raise), 130, 30, cost < 0 ? "Already at the maximum." : C.Karma < cost ? $"Needs {cost} karma (you have {C.Karma})." : $"Spend {cost} karma.");
         b.Disabled = cost < 0 || C.Karma < cost;
         row.AddChild(b);
         return row;
