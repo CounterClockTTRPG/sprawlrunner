@@ -348,12 +348,7 @@ public partial class TitleScreen : Control
             }
             _menu.AddChild(row);
         }
-        _menu.AddChild(UITheme.Button("New career", () =>
-        {
-            int free = Profile.FreeSlot();
-            if (free > 0) Create(free);
-            else StartOver(Profile.Slot, names[Profile.Slot]);
-        }, 420, 42));
+        // (No separate "New career": every slot above starts one -- an empty slot directly, a taken one by "New here".)
         int earned = Achievements.All.Count(a => Profile.Current.Achieved.Contains(a.Id));
         _menu.AddChild(UITheme.Button($"Achievements  ({earned} / {Achievements.All.Length})", () => AchievementList.Open(this), 420, 42));
         _menu.AddChild(UITheme.Button("Settings", () => Settings.Open(this), 420, 42));

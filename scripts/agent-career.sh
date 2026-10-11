@@ -49,7 +49,8 @@ fi
 
 echo "creating a career"
 a "key Esc" > /dev/null
-a "press New career" > /dev/null
+# The one agent slot: start a career in it (over an old one, by "New here").
+if a "ui" | grep -q "New here"; then a "press New here" > /dev/null; else a "press start a new one" > /dev/null; fi
 # Over an old agent career: confirm starting over.
 a "ui" | grep -q "Start over" && a "press Start over" > /dev/null
 a "wait 300" > /dev/null

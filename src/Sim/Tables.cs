@@ -677,6 +677,8 @@ public static partial class Tables
     };
 
     public static readonly string[] JobNames = { "Eliminate", "Retrieve", "Destroy", "Datasteal", "Rescue", "Clear", "Courier", "Walk", "Investigate", "Plant", "Defend", "Kidnap", "Escort", "Bounty", "Hack", "Race" };
+    /// <summary>Each kind of site, short, for the job board (by SiteStyle).</summary>
+    public static readonly string[] SiteNames = { "Warehouse", "Office", "Gang den", "Lab", "Club", "Tunnels", "Store", "Clinic", "Build site", "Casino", "Ship", "Cemetery", "Hotel", "Rooftops" };
 
     /// <summary>What gets planted on Plant jobs.</summary>
     public static readonly string[] Plants = { "wiretap", "tracker", "data spike", "bundle of planted evidence", "camera bug" };

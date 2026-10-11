@@ -33,6 +33,26 @@ public partial class SmokeTest
             Check(n > 0 && n < total / 12, $"{st} turns up, rarely ({n} of {total})");
         }
         Eq(Career.PlaceFor(JobType.Courier, SiteStyle.Warehouse, Faction.Vipers, "docks", false, new Rng(3)), SiteStyle.Warehouse, "a courier job stays where it is");
+        // Not late-game only: fresh careers' boards over their first fortnight already offer the new places.
+        var early = new Dictionary<SiteStyle, int>();
+        int offered = 0;
+        foreach (ulong seed in new ulong[] { 11, 23, 37, 51, 77 })
+        {
+            City ec = City.Generate(seed);
+            Career fresh = Career.New("Fresh", "samurai", seed);
+            fresh.CityRef = ec;
+            var ids = new HashSet<int>();
+            for (int day = 0; day < 15; day++)
+            {
+                fresh.RefreshBoard(ec);
+                foreach (Job j in fresh.Board) if (ids.Add(j.Id)) { early[j.Style] = early.GetValueOrDefault(j.Style) + 1; offered++; }
+                fresh.NextDay(ec, rested: true);
+            }
+        }
+        int newPlaces = early.Where(kv => kv.Key >= SiteStyle.Tunnels).Sum(kv => kv.Value);
+        if (_only == "RareSites") GD.Print($"    {offered} jobs on 5 fresh boards over 15 days: " + string.Join(", ", early.OrderByDescending(kv => kv.Value).Select(kv => $"{kv.Key} {kv.Value}")));
+        Check(newPlaces >= offered / 10, $"a new career's board offers the new places from the start ({newPlaces} of {offered} jobs)");
+        Check(Tables.SiteNames.Length == Enum.GetValues<SiteStyle>().Length, "every kind of site has its name on the board");
 
         // ---- the building site ----
         int dogs = 0, gaps = 0, openings = 0;

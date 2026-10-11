@@ -238,29 +238,37 @@ public partial class Terminal : PanelContainer
 
     private void Jobs()
     {
-        var board = C.Board.OrderBy(j => j.Threat).ThenBy(j => j.Id).ToList();
+        var board = Ordered();
         Line($"JOB BOARD  ·  day {C.Day}  ·  rep {C.Rep} (threat up to {C.MaxThreat})", G);
         var grudges = C.Grudge.Where(g => g.Value > 0).Select(g => $"{Tables.FactionNames[(int)g.Key].ToLower()} {g.Value}").ToList();
         if (grudges.Count > 0) Line($"grudges: {string.Join(", ", grudges)}  (each job against a faction adds one; 3: their sites get elite security; 5: they send hitters; fades a point a week)", GDim);
-        Line(" #   TYPE        FROM           DISTRICT     THREAT    PAY       KARMA  DAYS", GDim);
+        Line(" #   TYPE        FROM           DISTRICT     SITE        THREAT    PAY       KARMA  DAYS", GDim);
         if (board.Count == 0) Line("  nothing on the board. sleep on it.", GDim);
         for (int i = 0; i < board.Count; i++)
         {
             Job j = board[i];
             int idx = i + 1;
             bool active = j.Id == C.ActiveJob;
-            string line = $"{(active ? "*" : j.Tutorial ? "T" : j.Story > 0 ? "S" : j.Arc != null ? "C" : j.Tag != null ? "!" : j.Contested ? "R" : j.Johnson ? "J" : " ")}{idx,-3} {Tables.JobNames[(int)j.Type],-11} {Tables.Contact(j.Employer).Name,-14} {Tables.District(j.District).Name,-12} {Threat(j.Threat),-9} {M.Money(j.Pay),-9} +{j.Karma,-5} {j.Expires - C.Day + 1}";
-            Line(line, active ? UITheme.Magenta : G, () => Info(idx));
+            string line = $"{(active ? "*" : j.Tutorial ? "T" : j.Story > 0 ? "S" : j.Arc != null ? "C" : j.Tag != null ? "!" : j.Contested ? "R" : j.Johnson ? "J" : " ")}{idx,-3} {Tables.JobNames[(int)j.Type],-11} {Tables.Contact(j.Employer).Name,-14} {Tables.District(j.District).Name,-12} {SiteOf(j),-11} {Threat(j.Threat),-9} {M.Money(j.Pay),-9} +{j.Karma,-5} {j.Expires - C.Day + 1}";
+            // The tutorial stands out: a new runner's first job is the one to take.
+            Line(line, active ? UITheme.Magenta : j.Tutorial ? UITheme.Yellow : G, () => Info(idx));
         }
         Line("click a job, or 'info N'.  (* active  T tutorial  S story  C a contact's own story", GDim);
         Line("                            ! someone's personal business  J mr. johnson  R a rival crew wants it too)", GDim);
+        if (board.Count > 0 && board[0].Tutorial && C.ActiveJob != board[0].Id) Line("new to this? start with job 1 -- juno talks you through it. 'accept 1'.", UITheme.Yellow);
     }
+
+    /// <summary>The board in the order it is listed and numbered: the tutorial first (where a new runner starts), then by threat.</summary>
+    private List<Job> Ordered() => C.Board.OrderByDescending(j => j.Tutorial).ThenBy(j => j.Threat).ThenBy(j => j.Id).ToList();
+
+    /// <summary>The kind of place a job happens at, for the board (a drive has none; a hack is done from home).</summary>
+    private static string SiteOf(Job j) => j.Type is JobType.Courier or JobType.Race ? "-" : j.Type == JobType.Hack ? "your rig" : Tables.SiteNames[(int)j.Style];
 
     public static string Threat(int t) => t > 5 ? "[#####+]" : "[" + new string('#', t) + new string('.', 5 - t) + "]";
 
     private Job ByIndex(int n)
     {
-        var board = C.Board.OrderBy(j => j.Threat).ThenBy(j => j.Id).ToList();
+        var board = Ordered();
         return n >= 1 && n <= board.Count ? board[n - 1] : null;
     }
 
@@ -271,7 +279,7 @@ public partial class Terminal : PanelContainer
         Line("", G);
         Line($"[{n}] {j.Title.ToUpperInvariant()}{(j.Johnson ? "   -- MR. JOHNSON (negotiated on accept)" : "")}", UITheme.Cyan);
         Line($"    employer: {Tables.Contact(j.Employer).Name} ({Tables.Contact(j.Employer).Role.ToLower()})", GDim);
-        Line($"    site:     {Tables.District(j.District).Name}, held by {Tables.FactionNames[(int)j.Faction]}", GDim);
+        Line($"    site:     {(j.Type is JobType.Courier or JobType.Race or JobType.Hack ? "" : Career.PlaceName(j.Style) + ", ")}{Tables.District(j.District).Name}, held by {Tables.FactionNames[(int)j.Faction]}", GDim);
         Line($"    threat:   {Threat(j.Threat)}    pay {M.Money(j.Pay)}{(!Career.GhostPays(j) ? "" : Career.NoKillPays(j) ? $" (+25% if no alarm, +{(j.JohnsonId == "vale" ? 30 : 15)}% if no kills)" : " (+25% if no alarm)")}    karma +{j.Karma}", GDim);
         if (j.Hired != null) Line($"    hired: {Tables.Hires.First(h => h.id == j.Hired).name} comes along.", GDim);
         foreach (string l in Wrap(j.Brief, 70)) Line("    " + l, G);
