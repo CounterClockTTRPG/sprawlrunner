@@ -306,7 +306,7 @@ public partial class RunView : Node2D
                 }
                 case Ev.Gas:
                     Play(Sound.Ignite, e.Pos, 0.6f, 0.6f);
-                    Fx.Burst(FxKind.Smoke, p, 10, 90, 1.2f, 12, (GasKind)e.A == GasKind.Coolant ? new Color(0.85f, 0.95f, 1f, 0.5f) : new Color(0.5f, 0.9f, 0.35f, 0.5f));
+                    Fx.Burst(FxKind.Smoke, p, 10, 90, 1.2f, 12, (GasKind)e.A switch { GasKind.Coolant => new Color(0.85f, 0.95f, 1f, 0.5f), GasKind.Anaesthetic => new Color(0.95f, 0.75f, 0.95f, 0.5f), _ => new Color(0.5f, 0.9f, 0.35f, 0.5f) });
                     break;
                 case Ev.LampOut:
                 {
@@ -1005,7 +1005,7 @@ public partial class RunView : Node2D
                 if (!r.Seen(g.Pos)) continue;
                 Vector2 gp = Art.G(g.Pos, T);
                 float fade = MathF.Min(1, (g.Life - g.T) / 2);
-                Color gc = g.Kind == GasKind.Coolant ? new Color(0.8f, 0.92f, 1f) : new Color(0.45f, 0.9f, 0.3f);
+                Color gc = g.Kind switch { GasKind.Coolant => new Color(0.8f, 0.92f, 1f), GasKind.Anaesthetic => new Color(0.95f, 0.72f, 0.95f), _ => new Color(0.45f, 0.9f, 0.3f) };
                 for (int k = 0; k < 6; k++)
                 {
                     float a = k * 1.05f + time * (0.2f + k * 0.05f);

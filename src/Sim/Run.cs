@@ -71,6 +71,8 @@ public sealed class Actor
     public Mood Mood;
     /// <summary>Had a few (a den's ganger); carries the keycard; a night cleaner, and how long until they reach a phone (0: not calling).</summary>
     public bool Drunk, Badge, Cleaner;
+    /// <summary>A clinic's patient: under, so they neither run nor scream.</summary>
+    public bool Sedated;
     /// <summary>One of the rival crew (team 3: fights the guards and you).</summary>
     public bool Rival;
     /// <summary>Something from a bounty's nest (a ghoul, a hellhound), not somebody's guard: drawn as one.</summary>
@@ -275,10 +277,17 @@ public sealed partial class Run
         if (!Peaceful) SetupDrone();
         foreach (var (pos, vendor) in Plan.Npcs)
         {
-            // An office's night cleaner wanders with a cart, and isn't a vendor.
-            bool cleaner = vendor == "cleaner";
-            var n = new Actor { Id = _nextId++, IsNpc = true, Team = 2, Vendor = cleaner ? null : vendor, Cleaner = cleaner, Pos = pos, Home = pos, Radius = 0.3f, MaxHp = 50, Hp = 50, Speed = R.Range(0.8f, 1.5f), Static = vendor != null && !cleaner, Facing = MathF.PI / 2 };
-            n.Name = cleaner ? "night cleaner" : vendor != null ? HubGen.Vendors.First(v => v.id == vendor).name : "passer-by";
+            // An office's night cleaner wanders with a cart, a store's clerk stands at the till, a clinic's orderly does
+            // the rounds: none is a vendor, and any of them who sees a gun calls it in. A clinic's patients lie sedated.
+            bool cleaner = vendor is "cleaner" or "clerk" or "orderly", patient = vendor == "patient";
+            var n = new Actor { Id = _nextId++, IsNpc = true, Team = 2, Vendor = cleaner || patient ? null : vendor, Cleaner = cleaner, Sedated = patient, Pos = pos, Home = pos, Radius = 0.3f, MaxHp = 50, Hp = 50, Speed = R.Range(0.8f, 1.5f),
+                Static = vendor != null && !cleaner || vendor == "clerk" || patient, Facing = MathF.PI / 2 };
+            n.Name = vendor switch
+            {
+                "cleaner" => "night cleaner", "clerk" => "the clerk", "orderly" => "an orderly", "patient" => "a patient",
+                null => Job.Style == SiteStyle.Store ? "shopper" : "passer-by",
+                _ => HubGen.Vendors.First(v => v.id == vendor).name,
+            };
             Actors.Add(n);
         }
         foreach (PickupSpawn p in Plan.Pickups) Pickups.Add(new Pickup { Kind = p.Kind, Pos = p.Pos, Amount = p.Amount, Name = p.Name, Id = p.Id });
@@ -506,7 +515,7 @@ public sealed partial class Run
     public string FloorNote(V2? objective) => Plan.Tower
         ? objective is V2 to && FloorOf(to) != FloorOf(Player.Pos) ? $"It's on {Plan.FloorName(FloorOf(to))} -- take the stairs{(LiftHacked && Served(FloorOf(to)) ? " or the elevator" : "")}." : null
         : objective is V2 o && Below(o) != Below(Player.Pos)
-        ? (Below(o) ? "It's in the BASEMENT -- take the stairs (^)." : "It's UPSTAIRS -- take the stairs (^).") : null;
+        ? (Below(o) ? $"It's in the {Plan.BelowName} -- take the stairs (^)." : "It's UPSTAIRS -- take the stairs (^).") : null;
 
     public V2? ObjectivePos()
     {
@@ -845,27 +854,33 @@ public sealed partial class Run
     // ---- movement --------------------------------------------------------------------
 
     /// <summary>What a walker and a flier bump into, for <see cref="Collide.PushOut"/> (made once).</summary>
-    private Func<int, int, bool> _solidWalk, _solidFly;
+    private Func<int, int, bool> _solidWalk, _solidFly, _solidLeap;
 
     /// <summary>Move a circle through the level, opening doors it walks into.</summary>
     public void Move(Actor a, V2 delta)
     {
         if (delta.LengthSquared() < 1e-10f) return;
         if (delta.LengthSquared() > 1e-6f) a.MovedAt = Time;
+        // Wading: the sewer's water (and a flooded cavern's) holds everyone on foot back.
+        if (!a.Flying && L.In(Pt.Of(a.Pos)) && L.F[L.Idx((int)a.Pos.X, (int)a.Pos.Y)] == Floor.Water) delta *= Tables.WadeSlow;
         // Sub-step fast moves so a dash cannot tunnel through a wall.
         int steps = (int)MathF.Ceiling(delta.Length() / 0.25f);
         V2 d = delta / steps;
+        // A dash leaps a drop (a gap between roofs): mid-air, nothing underfoot is in the way.
+        bool leap = a.IsPlayer && DashT > 0;
         for (int s = 0; s < steps; s++)
         {
             a.Pos += d;
             OpenDoors(a);
             V2 p = a.Pos;
-            Collide.PushOut(ref p, a.Radius, a.Flying ? _solidFly ??= (x, y) => L.Solid(x, y, true) : _solidWalk ??= (x, y) => L.Solid(x, y, false), out _);
+            Collide.PushOut(ref p, a.Radius, a.Flying ? _solidFly ??= (x, y) => L.Solid(x, y, true)
+                : leap ? _solidLeap ??= (x, y) => L[x, y] != Tile.Drop && L.Solid(x, y, false)
+                : _solidWalk ??= (x, y) => L.Solid(x, y, false), out _);
             a.Pos = p;
         }
-        // Never left inside a wall: hop to the nearest open tile.
+        // Never left inside a wall: hop to the nearest open tile (in the middle of a leap, over the drop is fine).
         Pt at = Pt.Of(a.Pos);
-        if (L.Solid(at.X, at.Y, a.Flying))
+        if (L.Solid(at.X, at.Y, a.Flying) && !(leap && L[at] == Tile.Drop))
             for (int rr = 1; rr <= 3; rr++)
             {
                 Pt best = new(-1, -1);

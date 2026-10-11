@@ -751,7 +751,7 @@ public partial class RunScreen : Control
             {
                 Rect bm = r.Plan.Basement;
                 DrawRect(new Rect2(at + new Vector2(bm.X, bm.Y) * s, new Vector2(bm.W, bm.H) * s), UITheme.Yellow with { A = 0.5f }, false, 1);
-                UITheme.Write(this, at + new Vector2(bm.X, bm.Y - 1) * s, "BASEMENT", 11, UITheme.Yellow, HorizontalAlignment.Left, bm.W * s);
+                UITheme.Write(this, at + new Vector2(bm.X, bm.Y - 1) * s, r.Plan.BelowName, 11, UITheme.Yellow, HorizontalAlignment.Left, bm.W * s);
                 foreach (var kv in r.L.Stair) DrawCircle(at + Art.G(r.L.PtOf(kv.Key).Centre) * s, 2.5f, UITheme.Yellow);
             }
             if (objective is V2 o && !(r.ObjectiveDone || r.ObjectiveLost) && L.Explored[L.Idx((int)o.X, (int)o.Y)] && On(o))

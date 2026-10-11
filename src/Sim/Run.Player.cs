@@ -14,6 +14,11 @@ public sealed partial class Run
     public string NadeSel;
     public int Medkits;
     public float DashT, DashCd, StepNoiseT;
+    /// <summary>The last spot you stood on something (a leap that falls short ends back here).</summary>
+    private V2 _firm;
+
+    /// <summary>A spell's power here: a cemetery is hallowed ground, and the mana runs strong in it.</summary>
+    private float Power(Ability a) => C.PowerOf(a) * (Job.Style == SiteStyle.Cemetery ? Tables.Hallowed : 1);
     public V2 DashDir;
     public readonly Dictionary<Ability, float> AbilityCd = new();
     public float HackProgress, FreeProgress, ExtractHold;
@@ -59,7 +64,7 @@ public sealed partial class Run
     private Pt _stairLock = new(-1, -1);
     public bool Downstairs => Plan.Basement.W > 0 && Player.Pos.X >= Plan.MainW;
     /// <summary>The floor's name when the site has more than one ("BASEMENT", "FLOOR 3"), else null.</summary>
-    public string FloorLabel => Plan.Tower ? Plan.FloorName(PlayerFloor) : Downstairs ? "BASEMENT" : null;
+    public string FloorLabel => Plan.Tower ? Plan.FloorName(PlayerFloor) : Downstairs ? Plan.BelowName : null;
     private Pt _useTile = new(-1, -1);
     private readonly HashSet<Pt> _used = new();
     /// <summary>Fixtures already used up (safes open, lockers searched, consoles looped): the view draws them that way.</summary>
@@ -123,7 +128,7 @@ public sealed partial class Run
         V2 toAim = inp.Aim - p.Pos;
         if (toAim.LengthSquared() > 0.01f) p.Facing = M.Angle(toAim);
         V2 move = inp.Move.LengthSquared() > 1 ? M.Norm(inp.Move) : inp.Move;
-        float speed = p.Speed * (inp.Sneak ? 0.55f : 1f) * (CarriedBody != null ? 0.6f : 1f) * (Adrenaline ? 1.25f : 1f) * (Clouds.Count > 0 && InGas(p.Pos, GasKind.Coolant) ? Tables.CoolantSlow : 1f);
+        float speed = p.Speed * (inp.Sneak ? 0.55f : 1f) * (CarriedBody != null ? 0.6f : 1f) * (Adrenaline ? 1.25f : 1f) * (Clouds.Count > 0 && (InGas(p.Pos, GasKind.Coolant) || InGas(p.Pos, GasKind.Anaesthetic)) ? Tables.CoolantSlow : 1f);
         // Platelet factories: below half health, the bleeding stops on its own.
         if (C.Has("platelet") && p.Hp < p.MaxHp * 0.5f) p.Hp = MathF.Min(p.MaxHp * 0.5f, p.Hp + dt);
         StepMediDrone(dt);
@@ -142,9 +147,22 @@ public sealed partial class Run
             Events.Add(new RunEvent(Ev.Dash, p.Pos, DashDir));
         }
         V2 want = move * speed;
-        if (DashT > 0) { DashT -= dt; want = DashDir * p.Speed * 3.4f; p.Vel = want; }
+        if (L[Pt.Of(p.Pos)] != Tile.Drop) _firm = p.Pos;
+        bool dashing = DashT > 0;
+        if (DashT > 0) { want = DashDir * p.Speed * 3.4f; p.Vel = want; }
         else p.Vel += (want - p.Vel) * MathF.Min(1, dt * 18);
         Move(p, p.Vel * dt);
+        // (Counted down after the move, so the last step of a leap is still in the air.)
+        if (DashT > 0) DashT -= dt;
+        // A leap that came up short: you catch the edge you jumped from and haul yourself back, bruised.
+        if (dashing && DashT <= 0 && L[Pt.Of(p.Pos)] == Tile.Drop)
+        {
+            p.Pos = _firm;
+            p.Vel = V2.Zero;
+            Hurt(p, Tables.FallShort, null, false, ignoreArmor: true);
+            Say("Short. You catch the ledge and haul yourself back up.");
+            Noise(p.Pos, 5, true, quiet: true);
+        }
         // Stairs: step on, come out at the other end.
         Pt on = Pt.Of(p.Pos);
         if (on != _stairLock) _stairLock = new Pt(-1, -1);
@@ -152,20 +170,22 @@ public sealed partial class Run
         {
             p.Pos = end.Centre;
             _stairLock = end;
-            string where = Plan.Tower ? Plan.FloorName(FloorOf(p.Pos)) + "." : Downstairs ? "Down to the basement." : "Back up.";
+            string where = Plan.Tower ? Plan.FloorName(FloorOf(p.Pos)) + "." : Downstairs ? $"Down to the {Plan.BelowName.ToLowerInvariant()}." : "Back up.";
             Events.Add(new RunEvent(Ev.Stairs, p.Pos, Text: where));
             Say(where);
         }
         if (CarriedBody != null) CarriedBody.Pos = p.Pos - M.Dir(p.Facing) * 0.35f;
 
-        // Footsteps: running near someone unaware makes them turn round.
-        if (!inp.Sneak && move.LengthSquared() > 0.1f)
+        // Footsteps: running near someone unaware makes them turn round. Wading splashes, sneaking or not.
+        bool wading = L.In(Pt.Of(p.Pos)) && L.F[L.Idx((int)p.Pos.X, (int)p.Pos.Y)] == Floor.Water;
+        if ((!inp.Sneak || wading) && move.LengthSquared() > 0.1f)
         {
             StepNoiseT -= dt;
             if (StepNoiseT <= 0)
             {
                 StepNoiseT = 0.35f;
-                Noise(p.Pos, 2.4f * (1 - 0.1f * C.S(Skill.Stealth)) * StepNoiseMul * Tables.Armor(C.ArmorId).Steps, true, quiet: true);
+                float splash = wading ? Tables.WadeNoise * (inp.Sneak ? 0.6f : 1f) : 1f;
+                Noise(p.Pos, 2.4f * (1 - 0.1f * C.S(Skill.Stealth)) * StepNoiseMul * Tables.Armor(C.ArmorId).Steps * splash, true, quiet: true);
             }
         }
 
@@ -351,7 +371,7 @@ public sealed partial class Run
             {
                 Actor t = SpellTarget(aim);
                 if (t == null) { Say("Manabolt: no living target in sight there."); Events.Add(new RunEvent(Ev.Empty, Player.Pos)); return; }
-                Hurt(t, 55 * C.PowerOf(a), Player, false, ignoreArmor: true);
+                Hurt(t, 55 * Power(a), Player, false, ignoreArmor: true);
                 Events.Add(new RunEvent(Ev.Spell, Player.Pos, t.Pos, (int)a));
                 Noise(Player.Pos, 4, true, quiet: true);
                 break;
@@ -360,7 +380,7 @@ public sealed partial class Run
             {
                 // It flies at the cursor and bursts there (or on whatever it meets first).
                 V2 to = InRange(aim, Tables.FireballRange);
-                var w = new WeaponDef { Id = "fireball", Damage = 70 * C.PowerOf(a), Speed = 12, Range = Tables.FireballRange, Blast = Tables.FireballBlast, Pellets = 1, Class = WeaponClass.Launcher };
+                var w = new WeaponDef { Id = "fireball", Damage = 70 * Power(a), Speed = 12, Range = Tables.FireballRange, Blast = Tables.FireballBlast, Pellets = 1, Class = WeaponClass.Launcher };
                 SpawnShot(Player, w, M.Angle(to - Player.Pos), w.Damage, false, V2.Distance(to, Player.Pos));
                 Shots[^1].Kind = ShotKind.Fireball;
                 Shots[^1].Range = V2.Distance(to, Player.Pos);
@@ -373,7 +393,7 @@ public sealed partial class Run
                 break;
             case Ability.Summon:
             {
-                var def = new EnemyDef { Kind = EnemyKind.Ally, Name = "Fire spirit", Hp = 140 * C.PowerOf(a), Speed = 4.4f, Aim = 0, Weapon = "e_spirit", Melee = true, Flying = true, Radius = 0.36f, Vision = 12 };
+                var def = new EnemyDef { Kind = EnemyKind.Ally, Name = "Fire spirit", Hp = 140 * Power(a), Speed = 4.4f, Aim = 0, Weapon = "e_spirit", Melee = true, Flying = true, Radius = 0.36f, Vision = 12 };
                 WeaponDef sw = Tables.Weapon("e_spirit");
                 var sp = new Actor
                 {
@@ -400,7 +420,7 @@ public sealed partial class Run
                 if (hurt.Count == 0) { Say("Heal: no one hurt there."); Events.Add(new RunEvent(Ev.Empty, Player.Pos)); return; }
                 foreach (Actor f in hurt)
                 {
-                    f.Hp = MathF.Min(f.MaxHp, f.Hp + 45 * C.PowerOf(a));
+                    f.Hp = MathF.Min(f.MaxHp, f.Hp + 45 * Power(a));
                     f.Burn = 0;
                     Events.Add(new RunEvent(Ev.Heal, f.Pos));
                 }
@@ -814,6 +834,7 @@ public sealed partial class Run
                 case PickupKind.Loot: LootFound.Add(new LootItem { Name = k.Name, Value = k.Amount }); text = $"Found: {k.Name}"; break;
                 case PickupKind.Clue: CluesFound++; text = $"Evidence {CluesFound}/{ClueCount}: {k.Name}."; break;
                 case PickupKind.Suit: HasSuit = true; text = "A clean-room suit: the sensors will take you for staff."; break;
+                case PickupKind.Uniform: Disguised = true; text = "A housekeeping uniform. Push a trolley, keep your head down: staff walk past staff."; break;
                 case PickupKind.Badge: HasBadge = true; text = "A keycard: the badge readers will open for it."; break;
                 default: Carrying = true; text = $"Got {(k.Name.Contains('\'') || k.Name.StartsWith("her ") ? k.Name : "the " + k.Name)}!"; break;
             }

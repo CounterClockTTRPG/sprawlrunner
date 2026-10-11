@@ -23,9 +23,11 @@ public partial class SmokeTest
         while (q.Count > 0)
         {
             Pt p = q.Dequeue();
-            foreach (Pt d in Pt.Dirs4)
+            // Stairs join two floors: the far end is a step away.
+            bool stair = L.OtherEnd(p, out Pt other);
+            for (int k = 0; k < (stair ? 5 : 4); k++)
             {
-                Pt n = p + d;
+                Pt n = k < 4 ? p + Pt.Dirs4[k] : other;
                 if (!L.In(n) || dist[L.Idx(n.X, n.Y)] != Level.Far) continue;
                 Tile t = L[n];
                 bool pass = LevelGen.Passable(t) || n == goal;
@@ -51,6 +53,8 @@ public partial class SmokeTest
         for (int i = 0; i < frames && r.Phase == RunPhase.Playing; i++)
         {
             Actor p = r.Player;
+            // A decision on the run (a hostage begging, a second folder): the first answer, and on.
+            if (r.Pending != null) { r.Step(new RunInput { Slot = 0, Aim = p.Pos }); continue; }
             // Where to go.
             V2 goal;
             if (r.ObjectiveDone || r.ObjectiveLost) goal = new V2(r.Plan.Extraction.X + r.Plan.Extraction.W / 2f, r.Plan.Extraction.Y + r.Plan.Extraction.H / 2f);

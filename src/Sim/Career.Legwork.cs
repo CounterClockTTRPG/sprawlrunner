@@ -73,6 +73,8 @@ public sealed partial class Career
             j.Mods.Remove(RunMod.Skeleton);
         }
         else if (j.Threat == 5 && j.Style is SiteStyle.Office or SiteStyle.Lab && r.Chance(0.5f)) j.Floors = r.Range(2, 4);
+        // A hotel is always a few floors of rooms over its lobby.
+        else if (j.Style == SiteStyle.Hotel) j.Floors = 2 + j.Threat / 3;
         else return;
         j.Pay = (int)(MathF.Round(j.Pay * (1 + 0.3f * j.Floors) / 50) * 50);
         j.Karma += j.Floors * 2;
@@ -83,6 +85,12 @@ public sealed partial class Career
     {
         if (j.Floors <= 0) return;
         int secure = j.Floors >= 3 ? 2 : 1;
+        if (j.Style == SiteStyle.Hotel)
+        {
+            j.Brief += $" The hotel has {j.Floors} floors of rooms over the lobby -- guests in some of them -- and the penthouse at the top needs a key card (or the Matrix, or the stairs). Housekeeping keeps its uniforms in the linen room.";
+            if (!j.Title.StartsWith("HOTEL")) j.Title = $"HOTEL: {j.Title}";
+            return;
+        }
         j.Brief += $" It's a tower: {j.Floors} floors above the lobby, more guards on every one. Hack the elevator for the public floors; the top {secure} need a security pass -- override it in the Matrix, or fight your way up the stairs.";
         if (!j.Title.StartsWith("TOWER")) j.Title = $"TOWER: {j.Title}";
         Explain("tower", "A tower on the board: many floors, harder the higher you go, paid for every one. Hack the elevator, or fight up the stairs.");

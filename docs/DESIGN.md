@@ -1402,3 +1402,69 @@ Each kind has its own figure on the road and its own prompt; the last choice is 
 
 What a closed scene sets going goes through `CitySim.AfterStreet`: the toll's bikes, the
 stop's cruiser, the race, and any damage the scene did to the car.
+
+## Tenth pass: new places to work (`LevelGen.BuildTunnels`, `BuildStore`, `Career.PlaceFor`)
+
+Three new site styles, each with its own plan, rooms, people and rule (on the HUD's style line).
+Which jobs go where is `Career.PlaceFor`, a draw of its own so boards stay as they were:
+three ghoul nests in four (`Tables.NestInTunnels`) are in the tunnels; half the kidnappings
+and 15 % of wetwork (not in Industrial) are at a store; half the Red Lotus' rescues are in a
+body bank and 12 % of datasteals and retrievals on the Strip, the Barrens or the Docks are in a
+clinic; 15 % of retrievals, rescues and clears in the Barrens and the Docks are in gang tunnels.
+Each has its own painted banner (`site-tunnels`, `site-store`, `site-clinic`).
+
+### Ghoul tunnels (`SiteStyle.Tunnels`)
+- No yard: a culvert two tiles wide round the warren, five on the side you came down.
+- The warren is solid earth and stone (`Level.Underground` draws brick only where it lines a sewer) with a
+  cavern dug out of each cell of a rough grid (about 11 x 9 tiles each). A quarter are only junctions;
+  three in ten of the rest are flooded in the middle (`Floor.Water`). They are joined by two-wide sewer
+  tunnels (a random spanning tree and a fifth more for loops), with an open arch (`DoorOpen`) where each
+  tunnel leaves a cavern, so every tunnel is a room of its own. Half the tunnels run a water channel down
+  one side. A way out to the culvert on each side; the outer doors pick which open.
+- **Water** slows everyone on foot (`Tables.WadeSlow`) and splashes even when you sneak
+  (`WadeNoise`, 0.6 of it sneaking).
+- Dark: a worklight in under half the rooms, and every **nest** (`RoomKind.Nest`, bones and rubble) has a
+  fire and sleepers in it. A Bounty in the tunnels gets up to three nests; smugglers' tunnels get bunks,
+  a nest, a stash, sometimes a circle. No windows, no basement, nothing parked in the culvert.
+
+### The all-night store (`SiteStyle.Store`)
+- A store on its car park, set well back from the edges (car wrecks for cover outside).
+- The shop floor at the front: shelving in rows (`Rack`, three apart, a gap halfway) with a cross aisle at
+  the back, the till at one end of the front with the clerk behind it, and a plate-glass front.
+  Behind it, back rooms: the stockroom (double doors onto the shop, a delivery door outside that is a way
+  in), the manager's office and a cupboard; sometimes security.
+- `Tables.Shoppers` shoppers in the aisles (they panic and scream) and the **clerk**, who works like an
+  office cleaner but hits a **panic button** (after `Tables.PanicButton`): security +2, "Lone Star is on
+  its way". A store's guard budget is 0.55 of the usual. A Kidnap or wetwork target is out on the
+  shop floor three times in four, bodyguards with them, and the brief says so.
+
+### The back-alley clinic (`SiteStyle.Clinic`)
+- An office's corridor plan in lab tile and cold light, with **wards** (bunks, `Tables.Patients` sedated
+  patients who neither run nor scream), an **operating theatre** whose pipes burst into **anaesthetic**
+  (`GasKind.Anaesthetic`: a guard who breathes it is under for `Tables.AnaestheticSleep` s, unhurt; you only
+  slow), a **cold room** of organ vats (a Destroy's targets here), an office, sometimes a panic room.
+  Two **orderlies** do the rounds and call it in like cleaners. Guard budget 0.85; a rescue's hostage is
+  in a ward seven times in ten. Sewer hatches from threat 2.
+
+The bot now answers a decision on a run (the first answer), and plays the new places' own jobs in the
+`NewSites` checks.
+
+## Eleventh pass: the rare places
+
+Six more site styles, each a few jobs in a hundred of the kinds that fit it (`Tables.Rare*`,
+in `Career.PlaceFor`'s list, after the tunnels, stores and clinics), each with its own banner.
+Three new tiles: **`Drop`** (nothing to stand on -- the gap between roofs, the sea round a ship:
+sight, shots and drones cross it, walkers don't), **`Cargo`** (container stacks) and **`Grave`**
+(low cover). The basement has a name per site (`LevelPlan.BelowName`): a ship's HOLD, a chapel's CRYPT.
+
+| Place | Where, for what | Its plan | Its rule |
+|---|---|---|---|
+| **Building site** (`Construction`) | Spire, Industrial, Docks: sabotage, wetwork, clears, plants, retrievals | Big concrete bays (BSP 7-15); no door hung anywhere, every opening a 1-3 wide gap; whole bays of the shell open to the yard (`Unfinished`); a column every five tiles in the big bays, pallets, mixers, scaffolding; fences in the yard | The night watchman's dogs: 1 + threat/2 hounds patrolling the yard, whoever owns it |
+| **Casino** | the Strip: datasteals, retrievals, wetwork, kidnaps | The gaming floor at the front (casino carpet; tables in threes, every third bank slot machines), a strip of back rooms: the **cashier's cage** (glass bars, a door locked from inside, a safe), the **count room** (where a datasteal's data is), security, the high-rollers' room (a booth onto the floor), the manager | `Tables.Gamblers` gamblers who panic; 3 + threat cameras whoever owns it, three of them on the floor |
+| **Container ship** (`Ship`) | the Docks: retrievals, rescues, sabotage, datasteals | Always along a long edge of the map, 13 + 2*threat wide; the quay on one side, the sea (`Drop` on water) everywhere else; the hull tapers to a bow; the superstructure across the stern (the **bridge**, quarters, the mess); the deck stacked with containers in blocks (walkways at the rails, a lane down the middle, cross aisles); the **hold** below, always | **She sails**: every ship job carries the Deadline (`Tables.ShipSails` + 25 a threat seconds, and its pay) |
+| **Cemetery** | the Barrens, the Docks, the Strip: bounties, investigations, plants, retrievals, wetwork | A chapel well back in its graveyard: the nave (pews either side of an aisle, the altar), a vestry and an office; graves in rows off gravel paths, two or three mausoleums; the **crypt** below from threat 2 | **Hallowed ground**: spells there are `Tables.Hallowed` (x1.25) stronger; the graves are low cover |
+| **Hotel** | the Spire and the Strip: wetwork, kidnaps, datasteals, investigations, plants | Always a tower (2 + threat/3 floors, paid as one): the lobby (the front desk, a lounge), the bar, kitchen and offices behind; every floor above a cross corridor and bands of identical rooms four wide either side of their corridors (`BuildHotelFloor`), the depth shared out evenly; the penthouse on top, its **suite** where the target is seven times in ten | Guests in a third of the rooms (`Tables.GuestsIn`) who panic; a **housekeeping uniform** in the linen room -- pick it up and you're disguised |
+| **Rooftops** | the Spire, the Strip, Industrial: wetwork, retrievals, datasteals | No ground: five or six roofs in a 3 x 2 grid over the drop, each pulled in 1-3 from its neighbours; a plank (open doorway tiles, linked like stairs, `_bridges`) on a spanning tree of them; a railing where a roof looks over the map's edge; a stairwell hut on each; in by the fire escape on one edge, out by the helicopter on the farthest roof; nobody stands in the yard and reinforcements come up the stairwells | **Leap the gaps**: a dash carries you over the drop; one that comes up short puts you back on the ledge you left, `Tables.FallShort` the worse for it |
+
+The bot's distance field now follows stairs, so it can play a hold, a crypt or a hotel; the
+`RareSites` checks have it play each place's own jobs.

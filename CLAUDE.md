@@ -70,7 +70,8 @@ Sound is off until turned on in Settings. Settings live in `user://sprawlrunner.
 - `tests/SmokeTest*.cs` -- the self-check, including a bot that plays generated jobs and
   a balance report (`SmokeTest.Balance.cs`, printed every run).
   `src/Dev/ShotRunner.cs` -- the walkthrough.
-- The site: `World/SetPieces.cs` (room kinds and their hand-drawn pieces), `Run.Rooms.cs` (gas,
+- The site: `World/SetPieces.cs` (room kinds and their hand-drawn pieces), the styles' own plans (`LevelGen.Build*`: tunnels, store...),
+  which jobs happen where (`Career.PlaceFor`), `Run.Rooms.cs` (gas,
   moods, the panic room, each style's rules), `Level.LightAt` (lamps, shadows), `LevelPlan.Entries`
   and `UI/SitePlan.cs` (ways in, the briefing map). The other crew: `Career.Rival`, `Run.Rival`.
   The street from the car: `CitySim.Street` (encounters, fares), `CitySim.Works` (the festival, wrecks, stadium

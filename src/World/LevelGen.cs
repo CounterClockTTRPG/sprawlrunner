@@ -29,7 +29,7 @@ public sealed class Spawn
     public bool Drunk, Badge;
 }
 
-public enum PickupKind { Cash, Medkit, Grenade, Loot, Objective, Clue, Suit, Badge }
+public enum PickupKind { Cash, Medkit, Grenade, Loot, Objective, Clue, Suit, Badge, Uniform }
 
 public sealed class PickupSpawn
 {
@@ -72,6 +72,8 @@ public sealed class LevelPlan
     public RoomKind KindAt(Pt p) => L.In(p) && RoomOf[L.Idx(p.X, p.Y)] is int i && i >= 0 && i < Rooms.Count ? Rooms[i].Kind : RoomKind.Plain;
     /// <summary>The basement, when the site has one (W 0 otherwise), and the main map's width.</summary>
     public Rect Basement;
+    /// <summary>What the floor below is called on the HUD and in the hints: a basement, a ship's hold, a crypt.</summary>
+    public string BelowName = "BASEMENT";
     public int MainW;
 
     /// <summary>
@@ -159,14 +161,31 @@ public sealed class LevelGen
         P = new LevelPlan { L = L, Style = _job.Style, RoomOf = new int[w * h] };
         Array.Fill(P.RoomOf, -1);
         SiteStyle st = _job.Style;
-        Floor yard = st is SiteStyle.Office or SiteStyle.Club ? Floor.Street : Floor.Yard;
+        Floor yard = st switch
+        {
+            SiteStyle.Office or SiteStyle.Club or SiteStyle.Store or SiteStyle.Clinic or SiteStyle.Casino or SiteStyle.Hotel => Floor.Street,
+            SiteStyle.Tunnels => Floor.Sewer,
+            SiteStyle.Ship => Floor.Concrete,
+            SiteStyle.Cemetery => Floor.Grass,
+            _ => Floor.Yard,
+        };
         for (int i = 0; i < w * h; i++) { L.F[i] = yard; L.T[i] = Tile.Floor; }
         for (int x = 0; x < w; x++) { L.Set(x, 0, Tile.Reinforced); L.Set(x, h - 1, Tile.Reinforced); }
         for (int y = 0; y < h; y++) { L.Set(0, y, Tile.Reinforced); L.Set(w - 1, y, Tile.Reinforced); }
+        _floors = _job.Floors > 0 ? _job.Floors : st == SiteStyle.Hotel ? 2 + t / 3 : 0;
+        // Rooftops have no ground at all: their own plan, then the rest as usual.
+        if (st == SiteStyle.Rooftops) return BuildRooftops(t);
 
         // Entry on one edge; the building sits back from it.
         int side = _r.Int(4);
         int far = _r.Range(10, 13), near = _r.Range(3, 6);
+        // Underground there is no yard: a culvert round the warren, the shaft you came down at one end.
+        // A store stands back from the road behind its car park; a chapel in the middle of its graves;
+        // a ship lies along the quay with the sea all round the rest of it.
+        if (st == SiteStyle.Tunnels) { far = 5; near = 3; }
+        if (st == SiteStyle.Store) { far += 3; near += 5 + t; }
+        if (st == SiteStyle.Cemetery) { near += 6 + t; }
+        if (st == SiteStyle.Ship) { far = _r.Range(7, 9); near = _r.Range(4, 6); if (side < 2) side += 2; }
         int mL = near, mR = near, mT = near, mB = near;
         switch (side)
         {
@@ -175,11 +194,17 @@ public sealed class LevelGen
             case 2: mT = far; P.Entry = new Pt(_r.Range(w / 3, 2 * w / 3), 2); break;
             default: mB = far; P.Entry = new Pt(_r.Range(w / 3, 2 * w / 3), h - 3); break;
         }
+        // A ship is long and narrow: the quay along one long edge, open water beyond her far side.
+        if (st == SiteStyle.Ship)
+        {
+            int beam = 13 + 2 * t;
+            if (side == 2) mB = h - mT - beam; else mT = h - mB - beam;
+        }
         var b = new Rect(mL, mT, w - mL - mR, h - mT - mB);
         P.Building = b;
         L.Buildings.Add(b);
         P.Extraction = ZoneAt(P.Entry, side);
-        if (_job.Type == JobType.Retrieve && !_job.Tutorial && _r.Chance(0.5f))
+        if (_job.Type == JobType.Retrieve && !_job.Tutorial && st != SiteStyle.Ship && _r.Chance(0.5f))
         {
             int other = side ^ 1;
             Pt ex = other switch
@@ -190,12 +215,18 @@ public sealed class LevelGen
             P.Extraction = ZoneAt(ex, other);
         }
 
-        Tile outer = st == SiteStyle.Den ? Tile.Brick : Tile.Concrete;
-        _inner = st == SiteStyle.Den ? Tile.Brick : Tile.Drywall;
+        Tile outer = st is SiteStyle.Den or SiteStyle.Tunnels or SiteStyle.Cemetery ? Tile.Brick : Tile.Concrete;
+        _inner = st switch
+        {
+            SiteStyle.Den or SiteStyle.Tunnels or SiteStyle.Cemetery => Tile.Brick,
+            SiteStyle.Construction or SiteStyle.Ship => Tile.Concrete,
+            _ => Tile.Drywall,
+        };
         _floor = st switch
         {
-            SiteStyle.Warehouse => Floor.Concrete, SiteStyle.Office => Floor.Carpet, SiteStyle.Den => Floor.Wood,
-            SiteStyle.Lab => Floor.LabTile, _ => Floor.Carpet,
+            SiteStyle.Warehouse or SiteStyle.Construction => Floor.Concrete, SiteStyle.Office or SiteStyle.Hotel => Floor.Carpet, SiteStyle.Den or SiteStyle.Cemetery => Floor.Wood,
+            SiteStyle.Lab or SiteStyle.Clinic => Floor.LabTile, SiteStyle.Tunnels => Floor.Earth, SiteStyle.Store => Floor.Shop,
+            SiteStyle.Casino => Floor.Casino, SiteStyle.Ship => Floor.Deck, _ => Floor.Carpet,
         };
         for (int y = b.Y; y < b.Bottom; y++)
         for (int x = b.X; x < b.Right; x++)
@@ -216,6 +247,14 @@ public sealed class LevelGen
             case SiteStyle.Office when inside.W >= 14 && inside.H >= 12: BuildOffice(inside); break;
             case SiteStyle.Lab when inside.W >= 22 && inside.H >= 18: BuildLab(inside); break;
             case SiteStyle.Warehouse when inside.W >= 16 && inside.H >= 12: BuildWarehouse(inside, side); break;
+            case SiteStyle.Tunnels: BuildTunnels(inside, side); L.Underground = true; break;
+            case SiteStyle.Store when inside.W >= 16 && inside.H >= 12: BuildStore(inside, side); break;
+            case SiteStyle.Clinic when inside.W >= 14 && inside.H >= 12: BuildOffice(inside); break;
+            case SiteStyle.Construction: Split(inside, 7, 15, 0); break;
+            case SiteStyle.Casino: BuildCasino(inside, side); break;
+            case SiteStyle.Ship: BuildShip(b, side); break;
+            case SiteStyle.Cemetery: BuildChapel(inside, side); break;
+            case SiteStyle.Hotel: BuildLobby(inside, side); break;
             default: Split(inside, min, max, 0); break;
         }
 
@@ -223,10 +262,15 @@ public sealed class LevelGen
         IndexRooms();
         LinkRooms();
         OuterDoors(b, side);
-        Windows(b, outer);
+        if (st != SiteStyle.Tunnels) Windows(b, outer);
+        if (st == SiteStyle.Store) Storefront(b, side);
+        if (st == SiteStyle.Construction) Unfinished(b);
         P.MainW = L.W;
-        if (_job.Floors > 0) Tower();
-        else if (_job.Threat >= 3 && !_job.Driving && _job.Style != SiteStyle.Club && _r.Chance(0.6f)) Basement();
+        if (_floors > 0) Tower();
+        // A ship always has her hold below; a cemetery its crypt, once there is anything worth burying with someone.
+        else if (st == SiteStyle.Ship || st == SiteStyle.Cemetery && _job.Threat >= 2 && !_job.Driving) Basement();
+        else if (_job.Threat >= 3 && !_job.Driving && st is not (SiteStyle.Club or SiteStyle.Tunnels or SiteStyle.Store) && _r.Chance(0.6f)) Basement();
+        if (P.Basement.W > 0) P.BelowName = st switch { SiteStyle.Ship => "HOLD", SiteStyle.Cemetery => "CRYPT", _ => "BASEMENT" };
         if (st == SiteStyle.Den) { IndexRooms(); Decay(); }
         IndexRooms();
         LinkRooms();
@@ -243,6 +287,9 @@ public sealed class LevelGen
         SpecialRooms();
         Furnish(yard);
         EnsureReachable();
+        // A building site has no doors hung yet: every doorway is just a gap (a locked tool store aside).
+        if (st == SiteStyle.Construction)
+            for (int y = 0; y < L.H; y++) for (int x = 0; x < L.W; x++) if (L[x, y] == Tile.Door) L.Set(x, y, Tile.DoorOpen);
         Lights(b);
         Defenders();
         Entries();
@@ -423,6 +470,230 @@ public sealed class LevelGen
         P.CleanRoom = inner.Inset(1);
     }
 
+    /// <summary>
+    /// Ghoul tunnels: the warren is solid brick and earth with caverns dug out of it, one to a cell of a
+    /// rough grid -- some big enough to nest in, some only a junction, a few flooded -- joined by two-wide
+    /// sewer tunnels (a spanning tree and a few loops) with an arch where each tunnel meets a cavern, so
+    /// every tunnel is a room of its own. Half the tunnels run a water channel down one side. Openings on
+    /// the way in and on one or two other sides let out into the culvert round the outside.
+    /// </summary>
+    private void BuildTunnels(Rect inside, int entrySide)
+    {
+        for (int y = inside.Y; y < inside.Bottom; y++)
+        for (int x = inside.X; x < inside.Right; x++) L.Set(x, y, Tile.Brick);
+        Rect dig = inside.Inset(1);
+        int nx = Math.Max(2, dig.W / 11), ny = Math.Max(2, dig.H / 9);
+        float cw = dig.W / (float)nx, ch = dig.H / (float)ny;
+        var centres = new Pt[nx, ny];
+        var cave = new bool[L.W * L.H];
+        for (int gx = 0; gx < nx; gx++)
+        for (int gy = 0; gy < ny; gy++)
+        {
+            var c = new Pt(dig.X + (int)(cw * (gx + 0.5f)) + _r.Range(-1, 1), dig.Y + (int)(ch * (gy + 0.5f)) + _r.Range(-1, 1));
+            centres[gx, gy] = c;
+            bool junction = _r.Chance(0.25f);
+            float rx = junction ? 1.6f : _r.Range(2.2f, MathF.Max(2.4f, cw / 2 - 1.2f));
+            float ry = junction ? 1.6f : _r.Range(2.2f, MathF.Max(2.4f, ch / 2 - 1.2f));
+            bool flooded = !junction && _r.Chance(0.3f);
+            for (int dy = -(int)ry - 1; dy <= (int)ry + 1; dy++)
+            for (int dx = -(int)rx - 1; dx <= (int)rx + 1; dx++)
+            {
+                var p = new Pt(c.X + dx, c.Y + dy);
+                if (!dig.Contains(p)) continue;
+                float v = dx * dx / (rx * rx) + dy * dy / (ry * ry);
+                if (v >= 1 + 0.35f * (_r.Float() - 0.5f)) continue;
+                L.Set(p, Tile.Floor);
+                L.F[L.Idx(p.X, p.Y)] = flooded && v < 0.35f ? Floor.Water : Floor.Earth;
+                cave[L.Idx(p.X, p.Y)] = true;
+            }
+        }
+        // The tunnels: every cell joined to the warren once (a random spanning tree), and a few loops.
+        var joined = new HashSet<(int, int)> { (0, 0) };
+        var edges = new List<((int, int) a, (int, int) b)>();
+        var frontier = new List<((int, int) a, (int, int) b)>();
+        void Open((int, int) a)
+        {
+            foreach (var (dx, dy) in new[] { (1, 0), (-1, 0), (0, 1), (0, -1) })
+            {
+                var n = (a.Item1 + dx, a.Item2 + dy);
+                if (n.Item1 >= 0 && n.Item2 >= 0 && n.Item1 < nx && n.Item2 < ny && !joined.Contains(n)) frontier.Add((a, n));
+            }
+        }
+        Open((0, 0));
+        while (frontier.Count > 0)
+        {
+            var e = frontier[_r.Int(frontier.Count)];
+            frontier.Remove(e);
+            if (joined.Contains(e.b)) continue;
+            joined.Add(e.b);
+            edges.Add(e);
+            Open(e.b);
+        }
+        for (int gx = 0; gx < nx; gx++)
+        for (int gy = 0; gy < ny; gy++)
+            foreach (var n in new[] { (gx + 1, gy), (gx, gy + 1) })
+                if (n.Item1 < nx && n.Item2 < ny && !edges.Any(e => e.a == (gx, gy) && e.b == n || e.b == (gx, gy) && e.a == n) && _r.Chance(0.2f)) edges.Add(((gx, gy), n));
+        foreach (var (a, bb) in edges) Tunnel(centres[a.Item1, a.Item2], centres[bb.Item1, bb.Item2], cave);
+        // Ways out to the culvert, one on every side (the outer doors pick which of them open).
+        foreach (int s in new[] { 0, 1, 2, 3 })
+        {
+            // From the wall, straight in, until it breaks into floor.
+            Pt from = s switch
+            {
+                0 => new Pt(inside.X, s == entrySide ? P.Entry.Y : _r.Range(dig.Y + 2, dig.Bottom - 3)),
+                1 => new Pt(inside.Right - 1, s == entrySide ? P.Entry.Y : _r.Range(dig.Y + 2, dig.Bottom - 3)),
+                2 => new Pt(s == entrySide ? P.Entry.X : _r.Range(dig.X + 2, dig.Right - 3), inside.Y),
+                _ => new Pt(s == entrySide ? P.Entry.X : _r.Range(dig.X + 2, dig.Right - 3), inside.Bottom - 1),
+            };
+            from = new Pt(Math.Clamp(from.X, dig.X + 1, dig.Right - 2), Math.Clamp(from.Y, dig.Y + 1, dig.Bottom - 2));
+            if (s is 0 or 1) from = new Pt(s == 0 ? inside.X : inside.Right - 1, from.Y);
+            else from = new Pt(from.X, s == 2 ? inside.Y : inside.Bottom - 1);
+            Pt step = s switch { 0 => new Pt(1, 0), 1 => new Pt(-1, 0), 2 => new Pt(0, 1), _ => new Pt(0, -1) };
+            Pt twin = new(Math.Abs(step.Y), Math.Abs(step.X));
+            for (Pt p = from; inside.Contains(p); p += step)
+            {
+                if (L[p] == Tile.Floor && L[p + twin] == Tile.Floor) break;
+                foreach (Pt q in new[] { p, p + twin })
+                    if (inside.Contains(q) && L[q] == Tile.Brick) { L.Set(q, Tile.Floor); L.F[L.Idx(q.X, q.Y)] = Floor.Sewer; }
+            }
+        }
+    }
+
+    /// <summary>
+    /// A two-wide sewer tunnel from one cavern's middle to another's: along, then across. Where it leaves a
+    /// cavern and where it enters one, an open arch (the tunnel is its own room); half of them run water
+    /// down one side.
+    /// </summary>
+    private void Tunnel(Pt a, Pt b, bool[] cave)
+    {
+        bool alongFirst = _r.Chance(0.5f);
+        var path = new List<(Pt p, Pt twin)>();
+        Pt corner = alongFirst ? new Pt(b.X, a.Y) : new Pt(a.X, b.Y);
+        void Leg(Pt from, Pt to)
+        {
+            int dx = Math.Sign(to.X - from.X), dy = Math.Sign(to.Y - from.Y);
+            Pt twin = dx != 0 ? new Pt(0, 1) : new Pt(1, 0);
+            for (Pt p = from; ; p += new Pt(dx, dy))
+            {
+                path.Add((p, twin));
+                if (p == to) break;
+            }
+        }
+        Leg(a, corner);
+        Leg(corner, b);
+        bool water = _r.Chance(0.5f);
+        int i = 0;
+        while (i < path.Count)
+        {
+            if (cave[L.Idx(path[i].p.X, path[i].p.Y)]) { i++; continue; }
+            int j = i;
+            while (j < path.Count && !cave[L.Idx(path[j].p.X, path[j].p.Y)]) j++;
+            // path[i..j) is dug through rock.
+            var dug = new List<(Pt p, Pt twin, bool fresh)>();
+            for (int k = i; k < j; k++)
+            {
+                var (p, twin) = path[k];
+                bool fresh = L[p] == Tile.Brick;
+                foreach (Pt q in new[] { p, p + twin })
+                {
+                    if (!L.In(q) || L[q] != Tile.Brick || q.X <= P.Building.X || q.Y <= P.Building.Y || q.X >= P.Building.Right - 1 || q.Y >= P.Building.Bottom - 1) continue;
+                    L.Set(q, Tile.Floor);
+                    L.F[L.Idx(q.X, q.Y)] = water && q == p ? Floor.Water : Floor.Sewer;
+                }
+                dug.Add((p, twin, fresh));
+            }
+            // An arch at each end of a long enough run (both tiles across the tunnel), where it was fresh rock.
+            if (dug.Count >= 4)
+                foreach (var (p, twin, fresh) in new[] { dug[0], dug[^1] })
+                {
+                    if (!fresh) continue;
+                    foreach (Pt q in new[] { p, p + twin })
+                        if (L.In(q) && L[q] == Tile.Floor) { L.Set(q, Tile.DoorOpen); L.F[L.Idx(q.X, q.Y)] = Floor.Sewer; }
+                }
+            i = j;
+        }
+    }
+
+    /// <summary>
+    /// An all-night store: the shop floor at the front -- shelving in rows with aisles between and a cross
+    /// aisle at each end, the till by the front -- and behind it a strip of back rooms (the stockroom, the
+    /// manager's office, a cupboard). The front is glass (<see cref="Storefront"/>).
+    /// </summary>
+    private void BuildStore(Rect inside, int entrySide)
+    {
+        int depth = 6;
+        bool acrossX = entrySide is 0 or 1; // the front is a west or east wall: depth runs along x
+        Rect back, floor;
+        int at;
+        switch (entrySide)
+        {
+            case 0: at = inside.Right - depth - 1; floor = new Rect(inside.X, inside.Y, at - inside.X, inside.H); back = new Rect(at + 1, inside.Y, inside.Right - at - 1, inside.H); break;
+            case 1: at = inside.X + depth; back = new Rect(inside.X, inside.Y, at - inside.X, inside.H); floor = new Rect(at + 1, inside.Y, inside.Right - at - 1, inside.H); break;
+            case 2: at = inside.Bottom - depth - 1; floor = new Rect(inside.X, inside.Y, inside.W, at - inside.Y); back = new Rect(inside.X, at + 1, inside.W, inside.Bottom - at - 1); break;
+            default: at = inside.Y + depth; back = new Rect(inside.X, inside.Y, inside.W, at - inside.Y); floor = new Rect(inside.X, at + 1, inside.W, inside.Bottom - at - 1); break;
+        }
+        Pt wa = acrossX ? new Pt(at, inside.Y) : new Pt(inside.X, at), wb = acrossX ? new Pt(at, inside.Bottom - 1) : new Pt(inside.Right - 1, at);
+        WallLine(wa, wb, _inner);
+        // The back rooms along the strip: the stockroom (wide double doors onto the shop), then the office, then a cupboard.
+        int len = acrossX ? back.H : back.W;
+        // (No room longer than three times its depth: it would be a corridor, not a room.)
+        int stock = Math.Clamp(len * 3 / 5, 6, 3 * depth - 1), office = Math.Clamp((len - stock) * 2 / 3, 4, 3 * depth - 1);
+        int[] cuts = { stock, stock + 1 + office };
+        int from = 0;
+        for (int k = 0; k <= cuts.Length; k++)
+        {
+            int to = k < cuts.Length ? Math.Min(cuts[k], len) : len;
+            if (to - from < 2) { from = to + 1; continue; }
+            if (k < cuts.Length && to < len - 2)
+            {
+                Pt ca = acrossX ? new Pt(back.X, back.Y + to) : new Pt(back.X + to, back.Y);
+                Pt cb = acrossX ? new Pt(back.Right - 1, back.Y + to) : new Pt(back.X + to, back.Bottom - 1);
+                WallLine(ca, cb, _inner);
+            }
+            Pt da = acrossX ? new Pt(at, back.Y + from) : new Pt(back.X + from, at), db = acrossX ? new Pt(at, back.Y + to - 1) : new Pt(back.X + to - 1, at);
+            DoorAlong(da, db, k == 0 ? 2 : 1);
+            from = to + 1;
+        }
+        // Shelving: rows running front to back, three tiles apart, short of the front (the till's end) and the back (a cross aisle).
+        int span = acrossX ? floor.W : floor.H, rows = acrossX ? floor.H : floor.W;
+        bool frontLow = entrySide is 0 or 2; // the front is at the low end of the depth axis
+        for (int q = 2; q < rows - 2; q += 3)
+        for (int k = 5; k < span - 2; k++)
+        {
+            int depthPos = frontLow ? k : span - 1 - k;
+            if ((k - 5) % 9 == 8) continue; // a gap halfway along a long row
+            Pt p = acrossX ? new Pt(floor.X + depthPos, floor.Y + q) : new Pt(floor.X + q, floor.Y + depthPos);
+            if (L[p] == Tile.Floor) L.Set(p, Tile.Rack);
+        }
+        // The till: a counter by the front, at one end, the clerk behind it.
+        int tillAt = _r.Chance(0.5f) ? 1 : rows - 4;
+        for (int k = 0; k < 3; k++)
+        {
+            int depthPos = frontLow ? 2 : span - 3;
+            Pt p = acrossX ? new Pt(floor.X + depthPos, floor.Y + tillAt + k) : new Pt(floor.X + tillAt + k, floor.Y + depthPos);
+            if (L[p] == Tile.Floor) L.Set(p, Tile.Desk);
+        }
+        int behind = frontLow ? 3 : span - 4;
+        _till = acrossX ? new Pt(floor.X + behind, floor.Y + tillAt + 1) : new Pt(floor.X + tillAt + 1, floor.Y + behind);
+        _shopFloor = floor;
+    }
+
+    private Pt _till = new(-1, -1);
+    private Rect _shopFloor;
+
+    /// <summary>A store's front: plate glass the length of it, but for the doors and the corners.</summary>
+    private void Storefront(Rect b, int side)
+    {
+        bool vertical = side is 0 or 1;
+        int line = side switch { 0 => b.X, 1 => b.Right - 1, 2 => b.Y, _ => b.Bottom - 1 };
+        int lo = vertical ? b.Y + 2 : b.X + 2, hi = vertical ? b.Bottom - 3 : b.Right - 3;
+        for (int k = lo; k <= hi; k++)
+        {
+            Pt p = vertical ? new Pt(line, k) : new Pt(k, line);
+            if (L[p] == Tile.Concrete) L.Set(p, Tile.Glass);
+        }
+    }
+
     private void Rim(Rect r, Tile t)
     {
         WallLine(new Pt(r.X, r.Y), new Pt(r.Right - 1, r.Y), t);
@@ -464,6 +735,378 @@ public sealed class LevelGen
     }
 
     private Rect _hall;
+    /// <summary>Floors above the lobby: the job's, or a hotel's own.</summary>
+    private int _floors;
+    /// <summary>A casino's gaming floor and a chapel's nave (W 0: none).</summary>
+    private Rect _hallFloor;
+
+    /// <summary>
+    /// A building site: the shell's outer wall has whole bays still open to the yard, and every opening between
+    /// the bays is a wide gap with no door in it yet (<see cref="PlaceSplitDoor"/> makes them so).
+    /// </summary>
+    private void Unfinished(Rect b)
+    {
+        void Run(Pt start, Pt step, Pt inward, int len)
+        {
+            int k = 3;
+            while (k < len - 4)
+            {
+                if (_r.Chance(0.35f))
+                {
+                    int run = _r.Range(2, 4);
+                    for (int q = 0; q < run && k + q < len - 3; q++)
+                    {
+                        Pt p = start + new Pt(step.X * (k + q), step.Y * (k + q));
+                        if (L[p] is Tile.Concrete or Tile.Glass && L[p + inward] == Tile.Floor) L.Set(p, Tile.Floor);
+                    }
+                    k += run + _r.Range(3, 6);
+                }
+                else k += 4;
+            }
+        }
+        Run(new Pt(b.X, b.Y), new Pt(1, 0), new Pt(0, 1), b.W);
+        Run(new Pt(b.X, b.Bottom - 1), new Pt(1, 0), new Pt(0, -1), b.W);
+        Run(new Pt(b.X, b.Y), new Pt(0, 1), new Pt(1, 0), b.H);
+        Run(new Pt(b.Right - 1, b.Y), new Pt(0, 1), new Pt(-1, 0), b.H);
+    }
+
+    /// <summary>
+    /// A casino: the gaming floor at the front (tables and slot banks are laid out in <see cref="Furnish"/>),
+    /// and behind it a strip of back rooms -- the cashier's cage, the count room, security, the manager.
+    /// </summary>
+    private void BuildCasino(Rect inside, int entrySide)
+    {
+        int depth = Math.Min(8, (entrySide is 0 or 1 ? inside.W : inside.H) / 3);
+        bool vertical = entrySide is 0 or 1;
+        Rect main, back;
+        int at;
+        switch (entrySide)
+        {
+            case 0: at = inside.Right - depth - 1; main = new Rect(inside.X, inside.Y, at - inside.X, inside.H); back = new Rect(at + 1, inside.Y, inside.Right - at - 1, inside.H); break;
+            case 1: at = inside.X + depth; back = new Rect(inside.X, inside.Y, at - inside.X, inside.H); main = new Rect(at + 1, inside.Y, inside.Right - at - 1, inside.H); break;
+            case 2: at = inside.Bottom - depth - 1; main = new Rect(inside.X, inside.Y, inside.W, at - inside.Y); back = new Rect(inside.X, at + 1, inside.W, inside.Bottom - at - 1); break;
+            default: at = inside.Y + depth; back = new Rect(inside.X, inside.Y, inside.W, at - inside.Y); main = new Rect(inside.X, at + 1, inside.W, inside.Bottom - at - 1); break;
+        }
+        if (vertical) for (int y = inside.Y; y < inside.Bottom; y++) L.Set(at, y, _inner);
+        else for (int x = inside.X; x < inside.Right; x++) L.Set(x, at, _inner);
+        _splits.Add((main, back, vertical, at, vertical ? inside.Y : inside.X, vertical ? inside.Bottom : inside.Right));
+        // A second way onto the back corridor from the floor, for the staff.
+        _splits.Add((main, back, vertical, at, vertical ? inside.Y : inside.X, vertical ? inside.Bottom : inside.Right));
+        Split(back, 4, 8, 2);
+        for (int y = back.Y; y < back.Bottom; y++)
+        for (int x = back.X; x < back.Right; x++)
+            if (L[x, y] == Tile.Floor) L.F[L.Idx(x, y)] = Floor.Carpet;
+        _hallFloor = main;
+    }
+
+    /// <summary>
+    /// A container ship along the quay: the hull tapers to a bow at one end; the superstructure (the bridge, the
+    /// crew's quarters, the mess) stands across the stern; the deck between is stacked with containers in blocks,
+    /// with a walkway down each rail and a lane down the middle. The sea is everywhere else but the quay. The hold
+    /// below is the basement (<see cref="Basement"/>).
+    /// </summary>
+    private void BuildShip(Rect b, int entrySide)
+    {
+        int w = L.W, h = L.H;
+        // The sea: everything but the quay (the band between the way in and the hull).
+        for (int y = 1; y < h - 1; y++)
+        for (int x = 1; x < w - 1; x++)
+        {
+            bool quay = entrySide switch { 0 => x < b.X, 1 => x >= b.Right, 2 => y < b.Y, _ => y >= b.Bottom };
+            if (b.Contains(new Pt(x, y)) || quay) continue;
+            L.Set(x, y, Tile.Drop);
+            L.F[L.Idx(x, y)] = Floor.Water;
+        }
+        bool along = entrySide is 2 or 3; // the quay is north or south: the ship lies east-west
+        int len = along ? b.W : b.H, beam = along ? b.H : b.W;
+        Pt At(int u, int v) => along ? new Pt(b.X + u, b.Y + v) : new Pt(b.X + v, b.Y + u);
+        bool bowLow = _r.Chance(0.5f);
+        int taper = Math.Min(beam / 2 - 1, 7);
+        // How far in from each side the hull is at this point along it.
+        int Inset(int u)
+        {
+            int fromBow = bowLow ? u : len - 1 - u;
+            return fromBow >= taper ? 0 : (taper - fromBow) * (beam / 2 - 1) / taper;
+        }
+        bool InHull(int u, int v) => u >= 0 && u < len && v >= Inset(u) && v < beam - Inset(u);
+        for (int u = 0; u < len; u++)
+        for (int v = 0; v < beam; v++)
+        {
+            Pt p = At(u, v);
+            if (!InHull(u, v)) { L.Set(p, Tile.Drop); L.F[L.Idx(p.X, p.Y)] = Floor.Water; continue; }
+            bool rim = !InHull(u - 1, v) || !InHull(u + 1, v) || !InHull(u, v - 1) || !InHull(u, v + 1);
+            L.Set(p, rim ? Tile.Concrete : Tile.Floor);
+            L.F[L.Idx(p.X, p.Y)] = Floor.Deck;
+        }
+        // The superstructure across the stern: its own rooms.
+        int sternDepth = Math.Min(10, len / 4);
+        int s0 = bowLow ? len - 1 - sternDepth : sternDepth;
+        for (int v = 1; v < beam - 1; v++) { Pt p = At(s0, v); if (L[p] == Tile.Floor) L.Set(p, _inner); }
+        Rect stern = bowLow
+            ? (along ? new Rect(b.X + s0 + 1, b.Y + 1, len - s0 - 2, beam - 2) : new Rect(b.X + 1, b.Y + s0 + 1, beam - 2, len - s0 - 2))
+            : (along ? new Rect(b.X + 1, b.Y + 1, s0 - 1, beam - 2) : new Rect(b.X + 1, b.Y + 1, beam - 2, s0 - 1));
+        Rect deck = bowLow
+            ? (along ? new Rect(b.X + 1, b.Y + 1, s0 - 1, beam - 2) : new Rect(b.X + 1, b.Y + 1, beam - 2, s0 - 1))
+            : (along ? new Rect(b.X + s0 + 1, b.Y + 1, len - s0 - 2, beam - 2) : new Rect(b.X + 1, b.Y + s0 + 1, beam - 2, len - s0 - 2));
+        _splits.Add((deck, stern, !along, s0 + (along ? b.X : b.Y), along ? b.Y + 1 : b.X + 1, along ? b.Bottom - 1 : b.Right - 1));
+        Split(stern, 4, 7, 1);
+        // The deck: blocks of containers, two walkways at the rails, a lane down the middle, cross aisles.
+        int c0 = beam / 2 - 1;
+        for (int u = 0; u < len; u++)
+        {
+            bool onDeck = bowLow ? u < s0 - 1 : u > s0 + 1;
+            if (!onDeck || Inset(u) > 0 || (bowLow ? u > s0 - 3 : u < s0 + 3)) continue;
+            if ((u + (bowLow ? 0 : 3)) % 7 >= 5) continue; // a cross aisle
+            for (int v = 3; v < beam - 3; v++)
+            {
+                if (v == c0 || v == c0 + 1) continue;
+                Pt p = At(u, v);
+                if (L[p] == Tile.Floor) L.Set(p, Tile.Cargo);
+            }
+        }
+        _hallFloor = deck;
+    }
+
+    /// <summary>A cemetery's chapel: the nave at the front (pews, the altar), a strip of back rooms -- the vestry, the crematorium, an office.</summary>
+    private void BuildChapel(Rect inside, int entrySide)
+    {
+        BuildCasino(inside, entrySide);
+        Rect nave = _hallFloor;
+        for (int y = nave.Y; y < nave.Bottom; y++)
+        for (int x = nave.X; x < nave.Right; x++) L.F[L.Idx(x, y)] = Floor.Wood;
+        // Pews in two banks either side of the aisle, the altar at the far end.
+        bool acrossX = entrySide is 0 or 1;
+        int span = acrossX ? nave.W : nave.H, rows = acrossX ? nave.H : nave.W;
+        bool frontLow = entrySide is 0 or 2;
+        int aisle = rows / 2;
+        for (int k = 3; k < span - 3; k += 2)
+        for (int q = 1; q < rows - 1; q++)
+        {
+            if (Math.Abs(q - aisle) <= 1) continue;
+            int d = frontLow ? k : span - 1 - k;
+            Pt p = acrossX ? new Pt(nave.X + d, nave.Y + q) : new Pt(nave.X + q, nave.Y + d);
+            if (L[p] == Tile.Floor) L.Set(p, Tile.Desk);
+        }
+        int altar = frontLow ? span - 2 : 1;
+        for (int q = aisle - 1; q <= aisle + 1; q++)
+        {
+            Pt p = acrossX ? new Pt(nave.X + altar, nave.Y + q) : new Pt(nave.X + q, nave.Y + altar);
+            if (L[p] == Tile.Floor) L.Set(p, Tile.Crate);
+        }
+        for (int y = inside.Y; y < inside.Bottom; y++)
+        for (int x = inside.X; x < inside.Right; x++)
+            if (L.F[L.Idx(x, y)] == Floor.Carpet) L.F[L.Idx(x, y)] = Floor.Wood;
+    }
+
+    /// <summary>A hotel's ground floor: the lobby at the front (the desk, the lounge), the bar, kitchen and offices behind.</summary>
+    private void BuildLobby(Rect inside, int entrySide)
+    {
+        BuildCasino(inside, entrySide);
+        Rect lobby = _hallFloor;
+        for (int y = lobby.Y; y < lobby.Bottom; y++)
+        for (int x = lobby.X; x < lobby.Right; x++) L.F[L.Idx(x, y)] = Floor.Carpet;
+        // The front desk, a run along one side of the lobby.
+        bool acrossX = entrySide is 0 or 1;
+        int span = acrossX ? lobby.W : lobby.H, rows = acrossX ? lobby.H : lobby.W;
+        bool frontLow = entrySide is 0 or 2;
+        int d = frontLow ? span / 2 : span - 1 - span / 2;
+        for (int q = 2; q < Math.Min(rows - 2, 8); q++)
+        {
+            Pt p = acrossX ? new Pt(lobby.X + d, lobby.Y + q) : new Pt(lobby.X + q, lobby.Y + d);
+            if (L[p] == Tile.Floor) L.Set(p, Tile.Desk);
+        }
+        _hallFloor = default;
+    }
+
+    /// <summary>
+    /// A hotel floor: a corridor down the middle and room after identical room off both sides, each with its
+    /// door onto it; the end of the corridor opens into a suite twice the size. The top floor is the
+    /// penthouse: a few big rooms instead.
+    /// </summary>
+    private void BuildHotelFloor(Rect inside, bool top)
+    {
+        if (top || inside.W < 16 || inside.H < 14) { Split(inside, 6, 12, 0); return; }
+        bool wide = inside.W >= inside.H;
+        int len = wide ? inside.W : inside.H, dep = wide ? inside.H : inside.W;
+        Pt At(int u, int v) => wide ? new Pt(inside.X + u, inside.Y + v) : new Pt(inside.X + v, inside.Y + u);
+        // A cross corridor down one end, then units of fifteen across the floor: five rows of rooms, a wall, a
+        // two-wide corridor, a wall, five rows of rooms, a wall. Every corridor opens into the cross one; every room
+        // is four wide with its door onto its corridor. The last unit's far rooms take whatever depth is left.
+        const int Cross = 2, Room = 4, Unit = 15;
+        WallLine(At(Cross, 0), At(Cross, dep - 1), _inner);
+        // The depth shared out evenly between the units, so no row of rooms ends up twice as deep as the rest.
+        int units = Math.Max(1, (int)MathF.Round(dep / (float)Unit));
+        for (int k = 0; k < units; k++)
+        {
+            int v0 = k * dep / units, v1 = (k + 1) * dep / units;
+            bool last = k == units - 1;
+            int rows = v1 - v0 - (last ? 0 : 1);
+            int a = (rows - 4) / 2, b = rows - 4 - a;
+            int wA = v0 + a, c = wA + 1, wB = c + 2, b0 = wB + 1, b1 = b0 + b - 1;
+            WallLine(At(Cross + 1, wA), At(len - 1, wA), _inner);
+            WallLine(At(Cross + 1, wB), At(len - 1, wB), _inner);
+            if (!last) WallLine(At(Cross + 1, b1 + 1), At(len - 1, b1 + 1), _inner);
+            // The corridor meets the cross corridor through a gap in its wall.
+            L.Set(At(Cross, c), Tile.Floor);
+            L.Set(At(Cross, c + 1), Tile.Floor);
+            foreach (var (from, to, wallV) in new[] { (v0, wA - 1, wA), (b0, b1, wB) })
+            {
+                if (to - from < 1) continue;
+                int u = Cross + 1;
+                while (u < len)
+                {
+                    int ue = Math.Min(len - 1, u + Room - 1);
+                    if (len - 1 - ue < 3) ue = len - 1;
+                    if (ue < len - 1) WallLine(At(ue + 1, from), At(ue + 1, to), _inner);
+                    DoorAlong(At(u, wallV), At(ue, wallV));
+                    u = ue + 2;
+                }
+            }
+        }
+    }
+
+    /// <summary>
+    /// Rooftops: no ground, only the drop. Five or six roofs in a rough grid, each with its stairwell hut,
+    /// air-conditioning units and a railing along the edges that look out over nothing; joined to each other by
+    /// planks (a spanning tree, so every roof can be walked to) -- and some roofs so close that a dash carries
+    /// you across. You come up the fire escape on the nearest roof; the helicopter waits on the farthest.
+    /// </summary>
+    private LevelPlan BuildRooftops(int t)
+    {
+        int w = L.W, h = L.H;
+        for (int y = 0; y < h; y++)
+        for (int x = 0; x < w; x++) { L.Set(x, y, Tile.Drop); L.F[L.Idx(x, y)] = Floor.Street; }
+        _inner = Tile.Concrete;
+        _floor = Floor.Roof;
+        int cols = w >= h ? 3 : 2, rows = w >= h ? 2 : 3;
+        float cw = (w - 4) / (float)cols, ch = (h - 4) / (float)rows;
+        var roofs = new Rect[cols, rows];
+        for (int gx = 0; gx < cols; gx++)
+        for (int gy = 0; gy < rows; gy++)
+        {
+            int x0 = 2 + (int)(gx * cw), y0 = 2 + (int)(gy * ch), x1 = 2 + (int)((gx + 1) * cw), y1 = 2 + (int)((gy + 1) * ch);
+            // Each side pulled in by 0 (a shared party wall would merge them), 1 (a leap) or more (a plank).
+            int Pull() => _r.Chance(0.35f) ? 1 : _r.Range(2, 3);
+            int l = gx == 0 ? 0 : Pull(), rr = gx == cols - 1 ? 0 : Pull(), tp = gy == 0 ? 0 : Pull(), bt = gy == rows - 1 ? 0 : Pull();
+            roofs[gx, gy] = new Rect(x0 + l, y0 + tp, x1 - x0 - l - rr, y1 - y0 - tp - bt);
+        }
+        int minX = w, minY = h, maxX = 0, maxY = 0;
+        foreach (Rect rf in roofs)
+        {
+            for (int y = rf.Y; y < rf.Bottom; y++)
+            for (int x = rf.X; x < rf.Right; x++) { L.Set(x, y, Tile.Floor); L.F[L.Idx(x, y)] = Floor.Roof; }
+            minX = Math.Min(minX, rf.X); minY = Math.Min(minY, rf.Y); maxX = Math.Max(maxX, rf.Right); maxY = Math.Max(maxY, rf.Bottom);
+        }
+        P.Building = new Rect(minX - 1, minY - 1, maxX - minX + 2, maxY - minY + 2);
+        L.Buildings.Add(P.Building);
+        // Planks: every roof joined to the others (a spanning tree); a gap of one is a leap, not a plank.
+        var joined = new HashSet<(int, int)> { (0, 0) };
+        var frontier = new List<((int, int) a, (int, int) b)>();
+        void Open((int, int) a)
+        {
+            foreach (var (dx, dy) in new[] { (1, 0), (-1, 0), (0, 1), (0, -1) })
+            {
+                var n = (a.Item1 + dx, a.Item2 + dy);
+                if (n.Item1 >= 0 && n.Item2 >= 0 && n.Item1 < cols && n.Item2 < rows && !joined.Contains(n)) frontier.Add((a, n));
+            }
+        }
+        Open((0, 0));
+        while (frontier.Count > 0)
+        {
+            var e = frontier[_r.Int(frontier.Count)];
+            frontier.Remove(e);
+            if (joined.Contains(e.b)) continue;
+            joined.Add(e.b);
+            Plank(roofs[e.a.Item1, e.a.Item2], roofs[e.b.Item1, e.b.Item2]);
+            Open(e.b);
+        }
+        // A railing where a roof looks out over the edge of the map: cover, and nothing to fall off.
+        foreach (Rect rf in roofs)
+            for (int y = rf.Y; y < rf.Bottom; y++)
+            for (int x = rf.X; x < rf.Right; x++)
+            {
+                bool outer = x == rf.X && rf.X == minX || x == rf.Right - 1 && rf.Right == maxX || y == rf.Y && rf.Y == minY || y == rf.Bottom - 1 && rf.Bottom == maxY;
+                if (outer && L[x, y] == Tile.Floor && (x + y) % 5 != 0) L.Set(x, y, Tile.Fence);
+            }
+        // Each roof's stairwell hut: a small concrete box with a door (its own room).
+        foreach (Rect rf in roofs)
+        {
+            if (rf.W < 9 || rf.H < 8) continue;
+            int hx = rf.X + 2 + _r.Int(Math.Max(1, rf.W - 8)), hy = rf.Y + 2 + _r.Int(Math.Max(1, rf.H - 7));
+            var hut = new Rect(hx, hy, 5, 4);
+            Rim(hut, Tile.Concrete);
+            for (int y = hut.Y + 1; y < hut.Bottom - 1; y++) for (int x = hut.X + 1; x < hut.Right - 1; x++) L.F[L.Idx(x, y)] = Floor.Concrete;
+            DoorAlong(new Pt(hut.X + 1, hut.Bottom - 1), new Pt(hut.Right - 2, hut.Bottom - 1));
+        }
+        // In by the fire escape on the roof nearest one edge; out by the helicopter on the farthest from it.
+        int side = _r.Int(4);
+        var all = new List<Rect>();
+        foreach (Rect rf in roofs) all.Add(rf);
+        Func<Rect, float> key = side switch { 0 => rf => rf.X, 1 => rf => -rf.Right, 2 => rf => rf.Y, _ => rf => -rf.Bottom };
+        Rect first = all.OrderBy(key).ThenBy(_ => _r.Next()).First(), last = all.OrderByDescending(key).ThenBy(_ => _r.Next()).First();
+        P.Entry = side switch
+        {
+            0 => new Pt(first.X + 1, first.Y + first.H / 2), 1 => new Pt(first.Right - 2, first.Y + first.H / 2),
+            2 => new Pt(first.X + first.W / 2, first.Y + 1), _ => new Pt(first.X + first.W / 2, first.Bottom - 2),
+        };
+        for (int dy = -1; dy <= 1; dy++) for (int dx = -1; dx <= 1; dx++) { Pt e = P.Entry + new Pt(dx, dy); if (L[e] is Tile.Fence) L.Set(e, Tile.Floor); }
+        Pt pad = side switch
+        {
+            0 => new Pt(last.Right - 4, last.Y + last.H / 2 - 1), 1 => new Pt(last.X + 1, last.Y + last.H / 2 - 1),
+            2 => new Pt(last.X + last.W / 2 - 1, last.Bottom - 4), _ => new Pt(last.X + last.W / 2 - 1, last.Y + 1),
+        };
+        P.Extraction = new Rect(pad.X, pad.Y, 3, 3);
+        for (int y = pad.Y; y < pad.Y + 3; y++) for (int x = pad.X; x < pad.X + 3; x++) if (L.In(x, y)) { L.Set(x, y, Tile.Floor); L.F[L.Idx(x, y)] = Floor.Concrete; }
+        P.MainW = L.W;
+        // From here, the same as any site.
+        IndexRooms();
+        LinkRooms();
+        Depths();
+        Vault();
+        ExtraDoors();
+        IndexRooms();
+        LinkRooms();
+        Depths();
+        AssignKinds();
+        StampKinds();
+        Objectives();
+        SpecialRooms();
+        Furnish(Floor.Street);
+        EnsureReachable();
+        Lights(P.Building);
+        Defenders();
+        Entries();
+        Loot();
+        P.L.Ambient = Tables.NightAmbient;
+        return P;
+    }
+
+    /// <summary>A plank across the drop between two neighbouring roofs, where they face each other.</summary>
+    private void Plank(Rect a, Rect b)
+    {
+        bool horiz = a.Right <= b.X || b.Right <= a.X; // side by side: the plank runs east-west
+        if (horiz)
+        {
+            Rect l = a.X < b.X ? a : b, r = a.X < b.X ? b : a;
+            int y0 = Math.Max(l.Y, r.Y) + 1, y1 = Math.Min(l.Bottom, r.Bottom) - 2;
+            if (y1 < y0) y1 = y0;
+            int y = _r.Range(y0, y1);
+            for (int x = l.Right; x < r.X; x++) { L.Set(x, y, Tile.DoorOpen); L.F[L.Idx(x, y)] = Floor.Roof; }
+            _bridges.Add((new Pt(l.Right - 1, y), new Pt(r.X, y)));
+        }
+        else
+        {
+            Rect u = a.Y < b.Y ? a : b, d = a.Y < b.Y ? b : a;
+            int x0 = Math.Max(u.X, d.X) + 1, x1 = Math.Min(u.Right, d.Right) - 2;
+            if (x1 < x0) x1 = x0;
+            int x = _r.Range(x0, x1);
+            for (int y = u.Bottom; y < d.Y; y++) { L.Set(x, y, Tile.DoorOpen); L.F[L.Idx(x, y)] = Floor.Roof; }
+            _bridges.Add((new Pt(x, u.Bottom - 1), new Pt(x, d.Y)));
+        }
+    }
+
+    /// <summary>Planks between roofs: the roof tile at each end (joined like a pair of stairs, see <see cref="LinkRooms"/>).</summary>
+    private readonly List<(Pt a, Pt b)> _bridges = new();
 
     /// <summary>Gang dens: the building is falling apart -- holes in the walls, a courtyard open to the sky.</summary>
     private void Decay()
@@ -522,6 +1165,17 @@ public sealed class LevelGen
         if (opts.Count == 0) return;
         Pt d = opts[_r.Int(opts.Count)];
         L.Set(d, Tile.Door);
+        // A building site's openings: wide, and no door hung in them yet.
+        if (_job.Style == SiteStyle.Construction)
+        {
+            L.Set(d, Tile.DoorOpen);
+            for (int k = 1; k <= 2; k++)
+            {
+                Pt d2 = s.vertical ? new Pt(d.X, d.Y + k) : new Pt(d.X + k, d.Y);
+                if (opts.Contains(d2)) L.Set(d2, Tile.DoorOpen);
+            }
+            return;
+        }
         // Warehouses get wide doors.
         if (_job.Style == SiteStyle.Warehouse && _r.Chance(0.5f))
         {
@@ -530,7 +1184,8 @@ public sealed class LevelGen
         }
     }
 
-    private static bool IsWall(Tile t) => t is Tile.Drywall or Tile.Brick or Tile.Concrete or Tile.Glass or Tile.Reinforced or Tile.Lift;
+    // A drop (between roofs, round a ship) bounds a room the way a wall does.
+    private static bool IsWall(Tile t) => t is Tile.Drywall or Tile.Brick or Tile.Concrete or Tile.Glass or Tile.Reinforced or Tile.Lift or Tile.Drop;
 
     /// <summary>Rooms are the floor regions inside the building, found by flood fill (doors are boundaries).</summary>
     private void IndexRooms()
@@ -595,6 +1250,12 @@ public sealed class LevelGen
         foreach (var kv in L.Stair)
         {
             int a = P.RoomOf[kv.Key], b = P.RoomOf[kv.Value];
+            if (a >= 0 && b >= 0 && a != b && !P.Rooms[a].Links.Contains(b)) { P.Rooms[a].Links.Add(b); P.Rooms[b].Links.Add(a); }
+        }
+        // So do the planks between roofs.
+        foreach (var (pa, pb) in _bridges)
+        {
+            int a = P.RoomOf[L.Idx(pa.X, pa.Y)], b = P.RoomOf[L.Idx(pb.X, pb.Y)];
             if (a >= 0 && b >= 0 && a != b && !P.Rooms[a].Links.Contains(b)) { P.Rooms[a].Links.Add(b); P.Rooms[b].Links.Add(a); }
         }
         foreach (Pt d in DoorTiles())
@@ -715,7 +1376,7 @@ public sealed class LevelGen
     /// </summary>
     private void Tower()
     {
-        int n = _job.Floors;
+        int n = _floors;
         Level old = L;
         Rect b = P.Building;
         int fw = b.W + 8;
@@ -757,7 +1418,8 @@ public sealed class LevelGen
                 Windows(fb, Tile.Concrete);
                 Rect inside = fb.Inset(1);
                 int before = _splits.Count;
-                if (inside.W >= 14 && inside.H >= 12) BuildOffice(inside);
+                if (_job.Style == SiteStyle.Hotel) BuildHotelFloor(inside, k == n);
+                else if (inside.W >= 14 && inside.H >= 12) BuildOffice(inside);
                 else Split(inside, 4, 8, 0);
                 for (int q = before; q < _splits.Count; q++) PlaceSplitDoor(_splits[q]);
             }
@@ -773,13 +1435,19 @@ public sealed class LevelGen
             // The core's door onto the floor, and the floor kept clear in front of it.
             var door = new Pt(c.X + 3, c.Bottom - 1);
             L.Set(door, secure && k > 0 ? Tile.LockedDoor : Tile.Door);
-            for (int q = 1; q <= 2; q++) { Pt f = door + new Pt(0, q); if (L.In(f) && L[f] is Tile.Drywall or Tile.Brick or Tile.Glass or Tile.Desk) L.Set(f, Tile.Floor); }
+            // (Wide enough for the guards a secure floor posts there, whatever the floor's plan.)
+            for (int q = 1; q <= 2; q++)
+            for (int ddx = -1; ddx <= 1; ddx++)
+            {
+                Pt f = door + new Pt(ddx, q);
+                if (L.In(f) && L[f] is Tile.Drywall or Tile.Brick or Tile.Glass or Tile.Desk or Tile.Door or Tile.LockedDoor) L.Set(f, Tile.Floor);
+            }
             var lift = new Pt(c.X + 1, c.Y + 1);
             L.Set(lift, Tile.Lift);
             P.Lifts.Add(lift);
             P.LiftSpots.Add(new Pt(c.X + 2, c.Y + 2).Centre);
             P.Secure.Add(secure && k > 0);
-            for (int dy = -1; dy <= 3; dy++) for (int ddx = -1; ddx <= 6; ddx++) _reserved.Add(new Pt(c.X + ddx, c.Y + dy));
+            for (int dy = -1; dy <= 7; dy++) for (int ddx = -1; ddx <= 6; ddx++) _reserved.Add(new Pt(c.X + ddx, c.Y + dy));
             L.Lights.Add((new Pt(c.X + 3, c.Y + 2).Centre, secure && k > 0 ? 0xff4040ffu : 0xd0e8ffffu, 3f));
         }
         // Stairs: up from the top of each core, down into the bottom of the next one.
@@ -948,11 +1616,26 @@ public sealed class LevelGen
             SiteStyle.Lab => new[] { (RoomKind.LabBay, 0.9f), (RoomKind.LabBay, 0.6f), (RoomKind.Server, 0.6f), (RoomKind.Break, 0.5f), (RoomKind.Manager, 0.5f), (RoomKind.Security, security ? 1 : 0), (RoomKind.Panic, target ? 0.4f : 0) },
             SiteStyle.Warehouse => new[] { (RoomKind.Dock, 0.6f), (RoomKind.Manager, 0.6f), (RoomKind.Break, 0.6f), (RoomKind.Armoury, _job.Threat >= 2 ? 0.5f : 0) },
             SiteStyle.Den => new[] { (RoomKind.Barracks, 0.8f), (RoomKind.Barracks, 0.4f), (RoomKind.Break, 0.5f), (RoomKind.Armoury, _job.Threat >= 2 ? 0.6f : 0), (RoomKind.Ritual, _job.Threat >= 2 ? 0.35f : 0) },
+            // Smugglers in the old sewers: their bunks in the dry caverns, their stash, and the things that were down here first.
+            SiteStyle.Tunnels => new[] { (RoomKind.Barracks, 0.7f), (RoomKind.Nest, 0.6f), (RoomKind.Armoury, _job.Threat >= 2 ? 0.5f : 0), (RoomKind.Ritual, _job.Threat >= 3 ? 0.3f : 0) },
+            SiteStyle.Store => new[] { (RoomKind.Stock, 1f), (RoomKind.Manager, 0.9f), (RoomKind.Security, security ? 1 : 0.4f) },
+            SiteStyle.Clinic => new[] { (RoomKind.Ward, 0.95f), (RoomKind.Theatre, 0.9f), (RoomKind.Ward, 0.6f), (RoomKind.Morgue, 0.75f), (RoomKind.Manager, 0.5f), (RoomKind.Security, security ? 1 : 0), (RoomKind.Panic, target ? 0.3f : 0) },
+            // A building site: the site office, the tool store, the workers' hut.
+            SiteStyle.Construction => new[] { (RoomKind.Manager, 0.9f), (RoomKind.Break, 0.6f), (RoomKind.Armoury, _job.Threat >= 2 ? 0.4f : 0) },
+            SiteStyle.Casino => new[] { (RoomKind.Cage, 1f), (RoomKind.Count, 0.9f), (RoomKind.Security, 1f), (RoomKind.Booth, 0.7f), (RoomKind.Manager, 0.8f), (RoomKind.Panic, target ? 0.3f : 0) },
+            SiteStyle.Ship => new[] { (RoomKind.Bridge, 0.95f), (RoomKind.Barracks, 0.7f), (RoomKind.Break, 0.5f), (RoomKind.Armoury, _job.Threat >= 2 ? 0.4f : 0) },
+            SiteStyle.Cemetery => new[] { (RoomKind.Crypt, 0.9f), (RoomKind.Manager, 0.6f), (RoomKind.Ritual, _job.Threat >= 2 ? 0.45f : 0) },
+            SiteStyle.Hotel => new[] { (RoomKind.Suite, 1f), (RoomKind.Security, 1f), (RoomKind.Stock, 0.8f), (RoomKind.Manager, 0.7f), (RoomKind.Break, 0.5f), (RoomKind.Panic, target ? 0.3f : 0) },
+            SiteStyle.Rooftops => new[] { (RoomKind.Security, security ? 0.6f : 0.2f), (RoomKind.Armoury, _job.Threat >= 3 ? 0.3f : 0) },
             _ => new[] { (RoomKind.Booth, 0.85f), (RoomKind.Manager, 0.8f), (RoomKind.Break, 0.6f), (RoomKind.Armoury, _job.Faction == Faction.Lotus ? 0.3f : 0), (RoomKind.Security, security ? 1 : 0) },
         };
         if (_job.Type == JobType.Defend || _job.Tutorial) return;
         // A nest has no barracks or break room: only, sometimes, the circle something was bound in.
-        if (_job.Type == JobType.Bounty) wants = new[] { (RoomKind.Ritual, _job.Threat >= 2 ? 0.4f : 0) };
+        // In the tunnels, the nests themselves: where the pack sleeps on what it brought back.
+        if (_job.Type == JobType.Bounty)
+            wants = _job.Style == SiteStyle.Tunnels
+                ? new[] { (RoomKind.Nest, 0.95f), (RoomKind.Nest, 0.75f), (RoomKind.Nest, 0.4f), (RoomKind.Ritual, _job.Threat >= 2 ? 0.3f : 0) }
+                : new[] { (RoomKind.Ritual, _job.Threat >= 2 ? 0.4f : 0) };
         foreach (var (kind, chance) in wants)
         {
             if (!_k.Chance(chance)) continue;
@@ -962,8 +1645,15 @@ public sealed class LevelGen
                 && (kind == RoomKind.Dock || Math.Max(r.R.W, r.R.H) <= 3 * Math.Min(r.R.W, r.R.H) && r.Links.Count <= 3)).ToList();
             if (kind == RoomKind.Dock) free = free.Where(r => r.Outer).ToList();
             // The booth looks out over the dance floor.
-            if (kind == RoomKind.Booth) free = free.Where(r => r.Links.Any(l => l < P.Rooms.Count && L.F[L.Idx(P.Rooms[l].R.X, P.Rooms[l].R.Y)] == Floor.Dance)).ToList();
+            if (kind == RoomKind.Booth) free = free.Where(r => r.Links.Any(l => l < P.Rooms.Count && L.F[L.Idx(P.Rooms[l].R.X, P.Rooms[l].R.Y)] is Floor.Dance or Floor.Casino)).ToList();
+            // A hotel's suite is on the top floor; a cemetery's crypt is below; a ship's bridge is in the superstructure, not the hold.
+            if (kind == RoomKind.Suite) free = free.Where(r => P.Floors.Count == 0 || P.Floors[^1].Contains(Pt.Of(r.Centre))).OrderByDescending(r => r.R.Area).Take(1).ToList();
+            if (kind == RoomKind.Crypt) free = free.Where(r => P.Basement.W > 0 && P.Basement.Contains(Pt.Of(r.Centre))).ToList();
+            if (kind == RoomKind.Bridge) free = free.Where(r => r.R.X < P.MainW && L.F[L.Idx(r.R.X, r.R.Y)] == Floor.Deck && !_hallFloor.Contains(Pt.Of(r.Centre))).ToList();
+            if (kind is RoomKind.Cage or RoomKind.Count) free = free.Where(r => !_hallFloor.Contains(Pt.Of(r.Centre))).ToList();
             if (kind == RoomKind.Panic) free = free.Where(r => r.Depth >= 1 && r.R.Area <= 48 && !r.Outer).ToList();
+            // A store's stockroom: the biggest of the back rooms.
+            if (kind == RoomKind.Stock) free = free.Where(r => r != ShopRoom).OrderByDescending(r => r.R.Area).Take(1).ToList();
             if (free.Count == 0) continue;
             // The office and the panic room sit deep; the rest anywhere.
             Room pick = kind is RoomKind.Manager or RoomKind.Panic
@@ -986,7 +1676,7 @@ public sealed class LevelGen
             int x0 = r.R.X + (r.R.W - pw) / 2 + (r.R.W - pw > 2 ? _k.Range(-1, 1) : 0);
             int y0 = r.R.Y + (r.R.H - ph) / 2 + (r.R.H - ph > 2 ? _k.Range(-1, 1) : 0);
             V2 centre = new(x0 + pw / 2f, y0 + ph / 2f);
-            Mood mood = r.Kind switch { RoomKind.Break or RoomKind.Security => Mood.OffDuty, RoomKind.Barracks => Mood.Asleep, _ => Mood.None };
+            Mood mood = r.Kind switch { RoomKind.Break or RoomKind.Security => Mood.OffDuty, RoomKind.Barracks or RoomKind.Nest => Mood.Asleep, _ => Mood.None };
             for (int y = 0; y < ph; y++)
             for (int x = 0; x < pw; x++)
             {
@@ -1015,7 +1705,19 @@ public sealed class LevelGen
                     if (!r.R.Contains(new Pt(x, y)) && L[x, y] is Tile.Drywall or Tile.Brick or Tile.Glass) L.Set(x, y, Tile.Concrete);
                 P.PanicRoom = r.R;
             }
-            if (r.Kind == RoomKind.Dock && P.BackDoor.W == 0) LoadingDoors(r);
+            if (r.Kind is RoomKind.Dock or RoomKind.Stock && P.BackDoor.W == 0 && _job.Style != SiteStyle.Hotel) LoadingDoors(r);
+            if (r.Kind == RoomKind.Cage)
+            {
+                // Bars you can see (and shoot) through, and a door that only opens from inside.
+                Rect rim = r.R.Inset(-1);
+                for (int y = rim.Y; y < rim.Bottom; y++)
+                for (int x = rim.X; x < rim.Right; x++)
+                {
+                    if (r.R.Contains(new Pt(x, y))) continue;
+                    if (L[x, y] == Tile.Drywall) L.Set(x, y, Tile.Glass);
+                    else if (L[x, y] == Tile.Door) L.Set(x, y, Tile.LockedDoor);
+                }
+            }
             if (r.Kind == RoomKind.Armoury)
             {
                 // The armoury's doors are locked: hack them, or blow them.
@@ -1024,7 +1726,7 @@ public sealed class LevelGen
                 for (int x = rim.X; x < rim.Right; x++)
                     if (!r.R.Contains(new Pt(x, y)) && L[x, y] == Tile.Door) L.Set(x, y, Tile.LockedDoor);
                 // And it's stocked.
-                V2 at = _hot.TryGetValue(r, out V2 h) ? h : r.Centre;
+                V2 at = _hot.TryGetValue(r, out V2 h) ? h : FreeSpot(r);
                 if (_job.Type != JobType.Retrieve) P.Pickups.Add(new PickupSpawn { Kind = PickupKind.Grenade, Pos = at, Amount = 1, Id = _k.Pick(new[] { "frag", "flash", "emp" }) });
             }
         }
@@ -1067,6 +1769,9 @@ public sealed class LevelGen
     /// <summary>The deepest room of one of these kinds, or null.</summary>
     private Room ByKind(params RoomKind[] kinds) => P.Rooms.Where(r => kinds.Contains(r.Kind)).OrderByDescending(r => r.Depth).FirstOrDefault();
 
+    /// <summary>A store's shop floor: the biggest room on it.</summary>
+    private Room ShopRoom => _shopFloor.W == 0 ? null : P.Rooms.Where(r => r.R.X < _shopFloor.Right && _shopFloor.X < r.R.Right && r.R.Y < _shopFloor.Bottom && _shopFloor.Y < r.R.Bottom).OrderByDescending(r => r.R.Area).FirstOrDefault();
+
     /// <summary>The room's own objective spot (from its set piece), else anywhere free in it.</summary>
     private V2 SpotIn(Room r) => _hot.TryGetValue(r, out V2 h) && L[Pt.Of(h)] == Tile.Floor && !_reserved.Contains(Pt.Of(h)) ? h : FreeSpot(r);
 
@@ -1080,6 +1785,10 @@ public sealed class LevelGen
                 // Sometimes the target is working late in the manager's office (in a club: holding court in the booth).
                 Room r = Deepest(x => !x.Vault);
                 if (_k.Chance(0.7f) && ByKind(RoomKind.Booth) is Room booth) r = booth;
+                // A store's target is out on the shop floor, doing their shopping, among everyone else.
+                else if (_job.Style == SiteStyle.Store && _k.Chance(0.75f) && ShopRoom is Room shop) r = shop;
+                // A hotel's target is in the suite at the top; a casino's holds court in the high-rollers' room (the booth, above).
+                else if (_job.Style == SiteStyle.Hotel && _k.Chance(0.7f) && ByKind(RoomKind.Suite) is Room suite) r = suite;
                 else if (_k.Chance(0.45f) && ByKind(RoomKind.Manager) is Room office) r = office;
                 V2 at = SpotIn(r);
                 P.Enemies.Add(new Spawn { Kind = EnemyKind.Vip, Pos = at, Facing = _r.Float() * MathF.Tau });
@@ -1095,7 +1804,7 @@ public sealed class LevelGen
             case JobType.Retrieve:
             {
                 Room r = _vault ?? Deepest();
-                if (_vault == null && _k.Chance(0.5f) && ByKind(RoomKind.Armoury, RoomKind.Manager, RoomKind.Dock) is Room fit) r = fit;
+                if (_vault == null && _k.Chance(0.5f) && ByKind(RoomKind.Armoury, RoomKind.Manager, RoomKind.Dock, RoomKind.Stock, RoomKind.Morgue, RoomKind.Nest, RoomKind.Cage, RoomKind.Crypt, RoomKind.Bridge) is Room fit) r = fit;
                 V2 at = SpotIn(r);
                 P.Pickups.Add(new PickupSpawn { Kind = PickupKind.Objective, Pos = at, Name = _job.Item });
                 Reserve(at);
@@ -1103,7 +1812,7 @@ public sealed class LevelGen
             }
             case JobType.Destroy:
             {
-                Tile thing = _job.Style == SiteStyle.Lab ? Tile.Vat : Tile.Rack;
+                Tile thing = _job.Style is SiteStyle.Lab or SiteStyle.Clinic ? Tile.Vat : Tile.Rack;
                 var rooms = P.Rooms.Where(r => !r.Outer || P.Rooms.Count < 3).OrderByDescending(r => r.Depth + _r.Float()).ToList();
                 if (rooms.Count == 0) rooms = P.Rooms.ToList();
                 int placed = 0;
@@ -1112,6 +1821,8 @@ public sealed class LevelGen
                     Room r = rooms[k % Math.Max(1, Math.Min(rooms.Count, 3))];
                     Pt p = WallSpot(r, _reserved);
                     if (p.X < 0) { r = rooms[_r.Int(rooms.Count)]; p = WallSpot(r, _reserved); }
+                    // Nowhere against a wall (a roof is open all round): out on the floor will do.
+                    if (p.X < 0 && _job.Style == SiteStyle.Rooftops) { Pt q = Pt.Of(FreeSpot(r)); if (L[q] == Tile.Floor && Free(q)) p = q; }
                     if (p.X < 0) continue;
                     L.Set(p, thing);
                     P.Targets.Add(p);
@@ -1123,7 +1834,7 @@ public sealed class LevelGen
             case JobType.Datasteal:
             {
                 Room r = _vault ?? Deepest();
-                if (_vault == null && _k.Chance(0.6f) && ByKind(RoomKind.Server) is Room servers) r = servers;
+                if (_vault == null && _k.Chance(0.6f) && ByKind(RoomKind.Server, RoomKind.Count, RoomKind.Bridge) is Room servers) r = servers;
                 Pt p = WallSpot(r);
                 // No good wall spot: any floor not in front of a door (never block the only way in).
                 if (p.X < 0)
@@ -1139,7 +1850,7 @@ public sealed class LevelGen
             case JobType.Rescue:
             {
                 Room r = _vault ?? Deepest();
-                if (_vault == null && _k.Chance(0.35f) && ByKind(RoomKind.Barracks, RoomKind.Armoury) is Room cell) r = cell;
+                if (_vault == null && _k.Chance(_job.Style == SiteStyle.Clinic ? 0.7f : 0.35f) && ByKind(RoomKind.Ward, RoomKind.Barracks, RoomKind.Armoury, RoomKind.Nest, RoomKind.Crypt) is Room cell) r = cell;
                 V2 at = SpotIn(r);
                 P.Hostage = at;
                 Reserve(at);
@@ -1249,6 +1960,31 @@ public sealed class LevelGen
             var rooms = P.Rooms.Where(x => !P.CleanRoom.Contains(Pt.Of(x.Centre)) && !x.Vault).ToList();
             if (rooms.Count > 0) P.Pickups.Add(new PickupSpawn { Kind = PickupKind.Suit, Pos = FreeSpot(rooms[_k.Int(rooms.Count)]), Name = "a clean-room suit" });
         }
+        // A store at night: a few shoppers in the aisles, the clerk at the till.
+        if (_job.Style == SiteStyle.Store && ShopRoom is Room shop)
+        {
+            for (int k = 0; k < Tables.Shoppers; k++) P.Npcs.Add((FreeSpot(shop), null));
+            if (_till.X >= 0 && L[_till] == Tile.Floor) { P.Npcs.Add((_till.Centre, "clerk")); Reserve(_till.Centre); }
+            else P.Npcs.Add((FreeSpot(shop), "clerk"));
+        }
+        // A casino: gamblers at the tables. A hotel: guests in some of the rooms upstairs, and a housekeeping
+        // uniform in the linen room (or any back room) -- staff walk past staff.
+        if (_job.Style == SiteStyle.Casino && _hallFloor.W > 0 && P.Rooms.Where(x => _hallFloor.Contains(Pt.Of(x.Centre))).OrderByDescending(x => x.R.Area).FirstOrDefault() is Room floor)
+            for (int k = 0; k < Tables.Gamblers; k++) P.Npcs.Add((FreeSpot(floor), null));
+        if (_job.Style == SiteStyle.Hotel)
+        {
+            var upstairs = P.Rooms.Where(x => x.R.X >= P.MainW && x.Kind == RoomKind.Plain && x.R.Area <= 36).ToList();
+            for (int k = 0; k < upstairs.Count; k++) if (_k.Chance(Tables.GuestsIn)) P.Npcs.Add((FreeSpot(upstairs[k]), null));
+            Room linen = ByKind(RoomKind.Stock) ?? P.Rooms.Where(x => x.R.X < P.MainW && !x.Vault).OrderBy(x => x.Depth).LastOrDefault();
+            if (linen != null) P.Pickups.Add(new PickupSpawn { Kind = PickupKind.Uniform, Pos = FreeSpot(linen), Name = "a housekeeping uniform" });
+        }
+        // A clinic: orderlies on their rounds, and patients under in the wards.
+        if (_job.Style == SiteStyle.Clinic && P.Rooms.Count > 0)
+        {
+            for (int k = 0; k < Tables.Cleaners; k++) P.Npcs.Add((FreeSpot(P.Rooms[_k.Int(P.Rooms.Count)]), "orderly"));
+            foreach (Room w in P.Rooms.Where(x => x.Kind == RoomKind.Ward))
+                for (int k = 0; k < Tables.Patients; k++) P.Npcs.Add((FreeSpot(w), "patient"));
+        }
     }
 
     private void Reserve(V2 at)
@@ -1338,12 +2074,79 @@ public sealed class LevelGen
                         Clutter(r.R, r.R.Area / 40, Tile.Barrel);
                     }
                     break;
+                case SiteStyle.Tunnels:
+                    // Fallen brick, oil drums, the odd heap of something you'd rather not look at.
+                    Clutter(r.R, r.R.Area / 14, Tile.Rubble);
+                    Clutter(r.R, r.R.Area / 45, Tile.Barrel);
+                    break;
+                case SiteStyle.Store:
+                    // The shop floor has its shelving already; the back is cartons.
+                    if (ShopRoom != r) Clutter(r.R, r.R.Area / 10, Tile.Crate);
+                    break;
+                case SiteStyle.Clinic:
+                    // Waiting rooms, consulting rooms, recovery: a desk or two, a gurney, a locker.
+                    Clutter(r.R, Math.Max(1, r.R.Area / 26), Tile.Desk);
+                    if (_r.Chance(0.5f)) Clutter(r.R, 1, Tile.Bunk);
+                    if (_r.Chance(0.4f)) Clutter(r.R, 1, Tile.Locker);
+                    break;
+                case SiteStyle.Construction:
+                    // A grid of columns in the big bays; pallets of block and rebar; the odd cement mixer; scaffolding.
+                    if (r.R.Area >= 40)
+                        for (int y = r.R.Y + 2; y < r.R.Bottom - 2; y += 5)
+                        for (int x = r.R.X + 2; x < r.R.Right - 2; x += 5)
+                            if (Free(new Pt(x, y))) L.Set(x, y, Tile.Concrete);
+                    for (int k = 0; k < r.R.Area / 35 + 1; k++) CrateStack(r.R);
+                    Clutter(r.R, r.R.Area / 70, Tile.Barrel);
+                    if (_r.Chance(0.35f)) Clutter(r.R, 2, Tile.Fence);
+                    break;
+                case SiteStyle.Casino:
+                    if (_hallFloor.W > 0 && _hallFloor.Contains(Pt.Of(r.Centre)) && r.R.Area >= 60)
+                    {
+                        // The gaming floor: tables in pairs, banks of slot machines in rows, aisles between.
+                        for (int y = r.R.Y + 2; y < r.R.Bottom - 2; y += 4)
+                        for (int x = r.R.X + 2; x < r.R.Right - 3; x += 6)
+                        {
+                            bool slots = ((x - r.R.X) / 6 + (y - r.R.Y) / 4) % 3 == 0;
+                            for (int k = 0; k < 3; k++)
+                            {
+                                Pt p = new(x + k, y);
+                                if (Free(p)) L.Set(p, slots ? Tile.Rack : Tile.Desk);
+                            }
+                        }
+                    }
+                    else Clutter(r.R, Math.Max(1, r.R.Area / 14), Tile.Desk);
+                    break;
+                case SiteStyle.Ship:
+                    // The deck has its containers; the quarters and the hold, lockers and crates.
+                    if (L.F[L.Idx(r.R.X, r.R.Y)] != Floor.Deck || r.R.X >= P.MainW)
+                    {
+                        Clutter(r.R, r.R.Area / 12, Tile.Crate);
+                        if (_r.Chance(0.5f)) Clutter(r.R, 1, Tile.Locker);
+                    }
+                    break;
+                case SiteStyle.Cemetery:
+                    if (_hallFloor.W == 0 || !_hallFloor.Contains(Pt.Of(r.Centre))) Clutter(r.R, Math.Max(1, r.R.Area / 16), Tile.Desk);
+                    break;
+                case SiteStyle.Hotel:
+                    // A guest room: the bed, the desk, a case on the rack. The bigger rooms, a lounge's worth of furniture.
+                    if (r.R.Area <= 36) { Clutter(r.R, 1, Tile.Bunk); Clutter(r.R, 1, Tile.Desk); }
+                    else Clutter(r.R, r.R.Area / 14, Tile.Desk);
+                    break;
+                case SiteStyle.Rooftops:
+                    // Air-conditioning units, vents, a utility box.
+                    for (int k = 0; k < r.R.Area / 40 + 1; k++) CrateStack(r.R);
+                    Clutter(r.R, r.R.Area / 60, Tile.Locker);
+                    break;
                 default:
                     Clutter(r.R, r.R.Area / 10, Tile.Crate);
                     Clutter(r.R, r.R.Area / 60, Tile.Barrel);
                     break;
             }
         }
+        // Underground, or up on the roofs, there is no yard to furnish.
+        if (st is SiteStyle.Tunnels or SiteStyle.Rooftops) return;
+        // A cemetery's yard is its graves: rows of headstones off gravel paths, a mausoleum here and there.
+        if (st == SiteStyle.Cemetery) { Graves(); return; }
         // The yard: cars, crates, barrels, fences.
         var yardArea = new Rect(1, 1, L.W - 2, L.H - 2);
         int count = L.W * L.H / 120;
@@ -1360,7 +2163,7 @@ public sealed class LevelGen
             }
             else if (roll < 0.7f) { L.Set(p, Tile.Crate); if (_r.Chance(0.5f) && Free(p + new Pt(1, 0))) L.Set(p + new Pt(1, 0), Tile.Crate); }
             else if (roll < 0.85f) L.Set(p, Tile.Barrel);
-            else if (_job.Style is SiteStyle.Den or SiteStyle.Warehouse)
+            else if (_job.Style is SiteStyle.Den or SiteStyle.Warehouse or SiteStyle.Construction)
             {
                 bool horiz = _r.Chance(0.5f);
                 for (int q = 0; q < _r.Range(3, 6); q++)
@@ -1368,6 +2171,36 @@ public sealed class LevelGen
                     Pt f = p + (horiz ? new Pt(q, 0) : new Pt(0, q));
                     if (Free(f) && !P.Building.Inset(-1).Contains(f)) L.Set(f, Tile.Fence);
                 }
+            }
+        }
+    }
+
+    /// <summary>
+    /// The graves: rows of headstones two apart, a gravel path every few rows and down the middle, kept off
+    /// the chapel, the way in and the way out; and two or three mausoleums -- small stone tombs you hide behind.
+    /// </summary>
+    private void Graves()
+    {
+        Rect keep = P.Building.Inset(-2);
+        int midX = L.W / 2, midY = L.H / 2;
+        for (int y = 3; y < L.H - 3; y++)
+        for (int x = 3; x < P.MainW - 3; x++)
+        {
+            var p = new Pt(x, y);
+            bool path = Math.Abs(x - midX) <= 1 || Math.Abs(y - midY) <= 1 || y % 9 == 0 || x % 13 == 0;
+            if (path && L[p] == Tile.Floor && !keep.Contains(p)) { L.F[L.Idx(x, y)] = Floor.Yard; continue; }
+            if (keep.Contains(p) || y % 3 != 0 || x % 2 != 0 || !Free(p) || p.Chebyshev(P.Entry) < 5) continue;
+            if (_r.Chance(0.82f)) L.Set(p, Tile.Grave);
+        }
+        for (int k = 0; k < 2 + _r.Int(2); k++)
+        {
+            for (int tries = 0; tries < 30; tries++)
+            {
+                int x0 = _r.Range(4, P.MainW - 8), y0 = _r.Range(4, L.H - 7);
+                var tomb = new Rect(x0, y0, 4, 3);
+                if (keep.Contains(new Pt(x0, y0)) || keep.Contains(new Pt(tomb.Right, tomb.Bottom)) || P.Extraction.Inset(-3).Contains(new Pt(x0 + 2, y0 + 1)) || new Pt(x0, y0).Chebyshev(P.Entry) < 8) continue;
+                for (int y = tomb.Y; y < tomb.Bottom; y++) for (int x = tomb.X; x < tomb.Right; x++) L.Set(x, y, Tile.Brick);
+                break;
             }
         }
     }
@@ -1433,7 +2266,7 @@ public sealed class LevelGen
                 for (int dx = -1; dx <= 1; dx++)
                 {
                     Pt q = p + new Pt(dx, dy);
-                    if (L[q] is Tile.Crate or Tile.Desk or Tile.Barrel or Tile.Fence or Tile.Wreck) L.Set(q, Tile.Floor);
+                    if (L[q] is Tile.Crate or Tile.Desk or Tile.Barrel or Tile.Fence or Tile.Wreck or Tile.Cargo or Tile.Grave or Tile.Rack) L.Set(q, Tile.Floor);
                 }
         }
     }
@@ -1494,7 +2327,8 @@ public sealed class LevelGen
         uint col = _job.Style switch
         {
             SiteStyle.Office => 0xbfe8ffff, SiteStyle.Lab => 0x80fff0ff, SiteStyle.Den => 0xffa040ff,
-            SiteStyle.Club => 0xff40c0ff, _ => 0xffe0a0ff,
+            SiteStyle.Club => 0xff40c0ff, SiteStyle.Tunnels => 0x9cff70ff, SiteStyle.Store => 0xf2f8ffff, SiteStyle.Clinic => 0xe0fff4ff,
+            SiteStyle.Construction => 0xffd890ff, SiteStyle.Casino => 0xffc878ff, SiteStyle.Ship => 0xfff0d0ff, SiteStyle.Cemetery => 0xffb060ff, SiteStyle.Hotel => 0xffe4c0ff, SiteStyle.Rooftops => 0xc8dcffff, _ => 0xffe0a0ff,
         };
         if (_job.Has(RunMod.Blackout))
         {
@@ -1504,9 +2338,17 @@ public sealed class LevelGen
         }
         // At night most rooms have their lights off: which, by a hash of the room (not the site's
         // random stream, so the rest of the site is the same as before there was light).
-        float on = _job.Style switch { SiteStyle.Office => 0.45f, SiteStyle.Lab => 0.6f, SiteStyle.Warehouse => 0.6f, SiteStyle.Den => 0.7f, _ => 0.8f };
+        float on = _job.Style switch
+        {
+            SiteStyle.Office => 0.45f, SiteStyle.Lab => 0.6f, SiteStyle.Warehouse => 0.6f, SiteStyle.Den => 0.7f,
+            // The tunnels: a worklight here and there and the nests' fires; a store at night is lit like day; a clinic keeps its wards dim.
+            SiteStyle.Tunnels => 0.45f, SiteStyle.Store => 0.9f, SiteStyle.Clinic => 0.55f,
+            // Floodlights on a building site; a casino never sleeps; a ship and a hotel at night; a chapel by lantern; a roof by its own few lamps.
+            SiteStyle.Construction => 0.5f, SiteStyle.Casino => 0.85f, SiteStyle.Ship => 0.7f, SiteStyle.Cemetery => 0.65f, SiteStyle.Hotel => 0.5f, SiteStyle.Rooftops => 0.6f, _ => 0.8f,
+        };
         foreach (Room r in P.Rooms)
         {
+            if (r.Kind == RoomKind.Nest) { L.Lights.Add((LampSpot(r), 0xff7a30ffu, 3.5f)); continue; }
             uint c = r.Vault ? 0xff3030ff : _job.Style == SiteStyle.Club && L.F[L.Idx(r.R.X, r.R.Y)] == Floor.Dance ? 0xff40c0ff : col;
             if (c == col && new Rng(_job.Seed * 0x9E3779B97F4A7C15UL + (ulong)(r.R.X * 131 + r.R.Y * 7919 + 1)).Float() >= on) continue;
             // A big room (a hall, an open-plan floor) hangs a row of lamps: pools of light, dark aisles between.
@@ -1518,7 +2360,7 @@ public sealed class LevelGen
                     L.Lights.Add((new V2(r.R.X + r.R.W * (gx + 0.5f) / nx, r.R.Y + r.R.H * (gy + 0.5f) / ny), c, 4.5f));
                 continue;
             }
-            L.Lights.Add((r.Centre, c, MathF.Min(6, MathF.Max(r.R.W, r.R.H) * 0.6f)));
+            L.Lights.Add((LampSpot(r), c, MathF.Min(6, MathF.Max(r.R.W, r.R.H) * 0.6f)));
             if (_job.Style == SiteStyle.Club && c == 0xff40c0ff)
             {
                 L.Lights.Add((r.Centre + new V2(-r.R.W / 4f, 0), 0x40e0ffff, 5));
@@ -1529,8 +2371,25 @@ public sealed class LevelGen
         for (int k = 0; k < 6; k++)
         {
             V2 p = new(_r.Range(3f, P.MainW - 3f), _r.Range(3f, L.H - 3f));
-            if (!b.Inset(-1).Contains(p)) L.Lights.Add((p, _r.Chance(0.5f) ? 0xffb050ffu : 0x40c0ffffu, 4.5f));
+            if (!b.Inset(-1).Contains(p) && L[Pt.Of(p)] != Tile.Drop) L.Lights.Add((p, _r.Chance(0.5f) ? 0xffb050ffu : 0x40c0ffffu, 4.5f));
         }
+    }
+
+    /// <summary>Where a room's lamp hangs: its middle -- or, in the tunnels (where a cavern's or a bent tunnel's middle can be rock), the floor nearest it.</summary>
+    private V2 LampSpot(Room r)
+    {
+        Pt c = Pt.Of(r.Centre);
+        if (_job.Style != SiteStyle.Tunnels || L[c] == Tile.Floor && P.RoomOf[L.Idx(c.X, c.Y)] == r.Id) return r.Centre;
+        Pt best = c;
+        int bd = int.MaxValue;
+        for (int y = r.R.Y; y < r.R.Bottom; y++)
+        for (int x = r.R.X; x < r.R.Right; x++)
+        {
+            if (L[x, y] != Tile.Floor || P.RoomOf[L.Idx(x, y)] != r.Id) continue;
+            int d = new Pt(x, y).Chebyshev(c);
+            if (d < bd) { bd = d; best = new Pt(x, y); }
+        }
+        return best.Centre;
     }
 
     /// <summary>A Bounty's nest: what lives in the Barrens' basements.</summary>
@@ -1552,6 +2411,9 @@ public sealed class LevelGen
         // A tower: a full garrison on every floor, heavier the higher you go (TowerGuards).
         if (P.Tower) budget *= 1.2f;
         if (_job.Has(RunMod.Skeleton)) budget *= 0.6f;
+        // A store is a store: a guard on the door, the target's own people. A clinic keeps a few hired hands.
+        if (_job.Style == SiteStyle.Store) budget *= 0.55f;
+        if (_job.Style == SiteStyle.Clinic) budget *= 0.85f;
         float patrol = _job.Has(RunMod.ShiftChange) ? 0.9f : 0.45f;
         bool bounty = _job.Type == JobType.Bounty;
         var roster = (_job.Hive ? Hive : bounty ? Critters : Tables.Roster(_job.Faction)).Where(e => (_job.Threat >= 2 || e.kind is not (EnemyKind.Heavy or EnemyKind.Sniper or EnemyKind.Mage))
@@ -1575,6 +2437,27 @@ public sealed class LevelGen
         }
         var rooms = P.Rooms.Where(r => r.R.Area >= 6).ToList();
         if (rooms.Count == 0) rooms = P.Rooms;
+
+        // A casino watches every table, whoever owns it.
+        if (_job.Style == SiteStyle.Casino && !defend && _job.Faction != Faction.Halcyon)
+            for (int k = 0; k < 3 + _job.Threat && rooms.Count > 0; k++)
+            {
+                Room r = k < 3 && _hallFloor.W > 0 ? rooms.Where(x => _hallFloor.Contains(Pt.Of(x.Centre))).DefaultIfEmpty(rooms[0]).First() : rooms[_r.Int(rooms.Count)];
+                Pt corner = new(_r.Chance(0.5f) ? r.R.X : r.R.Right - 1, _r.Chance(0.5f) ? r.R.Y : r.R.Bottom - 1);
+                if (L[corner] != Tile.Floor) continue;
+                P.Enemies.Add(new Spawn { Kind = EnemyKind.Camera, Pos = corner.Centre, Facing = M.Angle(r.Centre - corner.Centre) });
+                budget -= 0.5f;
+            }
+        // A building site at night: the watchman's dogs.
+        if (_job.Style == SiteStyle.Construction && !defend && _job.Type != JobType.Bounty)
+            for (int k = 0; k < 1 + _job.Threat / 2; k++)
+            {
+                var dog = new Spawn { Kind = EnemyKind.Hound, Pos = YardSpot(), Facing = _r.Float() * MathF.Tau };
+                dog.Patrol.Add(dog.Pos);
+                dog.Patrol.Add(YardSpot());
+                P.Enemies.Add(dog);
+                budget -= Tables.Enemy(EnemyKind.Hound).Budget;
+            }
 
         // Fixed defences for corporate sites.
         if (_job.Faction == Faction.Halcyon && !defend && _job.Type != JobType.Bounty)
@@ -1630,7 +2513,8 @@ public sealed class LevelGen
                 P.Enemies.Add(s);
                 continue;
             }
-            bool inYard = _r.Chance(0.25f) || rooms.Count == 0;
+            // (On the roofs there is no yard: everyone is on a roof.)
+            bool inYard = _job.Style != SiteStyle.Rooftops && (_r.Chance(0.25f) || rooms.Count == 0);
             if (inYard)
             {
                 s.Pos = YardSpot();
@@ -1677,6 +2561,12 @@ public sealed class LevelGen
                 break;
             }
         }
+        // On the roofs they come up the stairwells, on the roofs farthest from you.
+        if (_job.Style == SiteStyle.Rooftops)
+        {
+            P.Reinforce.Clear();
+            foreach (Room r in P.Rooms.OrderByDescending(x => V2.Distance(x.Centre, P.Entry.Centre)).Take(3)) P.Reinforce.Add(FreeSpot(r));
+        }
         if (P.Reinforce.Count == 0) P.Reinforce.Add(YardSpot());
     }
 
@@ -1703,17 +2593,22 @@ public sealed class LevelGen
                 2 => new Pt(_k.Range(3, P.MainW - 4), 2), _ => new Pt(_k.Range(3, P.MainW - 4), L.H - 3),
             };
             if (L[p] != Tile.Floor || p.Chebyshev(P.Entry) < 18 || !Clear(p, 10) || !Reached(p)) continue;
-            P.Entries.Add(new EntryPoint("fence", "Cut the fence", "a long way round, in the open yard", p));
+            P.Entries.Add(_job.Style == SiteStyle.Tunnels
+                ? new EntryPoint("fence", "Storm drain", "a long wade round the culvert, nowhere to hide in it", p)
+                : new EntryPoint("fence", "Cut the fence", "a long way round, in the open yard", p));
             break;
         }
-        // The loading dock's roller doors, straight into the hall.
+        // The loading dock's roller doors, straight into the hall (a store's: the delivery door into the stockroom).
         if (P.BackDoor.W > 0)
         {
             Pt d = new(P.BackDoor.X + 1, P.BackDoor.Y + 1);
-            if (Reached(d) && Clear(d, 6)) P.Entries.Add(new EntryPoint("dock", "Loading dock", "straight into the hall -- whoever is working there", d));
+            if (Reached(d) && Clear(d, 6))
+                P.Entries.Add(_job.Style == SiteStyle.Store
+                    ? new EntryPoint("dock", "Delivery door", "into the stockroom, round the back -- whoever is unloading", d)
+                    : new EntryPoint("dock", "Loading dock", "straight into the hall -- whoever is working there", d));
         }
         // A sewer hatch in a quiet room: inside from the start, nowhere to back off to.
-        if (_job.Style is SiteStyle.Den or SiteStyle.Warehouse or SiteStyle.Lab && _job.Threat >= 2 && !P.Tower)
+        if (_job.Style is SiteStyle.Den or SiteStyle.Warehouse or SiteStyle.Lab or SiteStyle.Clinic && _job.Threat >= 2 && !P.Tower)
         {
             var rooms = P.Rooms.Where(r => r.Kind == RoomKind.Plain && !r.Vault && r.Depth >= 1 && r.R.Area >= 9).OrderBy(_ => _k.Next()).ToList();
             foreach (Room r in rooms)
@@ -1813,6 +2708,15 @@ public sealed class LevelGen
             if (P.Building.Contains(p) || p.X >= P.MainW - 1 || L[p] != Tile.Floor || p.Chebyshev(P.Entry) < 12) continue;
             return p.Centre;
         }
+        // A narrow yard (a quay, a culvert): look at every tile of it.
+        var yard = new List<Pt>();
+        for (int y = 2; y < L.H - 2; y++)
+        for (int x = 2; x < P.MainW - 2; x++)
+        {
+            var p = new Pt(x, y);
+            if (!P.Building.Contains(p) && L[p] == Tile.Floor && p.Chebyshev(P.Entry) >= 6) yard.Add(p);
+        }
+        if (yard.Count > 0) return yard[_r.Int(yard.Count)].Centre;
         return new V2(L.W / 2f, 2.5f);
     }
 
