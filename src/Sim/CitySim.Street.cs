@@ -5,7 +5,7 @@ using System.Linq;
 namespace Sprawl;
 
 /// <summary>What a street encounter looks like from the car.</summary>
-public enum StreetKind { Waving, Wreck, Toll }
+public enum StreetKind { Waving, Wreck, Toll, Patrol, Racer, Van, Ghoul }
 
 /// <summary>Something on the street ahead: a storylet waiting for you to stop beside it.</summary>
 public sealed class StreetEncounter
@@ -48,7 +48,7 @@ public sealed partial class CitySim
             if (Street.Life <= 0 || V2.Distance(Street.At, Player.Pos) > Tables.StreetGone) Street = null;
             return;
         }
-        if (!Encounters || C.Day < 2 || Chasers.Count > 0 || C.Courier || C.Passenger != null || Player.Speed < 3) return;
+        if (!Encounters || C.Day < 2 || Chasers.Count > 0 || C.Courier || C.Passenger != null || Race != null || Player.Speed < 3 || City.OnCauseway(Player.Pos)) return;
         if ((_streetT -= dt) > 0) return;
         _streetT = Tables.StreetEvery;
         if (C.Flag("street:day") == C.Day && C.Flag("street:n") >= Tables.StreetPerDay) return;
@@ -56,7 +56,7 @@ public sealed partial class CitySim
         Storylet s = C.PickStreet(district);
         if (s == null) return;
         StreetKind kind = Enum.Parse<StreetKind>(s.Place[7..], true);
-        if (!Ahead(kind == StreetKind.Toll, out V2 at, out float heading)) return;
+        if (!Ahead(kind is not (StreetKind.Waving or StreetKind.Wreck), out V2 at, out float heading)) return;
         if (C.Flag("street:day") != C.Day) { C.Set("street:day", C.Day); C.Set("street:n", 0); }
         C.Inc("street:n");
         Street = new StreetEncounter { Story = s.Id, Kind = kind, At = at, Heading = heading, Life = Tables.StreetLife };
@@ -64,6 +64,10 @@ public sealed partial class CitySim
         {
             StreetKind.Wreck => "Hazard lights ahead. Somebody's had a bad night.",
             StreetKind.Toll => "Bikes across the lane ahead. A toll, Viper style.",
+            StreetKind.Patrol => "Blue lights ahead. A Lone Star cruiser, waving cars over.",
+            StreetKind.Racer => "A lime-green hotshot idling at the lights, revving at you.",
+            StreetKind.Van => "An armoured van on its side ahead, doors buckled.",
+            StreetKind.Ghoul => "Something hunched in the road ahead. It looks up into your lights.",
             _ => "Someone ahead is waving you down.",
         }));
     }

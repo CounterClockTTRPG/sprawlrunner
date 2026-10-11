@@ -1335,3 +1335,67 @@ contested jobs and the crew's gloating.
 The safehouse offers "Retire..." once a campaign is won or `Tables.RetireSavings`
 (¥250,000) is put away, with no job on: the receipt and the legacy, as a legend after
 a campaign, quietly otherwise.
+
+## Ninth pass: the streets (`City.Dress`, `City.BuildCauseway`, `CitySim.Works.cs`)
+
+Variety on the drive. Every new piece is drawn from its own seeded stream after the
+addresses are dealt, so no door moves and saved careers keep their city (no
+`City.Version` bump); a car saved where a car park became a container yard is towed home.
+
+### Each district its own streets
+- **Lanes through blocks** (`CTile.Alley`, two tiles wide, avenue to avenue along the seam
+  between a block's two strips of lots; each lot beside it gives up one tile of depth, never
+  its door). How often: Barrens 65 %, Strip 60 %, Docks and Industrial 45 %, Spire 20 %.
+  On the Strip they are **neon arcades** (`Arcade`: people walk them, cars at 60 %); in
+  Industrial **rail spurs** (`Rail`: the sleepers cost a quarter of your grip). Lone Star
+  cruisers treat every lane as a wall (`City.Narrow`), so a lane is a way to lose them;
+  gangers and bikes follow.
+- **Docks**: car parks and parks become **container yards** (`LotKind.Yard`): two-wide stacks,
+  two-wide lanes, an apron along the street. **Industrial**: crate yards on dirt.
+- **Barrens**: parks and car parks are **waste ground** (`Dirt`, with `Rubble` heaps), slow
+  for a road car (x0.55, grip x0.75) and nothing to a scrambler; **potholes** in the
+  avenues' lanes (3.5 % of tiles, never a junction) dent a car crossing one above
+  `Tables.PotholeSpeed`.
+- **Spire**: parks are **corporate plazas** -- paving, planters in rows, **bollards**
+  (`Barrier`) along the street with a gap in the middle.
+
+### The Bayshore Causeway
+An expressway on stilts over the bay along the south and east shores, joined at the
+south-east corner, with a crash barrier both sides (sodium lamps on it) and **ramps**
+down to the waterfront at the first avenue and a few more (at least 40 tiles apart
+south, 34 east). The piers stop at its inner barrier. Top speed x1.2
+(`Tables.CausewaySpeed`), no junctions, no traffic, nobody on foot, and no street
+encounters. The planner doesn't use it, so chasers that lose sight of you up there plan
+along the avenues below.
+
+### Happenings on the street
+The works are put up whenever the day or one of these happenings changes:
+- **Lantern festival**: the three avenue blocks round the night market's own block (not
+  the block its door is on) are barred at both ends, with stalls, lanterns and people in
+  the road. Traffic won't turn into them (`CitySim.Exits`), and routes plan round them
+  (`Closed`; the agent's too).
+- **Gang war**: `Tables.WarWrecks` cars burning in one direction's lanes, mid-block, in the
+  Barrens and the Docks. They're solid to everyone; traffic stops, then pulls out round them.
+- **Stadium night**: `Tables.StadiumCars` more cars on the blocks near the stadium and
+  `StadiumFans` fans on its pavements. The next day they leave once out of sight.
+- **Election week**: a **motorcade**, the candidate's limo with a cruiser either side. The
+  escort follows the limo's trail of junctions, and the limo slows for it. Ramming it
+  is `Tables.MotorcadeHeat` heat, once (`motorcade:hit`).
+- **Grid failure**: the district's street lamps and neon are dark (contacts, hubs and your
+  door keep their generators).
+
+### Four new things on the street (`Storylets.Street.cs`)
+Each kind has its own figure on the road and its own prompt; the last choice is always
+"Drive on".
+- **Pulled over** (`street:patrol`, not on Viper turf, not in a strike): pay a fine that
+  zeroes the heat, talk shop (Security etiquette, heat -1), or floor it (a cruiser after you).
+- **At the lights** (`street:racer`, Strip, Industrial, Docks): stake ¥300-1,300 on a
+  **street race** to a landmark about 70 tiles off. First within `Tables.RaceFinish` of the
+  finish junction takes twice the stake. It's on the HUD (and `drive race` for the agent).
+- **Armoured van** (`street:van`, Spire, Industrial, Strip): help the guards (karma) or empty
+  the back (¥1,500-3,250, heat +1.5, notoriety +1, Halcyon grudge +1).
+- **In your lights** (`street:ghoul`, Barrens): run it down (the car pays), back off, or
+  look at it properly (Magic etiquette: feed it, karma +1).
+
+What a closed scene sets going goes through `CitySim.AfterStreet`: the toll's bikes, the
+stop's cruiser, the race, and any damage the scene did to the car.

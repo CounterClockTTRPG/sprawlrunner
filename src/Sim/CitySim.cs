@@ -56,6 +56,11 @@ public sealed class TrafficCar
     public uint Colour;
     public float Length = 1.9f, Width = 0.95f;
     public V2 Forward => M.Dir(Heading);
+    /// <summary>Extra traffic for a happening (stadium night); the motorcade and its escort; who it follows; going once out of sight.</summary>
+    public bool Event, Motorcade, Leaving;
+    public TrafficCar Follow;
+    /// <summary>The motorcade's limo: the junctions it has headed for, which its escort follows in turn.</summary>
+    public List<(int, int)> Trail;
 }
 
 public sealed class Ped
@@ -65,9 +70,11 @@ public sealed class Ped
     public float Speed, Down, Flee, Phase;
     public V2 FleeDir;
     public uint Colour;
+    /// <summary>A stadium fan, someone at the festival; going home once out of sight.</summary>
+    public bool Fan, Festival, Leaving;
 }
 
-public enum CityEv { Jingle, Crash, Bump, Honk, Knock, Scrape, Siren, Gunfire, Busted, Lost, Message, Pickup, Delivered, Wail, Scream }
+public enum CityEv { Jingle, Crash, Bump, Honk, Knock, Scrape, Siren, Gunfire, Busted, Lost, Message, Pickup, Delivered, Wail, Scream, Pothole }
 
 public readonly record struct CityEvent(CityEv Kind, V2 Pos, float Strength, string Text = null);
 
@@ -89,7 +96,7 @@ public sealed partial class CitySim
     private bool _blockedByPlayer;
 
     /// <summary>The collision tests handed to <see cref="Collide.PushOut"/>, made once.</summary>
-    private Func<int, int, bool> _citySolid, _carSolid;
+    private Func<int, int, bool> _policeSolid, _carSolid;
     /// <summary>A walker's ways on at a corner (reused).</summary>
     private readonly List<Pt> _pedOpts = new(4);
 
@@ -113,6 +120,13 @@ public sealed partial class CitySim
         {
             Player.Pos = new V2(c.CarX, c.CarY);
             Player.Heading = c.CarHeading;
+            // Saved on a spot the city has since built on (a car park that became a container yard): home.
+            if (city.Solid((int)MathF.Floor(c.CarX), (int)MathF.Floor(c.CarY)))
+            {
+                (V2 pos, float h) = city.Kerb(HomeLot);
+                Player.Pos = pos;
+                Player.Heading = h;
+            }
         }
         for (int k = 0; k < 80; k++) SpawnTraffic(k);
         for (int k = 0; k < 190; k++) SpawnPed();
@@ -210,6 +224,7 @@ public sealed partial class CitySim
         StepStreet(dt);
         StepGadgets(dt, input);
         StepRoadblocks(dt);
+        StepWorks(dt);
         Drive(Player, dt, input, true);
         _hornT -= dt;
         if (input.Horn && _hornT <= 0) Honk();
@@ -223,10 +238,21 @@ public sealed partial class CitySim
         foreach (Ped p in Peds) if (p.Down <= 0 && City[(int)p.Pos.X, (int)p.Pos.Y] == CTile.Road) _roadPeds.Add(p);
         foreach (TrafficCar t in Traffic) StepTraffic(t, dt);
         SeparateTraffic();
+        // A happening's extras go once nobody can see them leave.
+        foreach (TrafficCar t in Traffic) if (t.Leaving && V2.Distance(t.Pos, Player.Pos) > 24) t.Gone = true;
         bool ambulance = Traffic.Any(t => t.Gone && t.Kind == CarKind.Ambulance);
-        int gone = Traffic.RemoveAll(t => t.Gone);
+        int extras = 0, events = 0;
+        foreach (TrafficCar t in Traffic)
+            if (t.Gone && (t.Event || t.Motorcade))
+            {
+                extras++;
+                if (t.Event && !t.Leaving) events++;
+            }
+        int gone = Traffic.RemoveAll(t => t.Gone) - extras;
         for (int k = 0; k < gone; k++) SpawnTraffic(ambulance && k == 0 ? 2 : 99);
+        for (int k = 0; k < events; k++) SpawnEvent();
         foreach (Ped p in Peds) StepPed(p, dt);
+        Peds.RemoveAll(p => p.Leaving && V2.Distance(p.Pos, Player.Pos) > 24);
     }
 
     /// <summary>Car physics for anyone: the player's car, police, gangers.</summary>
@@ -237,7 +263,8 @@ public sealed partial class CitySim
         V2 f = car.Forward, right = car.Right;
         float vf = V2.Dot(car.Vel, f), vr = V2.Dot(car.Vel, right);
         float boost = player && BoostT > 0 ? 1.4f : 1f;
-        float top = d.Top * boost * (City[(int)car.Pos.X, (int)car.Pos.Y] == CTile.Grass && !d.Offroad ? 0.55f : 1f);
+        CTile under = City[(int)car.Pos.X, (int)car.Pos.Y];
+        float top = d.Top * boost * Surface(under, d);
 
         if (inp.Throttle > 0.05f)
         {
@@ -260,7 +287,7 @@ public sealed partial class CitySim
         if (inp.Handbrake) steer *= 1.35f;
         car.Heading += steer * MathF.Sign(vf) * dt;
 
-        float grip = d.Grip * dm * (inp.Handbrake ? 0.22f : 1f);
+        float grip = d.Grip * dm * (inp.Handbrake ? 0.22f : 1f) * (under == CTile.Rail || under == CTile.Dirt && !d.Offroad ? 0.75f : 1f);
         if (d.Bike)
         {
             // Two wheels: the back steps out when pushed hard at speed.
@@ -277,8 +304,15 @@ public sealed partial class CitySim
         car.Vel = f * vf + right * vr;
         car.Pos += car.Vel * dt;
 
-        // Walls and water.
-        Func<int, int, bool> solid = car.Def == PoliceCar ? _citySolid ??= City.Solid : _carSolid ??= CarSolid;
+        // A pothole at speed: a jolt, and a little damage to anything not built for it.
+        if (player && sp > Tables.PotholeSpeed && City.Potholes.Count > 0 && !d.Offroad)
+        {
+            int at = (int)car.Pos.Y * City.W + (int)car.Pos.X;
+            if (at != _lastPothole && City.Potholes.Contains(at)) { _lastPothole = at; Hurt(Tables.PotholeDamage, CityEv.Pothole, car.Pos); }
+        }
+
+        // Walls and water (cruisers keep out of the lanes through the blocks; nobody drives through a burning wreck).
+        Func<int, int, bool> solid = car.Def == PoliceCar ? _policeSolid ??= PoliceSolid : _carSolid ??= CarSolid;
         for (int pass = 0; pass < 2; pass++)
         for (int end = 0; end < 2; end++)
         {
@@ -325,12 +359,24 @@ public sealed partial class CitySim
                     car.Vel += n * into * (heavy ? 0.4f : 1.2f);
                     t.Bumped = 1.5f;
                     t.Speed = 0;
+                    if (player && into > 3) HitMotorcade(t);
                     if (into > 4.5f) { if (player) { Hurt((into - 4.5f) * (heavy ? 0.5f : 1.5f), CityEv.Bump, pc); OnTrafficHit(into); RammedAmbulance(t); } else car.Hp -= (into - 4.5f) * 2; }
                     else if (player) Events.Add(new CityEvent(CityEv.Scrape, pc, into));
                 }
             }
         }
     }
+
+    /// <summary>Top speed on this ground: grass and dirt hold back a road car, the causeway lets it go, an arcade is full of people.</summary>
+    public static float Surface(CTile t, VehicleDef d) => t switch
+    {
+        CTile.Grass or CTile.Dirt when !d.Offroad => 0.55f,
+        CTile.Highway => Tables.CausewaySpeed,
+        CTile.Arcade => 0.6f,
+        _ => 1f,
+    };
+
+    private int _lastPothole = -1;
 
     private void Hurt(float dmg, CityEv kind, V2 at)
     {
@@ -388,23 +434,27 @@ public sealed partial class CitySim
     /// <summary>The next junction on the way to a point (ambulances on a call).</summary>
     private (int, int) Toward(int i, int j, V2 goal)
     {
-        var opts = new List<(int, int)>();
-        if (i > 0) opts.Add((i - 1, j));
-        if (i + 1 < City.RoadX.Count) opts.Add((i + 1, j));
-        if (j > 0) opts.Add((i, j - 1));
-        if (j + 1 < City.RoadY.Count) opts.Add((i, j + 1));
+        List<(int, int)> opts = Exits(i, j);
         return opts.OrderBy(o => V2.Distance(City.Node(o.Item1, o.Item2), goal)).First();
     }
 
     private (int, int) PickNext(int i, int j, int fromI, int fromJ)
+    {
+        List<(int, int)> opts = Exits(i, j);
+        if (opts.Count > 1) opts.Remove((fromI, fromJ));
+        return R.Pick(opts);
+    }
+
+    /// <summary>The avenue blocks out of a junction, less any the festival has closed (unless that leaves none).</summary>
+    private List<(int, int)> Exits(int i, int j)
     {
         var opts = new List<(int, int)>();
         if (i > 0) opts.Add((i - 1, j));
         if (i + 1 < City.RoadX.Count) opts.Add((i + 1, j));
         if (j > 0) opts.Add((i, j - 1));
         if (j + 1 < City.RoadY.Count) opts.Add((i, j + 1));
-        if (opts.Count > 1) opts.Remove((fromI, fromJ));
-        return R.Pick(opts);
+        if (Festival.Count > 0 && opts.Count(o => !Shut(i, j, o.Item1, o.Item2)) > 0) opts.RemoveAll(o => Shut(i, j, o.Item1, o.Item2));
+        return opts;
     }
 
     private void StepTraffic(TrafficCar t, float dt)
@@ -420,6 +470,8 @@ public sealed partial class CitySim
             Events.Add(new CityEvent(CityEv.Wail, t.Pos, 1 - V2.Distance(t.Pos, Player.Pos) / 18));
         }
         if (t.Kind == CarKind.Ambulance && !float.IsNaN(t.Call.X) && V2.Distance(t.Pos, t.Call) < 3) t.Call = new V2(float.NaN, float.NaN);
+        // The escort keeps to the limo: at every junction, the way towards it.
+        if (t.Follow != null) t.Call = t.Follow.Gone ? new V2(float.NaN, float.NaN) : t.Follow.Pos;
         if (t.Kind == CarKind.Patrol && Stars >= 1 && !C.On("strike") && V2.Distance(t.Pos, Player.Pos) < (C.CarHas("ecm") ? 6 : 10) && ClearRoad(t.Pos, Player.Pos))
         {
             // A cruising patrol spots a wanted runner and joins the chase.
@@ -437,7 +489,8 @@ public sealed partial class CitySim
             if (V2.Distance(t.Pos, target) < 0.6f)
             {
                 t.Turning = true;
-                (t.Ci, t.Cj) = float.IsNaN(t.Call.X) ? PickNext(t.Bi, t.Bj, t.Ai, t.Aj) : Toward(t.Bi, t.Bj, t.Call);
+                (t.Ci, t.Cj) = TrailNext(t) ?? (float.IsNaN(t.Call.X) ? PickNext(t.Bi, t.Bj, t.Ai, t.Aj) : Toward(t.Bi, t.Bj, t.Call));
+                if (t.Trail != null) { t.Trail.Add((t.Ci, t.Cj)); if (t.Trail.Count > 24) t.Trail.RemoveAt(0); }
             }
         }
         if (t.Turning)
@@ -473,6 +526,10 @@ public sealed partial class CitySim
                 float behind = -V2.Dot(rel, t.Forward);
                 if (behind > 0.5f && behind < 6 && MathF.Abs(V2.Dot(rel, M.Perp(t.Forward))) < 1 && V2.Dot(o.Forward, t.Forward) > 0.7f) { t.SwerveT = 1.6f; break; }
             }
+        // The limo waits for its escort.
+        if (t.Trail != null)
+            foreach (TrafficCar o in Traffic)
+                if (o.Follow != null && !o.Gone && V2.Distance(o.Pos, t.Pos) > 7) { want = MathF.Min(want, 1.5f); break; }
         if (t.Bumped > 0) { t.Bumped -= dt; want = 0; }
         if (t.SwerveT > 0) { t.SwerveT -= dt; want = MathF.Min(want, 3.5f); }
         if (t.Ghost > 0) t.Ghost -= dt;
@@ -533,6 +590,8 @@ public sealed partial class CitySim
         _blockedByPlayer = false;
         // A checkpoint: stop, get looked at, get waved through (the wait-then-slip below).
         if (Roadblocks.Count > 0 && RoadblockAhead(t.Pos, f, 3)) return true;
+        // A wreck burning in the lane: stop, then pull out round it (as round your stopped car).
+        if (Wrecks.Count > 0 && t.SwerveT <= 0 && WreckAhead(t.Pos, f, 3.2f)) { _blockedByPlayer = true; return true; }
         // Pulling out to pass: only yield to you when you are right in its new line.
         if (t.SwerveT > 0 ? Ahead(Player.Pos, 1.2f, 0.6f) : Ahead(Player.Pos, 3.4f))
         {
@@ -659,7 +718,7 @@ public sealed partial class CitySim
         for (int tries = 0; tries < 50; tries++)
         {
             int x = R.Int(City.LandW), y = R.Int(City.LandH);
-            if (City[x, y] != CTile.Sidewalk) continue;
+            if (!City.Walk(City[x, y])) continue;
             var p = new Ped { Pos = new V2(x + R.Range(0.2f, 0.8f), y + R.Range(0.2f, 0.8f)), Speed = R.Range(0.9f, 1.6f), Colour = R.Pick(PedColours), Phase = R.Float() * 10 };
             p.Dir = R.Pick(Pt.Dirs4);
             Peds.Add(p);
@@ -705,8 +764,8 @@ public sealed partial class CitySim
             V2 next = p.Pos + move * 0.6f;
             CTile ahead = City[(int)MathF.Floor(next.X), (int)MathF.Floor(next.Y)];
             CTile here = City[(int)MathF.Floor(p.Pos.X), (int)MathF.Floor(p.Pos.Y)];
-            bool onWalk = here == CTile.Sidewalk;
-            if ((onWalk && ahead != CTile.Sidewalk) || City.Solid((int)MathF.Floor(next.X), (int)MathF.Floor(next.Y)) || R.Chance(0.002f))
+            bool onWalk = City.Walk(here);
+            if ((onWalk && !City.Walk(ahead)) || City.Solid((int)MathF.Floor(next.X), (int)MathF.Floor(next.Y)) || R.Chance(0.002f))
             {
                 List<Pt> opts = _pedOpts;
                 opts.Clear();
@@ -714,7 +773,7 @@ public sealed partial class CitySim
                 {
                     V2 n2 = p.Pos + new V2(d2.X, d2.Y) * 0.6f;
                     CTile t2 = City[(int)MathF.Floor(n2.X), (int)MathF.Floor(n2.Y)];
-                    if (onWalk ? t2 == CTile.Sidewalk : !City.Solid((int)MathF.Floor(n2.X), (int)MathF.Floor(n2.Y))) opts.Add(d2);
+                    if (onWalk ? City.Walk(t2) : !City.Solid((int)MathF.Floor(n2.X), (int)MathF.Floor(n2.Y))) opts.Add(d2);
                 }
                 if (opts.Count > 1) opts.Remove(new Pt(-p.Dir.X, -p.Dir.Y));
                 p.Dir = opts.Count > 0 ? R.Pick(opts) : new Pt(-p.Dir.X, -p.Dir.Y);

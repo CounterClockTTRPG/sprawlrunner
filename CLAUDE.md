@@ -16,7 +16,7 @@ Godot and `dotnet.exe` driven from WSL. Design and every number:
     ./play.sh --check           headless self-check -- run after every change
     ./play.sh --check --only X  just the sections whose name contains X (Bot plays whole jobs)
     ./play.sh --shots [X]       windowed walkthrough, writes shots/*.png -- look at them
-                                (X: title, city, terminal, place, map, run, rooms, rivals, cleaner, or a job type)
+                                (X: title, city, streets, terminal, place, map, run, rooms, rivals, cleaner, or a job type)
     bash scripts/assets.sh      generate missing portraits/banners/voices via ../assetgen
                                 (and the intro clip in assets/video); --list, --force NAME;
                                 needs its Replicate token
@@ -73,7 +73,8 @@ Sound is off until turned on in Settings. Settings live in `user://sprawlrunner.
 - The site: `World/SetPieces.cs` (room kinds and their hand-drawn pieces), `Run.Rooms.cs` (gas,
   moods, the panic room, each style's rules), `Level.LightAt` (lamps, shadows), `LevelPlan.Entries`
   and `UI/SitePlan.cs` (ways in, the briefing map). The other crew: `Career.Rival`, `Run.Rival`.
-  The street from the car: `CitySim.Street` (encounters, fares).
+  The street from the car: `CitySim.Street` (encounters, fares), `CitySim.Works` (the festival, wrecks, stadium
+  night, the motorcade, street races); each district's own streets and the Bayshore Causeway: `City.Dress`, `City.BuildCauseway`.
 - Story and the living city: `Sim/Story.cs` (the storylet engine: hooks, mail, calls, scenes,
   choices), `Sim/Storylets*.cs` (every storylet, by theme), `Career.World` (turf, faction clocks,
   happenings, rent, fame, the aftermath of a job), `Career.Crew`, `Career.Campaign` (the Spire

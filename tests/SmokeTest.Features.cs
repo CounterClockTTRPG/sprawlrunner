@@ -64,6 +64,8 @@ public partial class SmokeTest
                 t.CityRef = city;
                 t.Cash = 5000;
                 t.Etiquettes.Add("Gang");
+                t.Etiquettes.Add("Magic");
+                t.Etiquettes.Add("Security");
                 Mail m = t.Send(s);
                 string err = t.Choose(m, k);
                 Check(err == null && m.Reply != null, $"{s.Id}: '{s.Choices[k].Text}' runs ({err ?? m.Reply})");

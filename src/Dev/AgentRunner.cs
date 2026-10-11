@@ -47,7 +47,7 @@ public partial class AgentRunner : Node
   click [left|right] [MS]   press a mouse button at the mouse (hold MS ms; right = throw)
   fire MS               hold the left button for MS ms
   wait MS               let the game run
-  drive PLACE           (city) autopilot to home|fixer|doc|arms|rigger|decker|fence|talismonger|market|bazaar|job, or street (an encounter) or fare (a drop-off); stops there ('drive PLACE street' also stops when an encounter appears)
+  drive PLACE           (city) autopilot to home|fixer|doc|arms|rigger|decker|fence|talismonger|market|bazaar|job, or street (an encounter) or fare (a drop-off) or race (a street race's finish); stops there ('drive PLACE street' also stops when an encounter appears)
   walk X Y [MS]         (run) walk to tile X,Y by the shortest path, with real WASD; stops on arrival, when spotted, or after MS (default 15000)
   sneak X Y [MS]        like walk, holding Shift
   scroll up|down [N]    mouse wheel at the mouse (lists in shops)
@@ -497,6 +497,13 @@ public partial class AgentRunner : Node
         if (s.C.RivalLine() is string rival) sb.AppendLine($"rival crew: {rival}");
         if (s.Street is StreetEncounter se)
             sb.AppendLine($"street: {se.Kind} at ({se.At.X:0},{se.At.Y:0}), {V2.Distance(se.At, car.Pos):0} tiles, {se.Life:0} s left{(s.AtStreet() ? " -- you're beside it: press E" : " -- stop beside it and press E ('drive street')")}");
+        CTile under = s.City[(int)car.Pos.X, (int)car.Pos.Y];
+        if (under is not (CTile.Road or CTile.Sidewalk)) sb.AppendLine($"on: {under}{(under == CTile.Highway ? " (the Bayshore Causeway: fast, no junctions; ramps down to the avenues)" : "")}");
+        if (s.Roadblocks.Count > 0) sb.AppendLine($"checkpoints: {string.Join(", ", s.Roadblocks.Select(rb => $"({rb.At.X:0},{rb.At.Y:0})"))}");
+        if (s.Festival.Count > 0) sb.AppendLine($"festival: {s.Festival.Count} avenue block(s) round the night market closed to cars (routes go round)");
+        if (s.Wrecks.Count > 0) sb.AppendLine($"burning wrecks (half the road each): {string.Join(", ", s.Wrecks.Select(w => $"({w.At.X:0},{w.At.Y:0})"))}");
+        if (s.Race is StreetRace race)
+            sb.AppendLine($"street race to {race.Where}: finish ({race.Finish.X:0},{race.Finish.Y:0}) ('drive race'), you {V2.Distance(race.Finish, car.Pos):0} tiles{(race.Rival != null ? $", him {V2.Distance(race.Finish, race.Rival.Car.Pos):0}" : "")}");
         if (s.C.Passenger is Fare fare && s.FareKerb is V2 drop)
             sb.AppendLine($"aboard: {fare.Who} -- stop at the kerb ({drop.X:0},{drop.Y:0}), {V2.Distance(drop, car.Pos):0} tiles ('drive fare')");
         if (s.C.Active is Job cj && cj.Driving)
@@ -704,11 +711,11 @@ public partial class AgentRunner : Node
         if (Root.CityScreen == null || Root.CitySim == null) return "not in the city";
         CitySim s = Root.CitySim;
         // A street encounter or a fare's drop-off: a kerb, not a door.
-        if (place is "street" or "fare")
+        if (place is "street" or "fare" or "race")
         {
-            V2? kerb = place == "street" ? s.Street?.At : s.FareKerb;
+            V2? kerb = place == "street" ? s.Street?.At : place == "race" ? s.Race?.Finish : s.FareKerb;
             if (kerb is not V2 k) return $"no {place} to drive to";
-            return await DriveTo(s, new DriveAutopilot(s.City, s.Player.Pos, k, s.Roadblocks.Count > 0 ? s.Closed : null), place == "street" ? () => s.AtStreet() : () => s.C.Passenger == null, false);
+            return await DriveTo(s, new DriveAutopilot(s.City, s.Player.Pos, k, s.AnyClosed ? s.Closed : null), place == "street" ? () => s.AtStreet() : place == "race" ? () => s.Race == null : () => s.C.Passenger == null, false);
         }
         Lot lot = place.ToLowerInvariant() switch
         {

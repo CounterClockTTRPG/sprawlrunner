@@ -52,7 +52,7 @@ public partial class CityView : Node2D
         }
         var lamps = new Node2D { Material = Art.Additive };
         AddChild(lamps);
-        AddLamps(lamps, c);
+        AddLamps(lamps, c, sim.C);
         _movers = new Movers { V = this };
         AddChild(_movers);
         Fx = new FxLayer();
@@ -68,16 +68,18 @@ public partial class CityView : Node2D
         Cam.Position = _camPos;
     }
 
-    private static void AddLamps(Node2D into, City c)
+    private static void AddLamps(Node2D into, City c, Career career)
     {
         var rng = new Rng(99);
+        // A grid failure: the district's street lights are dark (the draws still happen, so the rest stay put).
+        bool Dark(int x, int y) => career != null && career.On("grid", c.DistrictAt[y * City.W + x]);
         foreach (int rx in c.RoadX)
             for (int y = 2; y < c.LandH; y += 9)
                 foreach (int side in new[] { -1, City.Road })
                 {
                     int x = rx + side;
                     if (c[x, y] != CTile.Sidewalk) continue;
-                    Lamp(into, new Vector2((x + 0.5f) * T, (y + 0.5f) * T), rng);
+                    Lamp(into, new Vector2((x + 0.5f) * T, (y + 0.5f) * T), rng, Dark(x, y));
                 }
         foreach (int ry in c.RoadY)
             for (int x = 6; x < c.LandW; x += 11)
@@ -85,13 +87,28 @@ public partial class CityView : Node2D
                 {
                     int y = ry + side;
                     if (c[x, y] != CTile.Sidewalk) continue;
-                    Lamp(into, new Vector2((x + 0.5f) * T, (y + 0.5f) * T), rng);
+                    Lamp(into, new Vector2((x + 0.5f) * T, (y + 0.5f) * T), rng, Dark(x, y));
                 }
+        // The causeway: sodium lamps on its barriers, both legs.
+        foreach (Rect leg in new[] { c.CausewaySouth, c.CausewayEast })
+        {
+            bool alongX = leg.W > leg.H;
+            for (int k = 3; k < (alongX ? leg.W : leg.H); k += 8)
+                foreach (int side in new[] { -1, City.Road })
+                {
+                    int x = alongX ? leg.X + k : leg.X + side, y = alongX ? leg.Y + side : leg.Y + k;
+                    if (c[x, y] == CTile.Barrier) into.AddChild(new Sprite2D { Texture = Art.Glow, Position = new Vector2((x + 0.5f) * T, (y + 0.5f) * T), Modulate = new Color(1f, 0.62f, 0.25f, 0.4f), Scale = Vector2.One * 4.2f * T / Art.Glow.GetWidth() });
+                }
+        }
     }
 
-    private static void Lamp(Node2D into, Vector2 at, Rng rng)
+    /// <summary>The district is under a grid failure today.</summary>
+    public bool DarkAt(V2 p) => Sim.C.On("grid", Sim.City.DistrictAt[(int)M.Clamp(p.Y, 0, City.H - 1) * City.W + (int)M.Clamp(p.X, 0, City.W - 1)]);
+
+    private static void Lamp(Node2D into, Vector2 at, Rng rng, bool dark = false)
     {
         Color c = rng.Chance(0.7f) ? new Color(1f, 0.7f, 0.35f, 0.42f) : new Color(0.4f, 0.8f, 1f, 0.38f);
+        if (dark) return;
         var s = new Sprite2D { Texture = Art.Glow, Position = at, Modulate = c, Scale = Vector2.One * 4.6f * T / Art.Glow.GetWidth() };
         into.AddChild(s);
     }
@@ -231,6 +248,110 @@ public partial class CityView : Node2D
                     if (lx == 0 || lx == City.Road - 1) for (int k = 4; k < T; k += 8) ci.DrawLine(o + new Vector2(lx == 0 ? 2 : T - 10, k), o + new Vector2(lx == 0 ? 10 : T - 2, k), new Color(0.8f, 0.8f, 0.8f, 0.25f), 3);
                 }
                 if (Art.Hash(x, y, 4) > 0.9f) ci.DrawCircle(o + new Vector2(16, 16), 8 + Art.Hash(x, y, 5) * 8, new Color(0.3f, 0.4f, 0.6f, 0.12f));
+                // A Barrens pothole: a ragged dark hole with a lip of broken tarmac.
+                if (c.Potholes.Contains(y * City.W + x))
+                {
+                    Vector2 h = o + new Vector2(10 + Art.Hash(x, y, 8) * 12, 10 + Art.Hash(x, y, 9) * 12);
+                    ci.DrawCircle(h, 9, new Color(0.17f, 0.17f, 0.18f));
+                    ci.DrawCircle(h + new Vector2(1, 1), 6.5f, new Color(0.03f, 0.03f, 0.04f));
+                }
+                break;
+            }
+            case CTile.Alley:
+                ci.DrawRect(r, new Color(0.085f + n, 0.085f + n, 0.095f + n));
+                // Grime and puddles down the lane, a bin now and then.
+                if (Art.Hash(x, y, 11) > 0.82f) ci.DrawCircle(o + new Vector2(16, 16), 7 + Art.Hash(x, y, 12) * 6, new Color(0.25f, 0.32f, 0.45f, 0.15f));
+                if (Art.Hash(x, y, 13) > 0.93f) ci.DrawRect(new Rect2(o + new Vector2(4, 4), new Vector2(9, 12)), new Color(0.18f, 0.3f, 0.2f));
+                break;
+            case CTile.Arcade:
+                ci.DrawRect(r, new Color(0.16f + n, 0.1f + n, 0.16f + n));
+                ci.DrawRect(r.Grow(-2), new Color(0.2f + n, 0.13f + n, 0.2f + n));
+                // Neon tubes reflected in the wet tiles.
+                if ((x + y) % 3 == 0) ci.DrawLine(o + new Vector2(2, 6), o + new Vector2(T - 2, 6), (Art.Hash(x, y, 14) > 0.5f ? new Color(1f, 0.2f, 0.5f) : new Color(0.1f, 0.85f, 0.95f)) with { A = 0.35f }, 2);
+                break;
+            case CTile.Rail:
+            {
+                ci.DrawRect(r, new Color(0.1f + n, 0.09f + n, 0.08f + n));
+                bool across = c.Alleys.Exists(a => a.Contains(new Pt(x, y)) && a.H == 2);
+                for (int k = 3; k < T; k += 8)
+                    ci.DrawLine(o + (across ? new Vector2(k, 2) : new Vector2(2, k)), o + (across ? new Vector2(k, T - 2) : new Vector2(T - 2, k)), new Color(0.26f, 0.18f, 0.12f), 4);
+                for (int s = 0; s < 2; s++)
+                {
+                    float at = 9 + s * 14;
+                    ci.DrawLine(o + (across ? new Vector2(0, at) : new Vector2(at, 0)), o + (across ? new Vector2(T, at) : new Vector2(at, T)), new Color(0.55f, 0.55f, 0.6f, 0.8f), 2);
+                }
+                break;
+            }
+            case CTile.Dirt:
+                ci.DrawRect(r, new Color(0.16f + n, 0.13f + n, 0.09f + n));
+                if (Art.Hash(x, y, 15) > 0.6f) ci.DrawCircle(o + new Vector2(8 + Art.Hash(x, y, 16) * 16, 8 + Art.Hash(x, y, 17) * 16), 2 + Art.Hash(x, y, 18) * 3, new Color(0.24f, 0.2f, 0.15f));
+                break;
+            case CTile.Rubble:
+                ci.DrawRect(r, new Color(0.16f + n, 0.13f + n, 0.09f + n));
+                for (int k = 0; k < 5; k++)
+                {
+                    Vector2 p = o + new Vector2(6 + Art.Hash(x, y, 20 + k) * 20, 6 + Art.Hash(x, y, 30 + k) * 20);
+                    ci.DrawCircle(p + new Vector2(2, 2), 5 + k % 3, new Color(0, 0, 0, 0.3f));
+                    ci.DrawCircle(p, 5 + k % 3, new Color(0.3f + 0.05f * k, 0.28f + 0.03f * k, 0.25f));
+                }
+                break;
+            case CTile.Container:
+            {
+                // A stack seen from above: a coloured box with its ribs, a shadow to the south-east.
+                Color[] paint = { new(0.55f, 0.2f, 0.15f), new(0.15f, 0.35f, 0.5f), new(0.2f, 0.42f, 0.25f), new(0.62f, 0.5f, 0.16f), new(0.4f, 0.4f, 0.42f) };
+                Color col = paint[(int)(Art.Hash(x / 2, y / 2, 21) * paint.Length) % paint.Length];
+                ci.DrawRect(r, new Color(0.08f, 0.08f, 0.09f));
+                ci.DrawRect(new Rect2(o + new Vector2(1, 1), new Vector2(T - 2, T - 2)), col.Darkened(0.15f));
+                for (int k = 4; k < T; k += 5) ci.DrawLine(o + new Vector2(k, 2), o + new Vector2(k, T - 2), col.Darkened(0.45f), 1);
+                ci.DrawRect(new Rect2(o + new Vector2(T - 4, 3), new Vector2(3, T - 3)), new Color(0, 0, 0, 0.35f));
+                break;
+            }
+            case CTile.Highway:
+            {
+                // The causeway's deck: smooth dark tarmac, white dashes and edge lines along the leg.
+                ci.DrawRect(r, new Color(0.13f + n * 0.5f, 0.135f + n * 0.5f, 0.15f + n * 0.5f));
+                bool ramp = c.Ramps.Exists(a => a.Contains(new Pt(x, y)));
+                bool alongX = ramp ? c.Ramps.Find(a => a.Contains(new Pt(x, y))).W > c.Ramps.Find(a => a.Contains(new Pt(x, y))).H : c.CausewaySouth.Contains(new Pt(x, y)) && !c.CausewayEast.Contains(new Pt(x, y));
+                bool corner = c.CausewaySouth.Contains(new Pt(x, y)) && c.CausewayEast.Contains(new Pt(x, y));
+                if (!corner)
+                {
+                    Rect leg = ramp ? c.Ramps.Find(a => a.Contains(new Pt(x, y))) : alongX ? c.CausewaySouth : c.CausewayEast;
+                    int lane = alongX ? y - leg.Y : x - leg.X;
+                    if (lane == 2 && (alongX ? x : y) % 3 != 0) ci.DrawLine(o, o + (alongX ? new Vector2(T, 0) : new Vector2(0, T)), new Color(0.9f, 0.9f, 0.9f, 0.55f), 2);
+                    if (lane == 0) ci.DrawLine(o + (alongX ? new Vector2(0, 2) : new Vector2(2, 0)), o + (alongX ? new Vector2(T, 2) : new Vector2(2, T)), new Color(0.9f, 0.8f, 0.3f, 0.6f), 2);
+                    if (lane == City.Road - 1) ci.DrawLine(o + (alongX ? new Vector2(0, T - 2) : new Vector2(T - 2, 0)), o + (alongX ? new Vector2(T, T - 2) : new Vector2(T - 2, T)), new Color(0.9f, 0.9f, 0.9f, 0.5f), 2);
+                }
+                break;
+            }
+            case CTile.Barrier:
+            {
+                bool over = c[x, y - 1] == CTile.Water || c[x, y + 1] == CTile.Water || c[x - 1, y] == CTile.Water || c[x + 1, y] == CTile.Water;
+                if (over)
+                {
+                    // The causeway's edge: water under it, one continuous concrete wall with hazard stripes, a pylon now and then.
+                    ci.DrawRect(r, new Color(0.02f, 0.05f, 0.1f));
+                    bool w = c[x - 1, y] == CTile.Barrier, e = c[x + 1, y] == CTile.Barrier, nn = c[x, y - 1] == CTile.Barrier, s = c[x, y + 1] == CTile.Barrier;
+                    var wall = new Color(0.38f, 0.38f, 0.4f);
+                    var mid = new Rect2(o + new Vector2(9, 9), new Vector2(14, 14));
+                    ci.DrawRect(mid, wall);
+                    if (w) ci.DrawRect(new Rect2(o + new Vector2(0, 9), new Vector2(9, 14)), wall);
+                    if (e) ci.DrawRect(new Rect2(o + new Vector2(23, 9), new Vector2(9, 14)), wall);
+                    if (nn) ci.DrawRect(new Rect2(o + new Vector2(9, 0), new Vector2(14, 9)), wall);
+                    if (s) ci.DrawRect(new Rect2(o + new Vector2(9, 23), new Vector2(14, 9)), wall);
+                    // Hazard stripes along the top of the wall.
+                    bool horiz = w || e;
+                    for (int k = (x + y) % 2 * 8; k < T; k += 16)
+                        ci.DrawRect(horiz ? new Rect2(o + new Vector2(k, 13), new Vector2(8, 6)) : new Rect2(o + new Vector2(13, k), new Vector2(6, 8)), new Color(0.78f, 0.62f, 0.15f, 0.75f));
+                    if ((x + y) % 9 == 0) ci.DrawCircle(o + new Vector2(16, 16), 8, new Color(0.25f, 0.25f, 0.27f));
+                }
+                else
+                {
+                    // A Spire bollard on the paving.
+                    ci.DrawRect(r, new Color(0.3f + n, 0.29f + n, 0.27f + n));
+                    ci.DrawCircle(o + new Vector2(17, 18), 7, new Color(0, 0, 0, 0.35f));
+                    ci.DrawCircle(o + new Vector2(16, 16), 7, new Color(0.55f, 0.55f, 0.58f));
+                    ci.DrawCircle(o + new Vector2(16, 16), 3, new Color(0.9f, 0.85f, 0.6f));
+                }
                 break;
             }
             case CTile.Sidewalk:
@@ -354,11 +475,23 @@ public partial class CityView : Node2D
                     Art.DrawGlow(this, cp, T * 2.2f, (ph ? UITheme.Bad : new Color(0.2f, 0.4f, 1f)) with { A = 0.35f });
                 }
             }
+            DrawWorks(s, view);
             foreach (TrafficCar t in s.Traffic)
             {
                 Vector2 at = Art.G(t.Pos, T);
                 if (!view.HasPoint(at)) continue;
                 Art.Vehicle(this, t.Kind, at, t.Heading, t.Length * T, t.Width * T, Art.C(t.Colour), t.Speed < t.Cruise * 0.5f, V.Time);
+                if (t.Motorcade && t.Kind == CarKind.Limo)
+                {
+                    // Pennants on the front wings.
+                    Vector2 f = new(MathF.Cos(t.Heading), MathF.Sin(t.Heading)), sd = new(-f.Y, f.X);
+                    for (int k = -1; k <= 1; k += 2)
+                    {
+                        Vector2 pole = at + f * t.Length * T * 0.38f + sd * k * t.Width * T * 0.4f;
+                        float flap = MathF.Sin(V.Time * 12 + k) * 2;
+                        DrawColoredPolygon(new[] { pole, pole - f * 9 + sd * (3 + flap), pole - f * 2 + sd * 5 }, k < 0 ? new Color(0.9f, 0.15f, 0.2f) : new Color(0.95f, 0.95f, 0.95f));
+                    }
+                }
             }
             foreach (var (pos, life) in s.SmokeClouds)
                 for (int k = 0; k < 5; k++)
@@ -388,6 +521,68 @@ public partial class CityView : Node2D
     /// <summary>A street encounter: who's waving, the wreck with its hazards, the bikes across the lane -- and a ring to stop in.</summary>
     private partial class Movers
     {
+        /// <summary>The happenings on the street: the festival's lanterns, stalls and barriers; the gang war's wrecks; a street race's line.</summary>
+        private void DrawWorks(CitySim s, Rect2 view)
+        {
+            float t = V.Time;
+            foreach (Pt p in s.FestivalTiles)
+            {
+                Vector2 o = Art.G(new V2(p.X, p.Y), T);
+                if (!view.HasPoint(o)) continue;
+                // A stall every few tiles along the kerb, lantern strings across the road.
+                if (Art.Hash(p.X, p.Y, 40) > 0.86f)
+                {
+                    DrawRect(new Rect2(o + new Vector2(3, 3), new Vector2(T - 6, T - 8)), new Color(0.35f, 0.12f, 0.1f));
+                    DrawRect(new Rect2(o + new Vector2(1, 1), new Vector2(T - 2, 7)), Art.Hash(p.X, p.Y, 41) > 0.5f ? new Color(0.85f, 0.2f, 0.2f) : new Color(0.9f, 0.7f, 0.15f));
+                }
+                if ((p.X + p.Y) % 2 == 0)
+                {
+                    Vector2 c = o + new Vector2(16, 16 + MathF.Sin(t * 2 + p.X) * 2);
+                    Color lc = (p.X * 7 + p.Y) % 3 == 0 ? new Color(1f, 0.35f, 0.2f) : new Color(1f, 0.75f, 0.25f);
+                    DrawCircle(c, 5, lc);
+                    Art.DrawGlow(this, c, T * 1.1f, lc with { A = 0.22f });
+                }
+            }
+            foreach (Pt p in s.FestivalBarriers)
+            {
+                Vector2 o = Art.G(new V2(p.X, p.Y), T);
+                if (!view.HasPoint(o)) continue;
+                DrawRect(new Rect2(o + new Vector2(0, 10), new Vector2(T, 12)), new Color(0.85f, 0.85f, 0.8f));
+                for (int k = 0; k < T; k += 8) DrawRect(new Rect2(o + new Vector2(k, 10), new Vector2(4, 12)), new Color(0.85f, 0.15f, 0.15f));
+            }
+            foreach (Wreck w in s.Wrecks)
+            {
+                Vector2 at = Art.G(w.At, T);
+                if (!view.HasPoint(at)) continue;
+                // Scorch on the tarmac, the shell, and a fire you can see from the next block.
+                DrawCircle(at, T * 1.3f, new Color(0.02f, 0.02f, 0.02f, 0.6f));
+                Art.Car(this, at, w.Heading + 0.5f, 2.2f * T, 1.1f * T, new Color(0.12f, 0.1f, 0.09f), false, false);
+                Art.DrawGlow(this, at, T * 6, new Color(1f, 0.45f, 0.1f, 0.45f + 0.12f * MathF.Sin(t * 9)));
+                for (int k = 0; k < 8; k++)
+                {
+                    float ph = t * 5 + k * 1.7f;
+                    Vector2 fl = at + new Vector2(MathF.Sin(ph) * 14 + (k - 3.5f) * 6, MathF.Cos(k * 2.3f) * 10 - MathF.Abs(MathF.Cos(ph * 0.7f)) * 16);
+                    DrawCircle(fl, 8 + (k % 3) * 3, new Color(1f, 0.35f + 0.07f * k, 0.08f, 0.85f));
+                    DrawCircle(fl + new Vector2(0, -3), 4 + (k % 2) * 2, new Color(1f, 0.9f, 0.5f, 0.8f));
+                }
+                for (int k = 0; k < 3; k++)
+                    DrawCircle(at + new Vector2(MathF.Sin(t + k * 2) * 8, -20 - k * 12 - (t * 14 % 12)), 9 + k * 3, new Color(0.15f, 0.14f, 0.14f, 0.35f - k * 0.08f));
+            }
+            if (s.Race is StreetRace race)
+            {
+                Vector2 f = Art.G(race.Finish, T);
+                if (view.HasPoint(f))
+                {
+                    // A chequered line across the junction, and the ring to cross.
+                    for (int k = 0; k < 8; k++)
+                    for (int m = 0; m < 2; m++)
+                        DrawRect(new Rect2(f + new Vector2(-64 + k * 16, -8 + m * 8), new Vector2(16, 8)), (k + m) % 2 == 0 ? Colors.White : new Color(0.05f, 0.05f, 0.05f));
+                    float pulse = 0.5f + 0.5f * MathF.Sin(t * 4);
+                    DrawArc(f, Tables.RaceFinish * T + pulse * 6, 0, MathF.Tau, 40, UITheme.Yellow with { A = 0.7f }, 2);
+                }
+            }
+        }
+
         private void DrawStreet(StreetEncounter se)
         {
             Vector2 p = Art.G(se.At, T);
@@ -429,6 +624,58 @@ public partial class CityView : Node2D
                     Vector2 g = p - new Vector2(MathF.Cos(se.Heading), MathF.Sin(se.Heading)) * 22;
                     DrawCircle(g, 6, new Color(0.3f, 0.45f, 0.15f));
                     DrawCircle(g, 3.5f, new Color(0.15f, 0.12f, 0.1f));
+                    break;
+                }
+                case StreetKind.Patrol:
+                {
+                    // A cruiser angled in at the kerb, lights going, and the officer beside it.
+                    float h = se.Heading - 0.35f;
+                    Art.Car(this, p, h, CitySim.PoliceCar.Length * T, CitySim.PoliceCar.Width * T, Art.C(CitySim.PoliceCar.Colour), false, false);
+                    bool ph = MathF.Sin(t * 9) > 0;
+                    Art.DrawGlow(this, p, T * 2.6f, (ph ? UITheme.Bad : new Color(0.2f, 0.4f, 1f)) with { A = 0.4f });
+                    Vector2 o2 = p + new Vector2(-MathF.Sin(h), MathF.Cos(h)) * 28;
+                    DrawCircle(o2, 6, new Color(0.15f, 0.2f, 0.4f));
+                    DrawCircle(o2, 3.5f, new Color(0.08f, 0.08f, 0.1f));
+                    break;
+                }
+                case StreetKind.Racer:
+                {
+                    Art.Car(this, p, se.Heading, CitySim.RacerCar.Length * T, CitySim.RacerCar.Width * T, Art.C(CitySim.RacerCar.Colour), false, false);
+                    // Revving: exhaust puffs and an underglow.
+                    Vector2 f = new(MathF.Cos(se.Heading), MathF.Sin(se.Heading));
+                    Art.DrawGlow(this, p, T * 1.8f, new Color(0.7f, 1f, 0.2f, 0.25f + 0.1f * MathF.Sin(t * 20)));
+                    for (int k = 0; k < 2; k++) DrawCircle(p - f * (36 + (t * 40 + k * 10) % 18), 4 + k * 2, new Color(0.7f, 0.7f, 0.75f, 0.25f));
+                    break;
+                }
+                case StreetKind.Van:
+                {
+                    // On its side across the lane: a fat grey box, doors sprung, the alarm light turning.
+                    float h = se.Heading + 1.2f;
+                    Art.Car(this, p, h, 2.6f * T, 1.25f * T, new Color(0.42f, 0.44f, 0.46f), false, false);
+                    Vector2 f = new(MathF.Cos(h), MathF.Sin(h));
+                    DrawRect(new Rect2(p - f * 44 - new Vector2(8, 8), new Vector2(16, 16)), new Color(0.75f, 0.65f, 0.3f));
+                    Art.DrawGlow(this, p + f * 30, T * 1.4f, new Color(1f, 0.6f, 0.1f, MathF.Sin(t * 8) > 0 ? 0.4f : 0.05f));
+                    for (int k = 0; k < 4; k++) DrawRect(new Rect2(p - f * (50 + k * 6) + new Vector2(k * 5 - 8, k * 3), new Vector2(7, 4)), new Color(0.4f, 0.7f, 0.4f));
+                    break;
+                }
+                case StreetKind.Ghoul:
+                {
+                    // Hunched over what it's eating, facing your lights: a dark smear, long arms, a bony back, eyes that shine.
+                    Vector2 f = new(MathF.Cos(se.Heading), MathF.Sin(se.Heading)), sd = new(-f.Y, f.X);
+                    DrawCircle(p + f * 14, 13, new Color(0.22f, 0.04f, 0.03f, 0.85f));
+                    DrawCircle(p + f * 18 + sd * 6, 7, new Color(0.3f, 0.06f, 0.04f, 0.85f));
+                    DrawCircle(p + new Vector2(2, 3), 12, new Color(0, 0, 0, 0.4f));
+                    float reach = 3 * MathF.Sin(t * 5);
+                    foreach (int k in new[] { -1, 1 }) DrawLine(p + sd * k * 7, p + f * (13 + reach * k) + sd * k * 9, new Color(0.55f, 0.57f, 0.53f), 3.5f);
+                    DrawCircle(p, 11, new Color(0.5f, 0.52f, 0.48f));
+                    for (int k = -1; k <= 1; k++) DrawCircle(p - f * 4 + sd * k * 4, 2, new Color(0.35f, 0.36f, 0.34f));
+                    DrawCircle(p - f * 9, 6.5f, new Color(0.62f, 0.64f, 0.6f));
+                    foreach (int k in new[] { -1, 1 })
+                    {
+                        Vector2 eye = p - f * 13 + sd * k * 2.8f;
+                        Art.DrawGlow(this, eye, 14, new Color(0.9f, 1f, 0.85f, 0.5f));
+                        DrawCircle(eye, 1.8f, new Color(1f, 1f, 0.9f));
+                    }
                     break;
                 }
             }
@@ -852,6 +1099,8 @@ public partial class CityView : Node2D
                 var b = new Rect2(l.R.X * T, l.R.Y * T, l.R.W * T, l.R.H * T);
                 if (!view.Intersects(b)) continue;
                 if (l.Place == "loft" && !loft || l.Place == "home" && loft) continue;
+                // A grid failure: no neon, except the places that keep a generator (contacts, hubs, your door).
+                if (l.Place == null && V.DarkAt(new V2(l.R.Centre.X, l.R.Centre.Y))) continue;
                 Vector2 lean = V.Lean(b.GetCenter(), l.Height);
                 Color c = Art.C(l.Sign);
                 float flick = Art.Hash(l.Index, (int)(V.Time * 8)) > 0.97f ? 0.3f : 1f;
