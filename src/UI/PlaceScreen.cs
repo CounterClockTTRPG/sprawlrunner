@@ -93,12 +93,8 @@ public partial class PlaceScreen : Control
         if (home) left.AddChild(UITheme.Button("Sleep until tomorrow", Sleep, 0, 42, "A new day: the board refreshes. Saves the career."));
         if (home) left.AddChild(UITheme.Button(C.Unread > 0 ? $"PDA ({C.Unread} new)  [P]" : "PDA  [P]", OpenPda, 0, 42, "Inbox, travel, contacts, factions, the city."));
         // A career with a story to end on can end by choice, not only by death.
-        if (home && C.Active == null && C.RetireReason() is string why)
-            left.AddChild(UITheme.Button("Retire...", () => Modal.Confirm(this, "WALK AWAY?", $"{why} You could stop here: the career ends, with its receipt and whatever legacy it earned. There is no coming back.", "Retire", () =>
-            {
-                C.Retired = true;
-                Leave();
-            }), 0, 42, "End the career on your own terms: the receipt and the legacy."));
+        if (home && C.Active == null && C.RetireReason() != null)
+            left.AddChild(UITheme.Button("Retire...", () => Root.ChooseExit(this, C, Leave), 0, 42, "End the career on your own terms: how you go, the receipt and the legacy."));
         left.AddChild(UITheme.Button("Back to the car  [Esc]", Leave, 0, 42));
 
         var right = UITheme.VBox(10);

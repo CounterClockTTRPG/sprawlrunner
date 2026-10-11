@@ -67,6 +67,19 @@ public partial class SmokeTest
         b.Day += Tables.RomanceAskAgain + 5;
         Check(!global::Sprawl.Storylets.ById("romance-wisp").When(b), "and she doesn't ask again");
 
+        // Their faces in the scene: at your place while they ask, then the answer you gave.
+        Career f = RichCareer(city);
+        Mail asked = f.Send("romance-rook"), refused = f.Send("romance-ade"), talk = f.Send("crewhome1-ox");
+        Check(f.CrewMood(asked) == "home" && f.CrewMood(talk) == "home", "at your place, before any answer: the off-duty picture");
+        f.Choose(asked, 0);
+        f.Choose(refused, 2);
+        Check(f.CrewMood(asked) == "partner" && f.CrewMood(refused) == "rejected", $"'stay' turns it to the partner picture, 'crew' to the hurt one ({f.CrewMood(asked)}, {f.CrewMood(refused)})");
+        Check(f.CrewMood(f.Send("partner-worry-rook")) == "partner" && f.CrewMood(f.Send("crewhome2-rook")) == "partner", "a partner is a partner at home, worried or not");
+        Mail breakUp = f.Send("partner-rook");
+        f.Choose(breakUp, 1);
+        Check(f.CrewMood(breakUp) == "rejected", "ending it: the hurt picture");
+        Check(f.CrewMood(f.Send("crewhome1-byte")) == null, "Byte keeps his hire portrait");
+
         // Dying on them: the last receipt's epilogue doesn't say they're still with you.
         Career w = RichCareer(city);
         w.CrewOf("wisp").Trust = 5;
@@ -75,6 +88,8 @@ public partial class SmokeTest
         Debrief wd = w.Finish(StoryJob(seed: 63), new RunResult { Died = true, GrenadesLeft = w.RunGrenades(), MedkitsLeft = w.RunMedkits() });
         Check(wd.CareerOver && w.Dead, "flatlined with no TraumaLink: the career is over");
         Check(!w.Ending().Any(e => e.Contains("still with you")) && w.Ending().Any(e => e.StartsWith("Wisp buried you")), "and the ending has them bury you, not stay with you");
+        var last = w.Finale(died: true);
+        Check(last[0].Picture == "ending-dead" && last[0].Text.StartsWith("Wisp pays for the stone"), $"the last scene: the stone, and who paid for it ({last[0].Text})");
 
         // Losing them.
         Career d = TestCareer();

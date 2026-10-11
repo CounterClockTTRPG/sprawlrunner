@@ -84,6 +84,10 @@ public static class Assets
     /// <summary>The safehouse as you live in it: one picture per lifestyle (low is plain place-home); the loft is the loft.</summary>
     public static string HomePicture(string lifestyle, bool loft) => loft ? "place-loft" : lifestyle == "low" ? "place-home" : $"place-home-{lifestyle}";
     public static string HirePicture(string hireId) => $"hire-{hireId}";
+    /// <summary>A crew member as a scene shows them (<see cref="Career.CrewMood"/>): at home, together, after a no -- or their hire portrait.</summary>
+    public static string CrewPicture(string hireId, string mood) => mood == null ? HirePicture(hireId) : $"hire-{hireId}-{mood}";
+    /// <summary>The moods a romanceable crew member has pictures for.</summary>
+    public static readonly string[] CrewMoods = { "home", "partner", "rejected" };
     public static string BossPicture(Faction f) => $"boss-{f.ToString().ToLowerInvariant()}";
     public static string SitePicture(SiteStyle s) => $"site-{s.ToString().ToLowerInvariant()}";
     public static string Greeting(ContactDef k, int index) => $"greet-{k.Id}-{index}";

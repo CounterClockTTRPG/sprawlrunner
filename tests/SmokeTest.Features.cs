@@ -19,6 +19,41 @@ public partial class SmokeTest
         Check(c.RetireReason()?.Contains("Toxic Tide") == true && c.RetiresALegend, "a finished campaign is a story to end on, and a legend's");
         c.Retired = true;
         Check(c.RetireReason() == null, "a retired runner can't retire again");
+
+        // How you go: out of the city always; with a partner, into Juno's chair, or behind your own counter when you've earned it.
+        Career e = TestCareer();
+        e.Set("tide:won", 30);
+        var exits = e.Exits();
+        Check(exits.Select(x => x.id).SequenceEqual(new[] { "leave", "partner", "fixer", "legit" }), "four ways out, in order");
+        Check(exits.Count(x => x.block == null) == 1 && exits[0].block == null, $"a runner with nobody, no trust and nothing owned can only leave ({string.Join("; ", exits.Select(x => x.block))})");
+        e.Retire("partner");
+        Check(e.Retired && e.Exit == "leave", "asking for a closed way out leaves the city instead");
+        var cards = e.Finale(died: false);
+        Check(cards[0].Picture == "ending-leave" && cards[0].Heading == "OUT OF KESSLER BAY" && cards.Count == 2 && cards[1].Heading == "AFTERWARDS", "the last scene, then what became of everyone");
+
+        Career p = TestCareer();
+        p.CrewOf("wisp").Trust = 5;
+        p.Partner = "wisp";
+        p.Loyalty["fixer"] = Tables.ExitFixerTrust;
+        p.Property.Add("noodles");
+        p.Cash = Tables.RetireSavings;
+        Check(p.Exits().All(x => x.block == null) && p.Exits()[1].name == "Stay with Wisp", "with a partner, Juno's trust and a business, every way is open");
+        foreach (string way in new[] { "partner", "fixer", "legit" })
+        {
+            Career q = TestCareer();
+            q.CrewOf("wisp").Trust = 5;
+            q.Partner = "wisp";
+            q.Loyalty["fixer"] = Tables.ExitFixerTrust;
+            q.Property.Add("noodles");
+            q.Cash = Tables.RetireSavings;
+            q.Retire(way);
+            var last = q.Finale(died: false)[0];
+            Check(q.Exit == way && Assets.Picture(last.Picture) != null && !last.Text.Contains('{'), $"{way}: its own scene over {last.Picture}");
+            Check(Achievements.All.Any(a => a.Done(q) && a.Id == way switch { "partner" => "together", "fixer" => "booth", _ => "straight" }), $"{way}: its own achievement");
+        }
+        Check(p.Exits()[3].desc.Contains("a noodle bar in the Docks"), "going straight runs the business you own");
+        p.CrewOf("wisp").Dead = true;
+        Check(p.Exits()[1].block != null, "a partner buried is nobody to retire with");
     }
 
     /// <summary>The street from the car: an encounter turns up ahead on a drive, its choices all work, a fare pays at its kerb.</summary>

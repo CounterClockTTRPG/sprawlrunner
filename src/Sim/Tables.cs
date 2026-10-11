@@ -234,6 +234,8 @@ public static partial class Tables
     public const int StreetPerDay = 2;
     /// <summary>Saved this much, a runner can walk away a success whenever they like (as after a finished campaign).</summary>
     public const int RetireSavings = 250_000;
+    /// <summary>Juno's trust before she'd hand you her booth (Career.Exits, "Take Juno's chair").</summary>
+    public const int ExitFixerTrust = 4;
     /// <summary>Faction standing (0-10): safe passage, their own jobs on the board (paying this much more), the faction item.</summary>
     public const int StandingSafe = 3, StandingJobs = 4, StandingItem = 5;
     public const float FavourPay = 1.25f;

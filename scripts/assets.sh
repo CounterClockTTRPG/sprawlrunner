@@ -84,13 +84,34 @@ generate() {
     "$CLI" new --name "$name" "$@" >/dev/null
 }
 
+# A picture painted over another one (`1:1 < hire-wisp`): image-to-image on
+# flux-dev, so a crew member at home or in love keeps the face of their portrait;
+# the strength keeps the face and takes the scene, clothes and mood from the prompt.
+FROM_STRENGTH="${FROM_STRENGTH:-0.8}"
+
 picture() {
-    local name="$1" aspect="$2" prompt="$3" target="assets/art/$1.webp" px="$PORTRAIT_PIXELS"
+    local name="$1" aspect from="" prompt="$3" target="assets/art/$1.webp" px="$PORTRAIT_PIXELS"
+    aspect="$(echo "${2%%<*}" | xargs)"
+    case "$2" in *'<'*) from="$(echo "${2#*<}" | xargs)" ;; esac
     [ "$aspect" = "1:1" ] || px="$BANNER_PIXELS"
-    case "$name" in title-*|intro-*) px="$TITLE_PIXELS" ;; esac
+    case "$name" in title-*|intro-*|ending-*) px="$TITLE_PIXELS" ;; esac
     wanted "$name" "$target" || return 0
-    echo "  $name"
-    if ! generate "$name" --kind image --param "aspect_ratio=$aspect" --text "$prompt"; then
+    local extra=()
+    if [ -n "$from" ]; then
+        echo "  $name (from $from)"
+        # The library keeps the full-size original; the committed webp will do if it hasn't.
+        # By exact name: assetgen matches id prefixes first, and `hire-ox` prefixes `hire-ox-home`.
+        local id
+        id="$("$CLI" ls --kind image --json | "$PY" -c "import json, sys; print(next((a['id'] for a in json.load(sys.stdin) if a['name'] == sys.argv[1]), ''))" "$from")"
+        if [ -z "$id" ] || ! "$CLI" get "$id" --out "$TMP/$from.png" >/dev/null 2>&1; then
+            [ -f "assets/art/$from.webp" ] || { echo "    FAILED: no $from to start from" >&2; FAILED=$((FAILED + 1)); return 0; }
+            "$PY" -c "from PIL import Image; Image.open('assets/art/$from.webp').convert('RGB').save('$TMP/$from.png')"
+        fi
+        extra=(--model flux-dev --image "$TMP/$from.png" --param "prompt_strength=$FROM_STRENGTH")
+    else
+        echo "  $name"
+    fi
+    if ! generate "$name" --kind image "${extra[@]}" --param "aspect_ratio=$aspect" --text "$prompt"; then
         echo "    FAILED to generate" >&2; FAILED=$((FAILED + 1)); return 0
     fi
     if ! "$CLI" get "$name" --out "$TMP/$name.png" >/dev/null || ! "$PY" scripts/fit.py "$TMP/$name.png" "$target" "$px"; then

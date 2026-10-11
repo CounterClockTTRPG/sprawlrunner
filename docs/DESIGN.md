@@ -1339,6 +1339,26 @@ The safehouse offers "Retire..." once a campaign is won or `Tables.RetireSavings
 (¥250,000) is put away, with no job on: the receipt and the legacy, as a legend after
 a campaign, quietly otherwise.
 
+**How you go** (`Career.Exit.cs`): retiring (from the safehouse, or Juno's call after the
+Spire) asks how, every way shown and the closed ones greyed with what they'd need:
+- *Get out of Kessler Bay* -- always (a legend's ticket out, or the morning train south).
+- *Stay with* your partner -- a living one; a last scene of their own for each of the five.
+- *Take Juno's chair* -- Juno's trust `Tables.ExitFixerTrust` (4), and Juno still around.
+- *Go straight* -- a business of your own (the dearest one you own is the one you run).
+
+Then the last scene full screen (`IntroScreen`, over `ending-*` art): how it ended, and
+"Afterwards" with the first lines of the epilogue; then the receipt, which names the way
+out ("Settled down with Wisp", "Took Juno's chair") at the same score multiplier. Dying
+has a last scene too: the stone, and who paid for it (your partner, Juno, or nobody knows).
+Each new way out is an achievement (The long way home, The back booth, Gone straight).
+
+**Crew faces in scenes**: a crew member's scene shows their portrait; Ox, Wisp, Patch, Ade
+and Rook also have one off duty at your place (the safehouse talks, the asking), one
+together (a partner's nights, worries, keepsake), and one hurt (a no, a break-up) --
+`Career.CrewMood`, painted over the hire portrait (`1:1 < hire-<id>` in the art manifest:
+flux-dev image-to-image, so the face stays theirs). The asking turns to the answer's
+picture as you choose.
+
 ## Ninth pass: the streets (`City.Dress`, `City.BuildCauseway`, `CitySim.Works.cs`)
 
 Variety on the drive. Every new piece is drawn from its own seeded stream after the

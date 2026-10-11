@@ -173,17 +173,31 @@ public partial class StoryModal : Modal
         Build();
     }
 
-    /// <summary>The message itself: who, what about, the words -- with the sender's face when they are a contact.</summary>
+    /// <summary>
+    /// The message itself: who, what about, the words -- with the sender's face when they are a
+    /// contact, or crew as the scene finds them (at your place, together, hurt), which changes with your answer.
+    /// </summary>
     public static Control Letter(Career c, Mail m, float width = 560)
     {
         var row = UITheme.HBox(14);
         ContactDef k = Tables.Contacts.FirstOrDefault(x => x.Name == m.From);
+        string hire = Tables.Hires.FirstOrDefault(h => h.name == m.From).id;
+        string crewPic = null;
+        if (k == null && hire != null)
+        {
+            crewPic = Assets.CrewPicture(hire, c.CrewMood(m));
+            if (Assets.Picture(crewPic) == null) crewPic = Assets.HirePicture(hire);
+            if (Assets.Picture(crewPic) == null) crewPic = null;
+        }
+        bool face = k != null || crewPic != null;
         if (k != null)
             row.AddChild(new Portrait { Contact = k, Seed = Array.IndexOf(Tables.Contacts, k) + 2, CustomMinimumSize = new Vector2(110, 110), ClipContents = true });
+        else if (crewPic != null)
+            row.AddChild(new Portrait { Picture = crewPic, Tint = UITheme.Cyan, CustomMinimumSize = new Vector2(150, 150), ClipContents = true });
         var t = UITheme.VBox(4);
-        t.CustomMinimumSize = new Vector2(width - (k != null ? 124 : 0), 0);
+        t.CustomMinimumSize = new Vector2(width - (face ? (k != null ? 124 : 164) : 0), 0);
         t.SizeFlagsHorizontal = SizeFlags.ExpandFill;
-        t.AddChild(UITheme.Label(m.From, 20, k != null ? Art.C(k.Colour) : UITheme.Amber, heading: true));
+        t.AddChild(UITheme.Label(m.From, 20, k != null ? Art.C(k.Colour) : crewPic != null ? UITheme.Cyan : UITheme.Amber, heading: true));
         t.AddChild(UITheme.Label($"{m.Subject}   ·   day {m.Day}", 14, UITheme.Dim));
         t.AddChild(UITheme.Label(m.Text, 17, UITheme.Text));
         row.AddChild(t);
