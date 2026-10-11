@@ -45,6 +45,8 @@ public partial class RunScreen : Control
     public RunView View;
     private HudLayer _hud;
     private bool _paused, _ended;
+    /// <summary>The pause menu is up (not the debrief that follows the run, which is still play).</summary>
+    public bool IsPaused => _paused && DebriefScreen.Open == 0;
     private float _endT;
     // Edge-triggered input collected between physics steps.
     private bool _dash, _reload, _medkit, _q, _f, _g, _throwRelease, _ePressed, _whistle, _rig;

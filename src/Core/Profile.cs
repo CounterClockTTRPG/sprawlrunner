@@ -8,8 +8,8 @@ using Godot;
 namespace Sprawl;
 
 /// <summary>
-/// Settings, and the one career slot (ironman: saved after every run and at
-/// the safehouse, deleted when the runner dies). Kept in Godot's user:// as
+/// Settings, and the three career slots (ironman: each saved after every run and at
+/// the safehouse, emptied when its runner dies or retires). Kept in Godot's user:// as
 /// JSON. <see cref="Scratch"/> (the self-check and the walkthrough) keeps
 /// everything in memory so a test never touches the real files.
 /// </summary>
@@ -114,9 +114,10 @@ public sealed class Profile
     public static bool Agent;
     public static Profile Current { get; private set; } = new();
 
+    /// <summary>The career slot played last (what "New career" falls back on when every slot is taken).</summary>
+    public int LastSlot = 1;
+
     private const string SettingsPath = "user://sprawlrunner.json";
-    private static string CareerPath => Agent ? "user://agent_career.json" : "user://career.json";
-    private static string _scratchCareer;
 
     public static void Load()
     {
@@ -132,6 +133,8 @@ public sealed class Profile
             GD.PrintErr($"settings unreadable, starting fresh: {e.Message}");
             Current = new Profile();
         }
+        MigrateOldSave();
+        Slot = Math.Clamp(Current.LastSlot, 1, Slots);
     }
 
     public void Save()
@@ -167,47 +170,115 @@ public sealed class Profile
         DisplayServer.WindowSetPosition(usable.Position + (usable.Size - size) / 2);
     }
 
+    // ---- the files: on disk, or in memory for the scratch profile ---------------------------
+
+    private static readonly Dictionary<string, string> _scratchFiles = new();
+
+    internal static bool FileExists(string path) => Scratch ? _scratchFiles.ContainsKey(path) : File.Exists(ProjectSettings.GlobalizePath(path));
+    internal static string ReadFile(string path) => Scratch ? _scratchFiles.GetValueOrDefault(path) : File.Exists(ProjectSettings.GlobalizePath(path)) ? File.ReadAllText(ProjectSettings.GlobalizePath(path)) : null;
+
+    /// <summary>Written to a temporary file first and moved over, so a crash mid-save never leaves half a career.</summary>
+    internal static void WriteFile(string path, string text)
+    {
+        if (Scratch) { _scratchFiles[path] = text; return; }
+        string full = ProjectSettings.GlobalizePath(path);
+        File.WriteAllText(full + ".tmp", text);
+        File.Move(full + ".tmp", full, true);
+    }
+
+    internal static void DeleteFile(string path)
+    {
+        if (Scratch) { _scratchFiles.Remove(path); return; }
+        string full = ProjectSettings.GlobalizePath(path);
+        if (File.Exists(full)) File.Delete(full);
+    }
+
+    private static void MoveFile(string from, string to)
+    {
+        if (Scratch) { if (_scratchFiles.Remove(from, out string t)) _scratchFiles[to] = t; return; }
+        File.Move(ProjectSettings.GlobalizePath(from), ProjectSettings.GlobalizePath(to), true);
+    }
+
+    // ---- the career slots ------------------------------------------------------------------
+
+    /// <summary>Three careers side by side (each its own ironman file); the agent playtester keeps its one.</summary>
+    public const int SlotCount = 3;
+    public static int Slots => Agent ? 1 : SlotCount;
+    /// <summary>The slot being played: saves, the morning copy and a death all touch only this one.</summary>
+    public static int Slot = 1;
+
+    /// <summary>Where one slot's career lives.</summary>
+    public static string CareerFile(int slot) => Agent ? "user://agent_career.json" : $"user://career{slot}.json";
+    private static string MorningFile(int slot) => Agent ? "user://agent_morning.json" : $"user://career{slot}_morning.json";
+
+    /// <summary>Before slots there was one file. It moves into slot 1 (or the first free one), with its morning copy.</summary>
+    internal const string OldCareerFile = "user://career.json", OldMorningFile = "user://career_morning.json";
+
+    public static void MigrateOldSave()
+    {
+        if (Agent) return;
+        try
+        {
+            if (!FileExists(OldCareerFile)) return;
+            int to = FileExists(CareerFile(1)) ? FreeSlot() : 1;
+            if (to < 0) { GD.PrintErr("an old career.json is left over and every slot is taken: leaving it where it is"); return; }
+            MoveFile(OldCareerFile, CareerFile(to));
+            if (FileExists(OldMorningFile)) MoveFile(OldMorningFile, MorningFile(to));
+            Current.LastSlot = to;
+            Current.Save();
+        }
+        catch (Exception e) { GD.PrintErr($"could not move the old career into a slot: {e.Message}"); }
+    }
+
+    /// <summary>The first empty slot, or -1.</summary>
+    public static int FreeSlot()
+    {
+        for (int s = 1; s <= Slots; s++) if (!HasSlot(s)) return s;
+        return -1;
+    }
+
+    public static bool HasSlot(int slot) => FileExists(CareerFile(slot));
+
+    /// <summary>Play this slot from now on (and start the title there next time).</summary>
+    public static void UseSlot(int slot)
+    {
+        Slot = Math.Clamp(slot, 1, Slots);
+        if (Current.LastSlot == Slot) return;
+        Current.LastSlot = Slot;
+        Current.Save();
+    }
+
     // ---- the career ------------------------------------------------------------------
 
-    public static bool HasCareer => Scratch ? _scratchCareer != null : File.Exists(ProjectSettings.GlobalizePath(CareerPath));
+    public static bool HasCareer => HasSlot(Slot);
 
     public static void SaveCareer(Career c)
     {
-        string json = c.ToJson();
-        if (Scratch) { _scratchCareer = json; return; }
-        try
-        {
-            string path = ProjectSettings.GlobalizePath(CareerPath);
-            File.WriteAllText(path + ".tmp", json);
-            File.Move(path + ".tmp", path, true);
-        }
+        try { WriteFile(CareerFile(Slot), c.ToJson()); }
         catch (Exception e) { GD.PrintErr($"could not save the career: {e.Message}"); }
     }
 
-    public static Career LoadCareer()
+    public static Career LoadCareer() => LoadCareer(Slot);
+
+    public static Career LoadCareer(int slot)
     {
         try
         {
-            string json = Scratch ? _scratchCareer : File.ReadAllText(ProjectSettings.GlobalizePath(CareerPath));
+            string json = ReadFile(CareerFile(slot));
             return json == null ? null : Career.FromJson(json);
         }
         catch (Exception e)
         {
-            GD.PrintErr($"career unreadable: {e.Message}");
+            GD.PrintErr($"career in slot {slot} unreadable: {e.Message}");
             return null;
         }
     }
 
     // ---- gentle mode: the morning's save ---------------------------------------------------
 
-    private static string SnapPath => Agent ? "user://agent_morning.json" : "user://career_morning.json";
-    private static string _scratchSnap;
-
     public static void SaveMorning(Career c)
     {
-        string json = c.ToJson();
-        if (Scratch) { _scratchSnap = json; return; }
-        try { File.WriteAllText(ProjectSettings.GlobalizePath(SnapPath), json); }
+        try { WriteFile(MorningFile(Slot), c.ToJson()); }
         catch (Exception e) { GD.PrintErr($"could not save the morning: {e.Message}"); }
     }
 
@@ -215,19 +286,19 @@ public sealed class Profile
     {
         try
         {
-            string json = Scratch ? _scratchSnap : File.Exists(ProjectSettings.GlobalizePath(SnapPath)) ? File.ReadAllText(ProjectSettings.GlobalizePath(SnapPath)) : null;
+            string json = ReadFile(MorningFile(Slot));
             return json == null ? null : Career.FromJson(json);
         }
         catch (Exception e) { GD.PrintErr($"morning save unreadable: {e.Message}"); return null; }
     }
 
+    /// <summary>Ironman: the end of a career empties its slot (the others are untouched).</summary>
     public static void DeleteCareer()
     {
-        if (Scratch) { _scratchCareer = null; return; }
         try
         {
-            string path = ProjectSettings.GlobalizePath(CareerPath);
-            if (File.Exists(path)) File.Delete(path);
+            DeleteFile(CareerFile(Slot));
+            DeleteFile(MorningFile(Slot));
         }
         catch (Exception e) { GD.PrintErr($"could not delete the career: {e.Message}"); }
     }

@@ -16,6 +16,7 @@ public sealed partial class Career
         var r = new List<(string, string)>
         {
             ("Days on the street", $"{Day}"),
+            ("Time played", M.Played(PlaySeconds)),
             ("Jobs done / failed", $"{JobsDone} / {JobsFailed}"),
             ("Earned", M.Money(Stat("earned"))),
             ("Spent", M.Money(Stat("spent"))),

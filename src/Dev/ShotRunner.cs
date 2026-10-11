@@ -61,6 +61,26 @@ public partial class ShotRunner : Node
                 Root.ShowTitle();
                 await Frames(60);
                 await Shot("01_title");
+                // Two slots taken, one free (the scratch profile: nothing touches the real saves).
+                var vet = Career.New("Kestrel", "decker", 11);
+                vet.Day = 34; vet.Cash = 48250; vet.PlaySeconds = 4 * 3600 + 17 * 60;
+                Profile.UseSlot(1);
+                Profile.SaveCareer(vet);
+                var rookie = Career.New("Static", "mage", 12);
+                rookie.Day = 3; rookie.Cash = 2100; rookie.PlaySeconds = 41 * 60;
+                Profile.UseSlot(3);
+                Profile.SaveCareer(rookie);
+                Root.ShowTitle();
+                await Frames(30);
+                await Shot("01b_title_slots");
+                ((Button)Root.Screen.FindChild("slot3", true, false).GetChild(1)).EmitSignal(BaseButton.SignalName.Pressed);
+                await Frames(10);
+                await Shot("01c_title_overwrite");
+                Profile.DeleteCareer();
+                Profile.UseSlot(1);
+                Profile.DeleteCareer();
+                Root.ShowTitle();
+                await Frames(10);
                 Root.Screen.AddChild(new CreateScreen { Root = Root });
                 await Frames(10);
                 await Shot("02_create");
