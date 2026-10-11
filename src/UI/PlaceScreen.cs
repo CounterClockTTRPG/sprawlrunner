@@ -137,9 +137,9 @@ public partial class PlaceScreen : Control
             CallDeferred(Node.MethodName.AddChild, new StoryModal(C, scene) { Answered = () => { Refresh(); Show(_tab); } });
     }
 
-    public override void _UnhandledKeyInput(InputEvent e)
+    public override void _UnhandledInput(InputEvent e)
     {
-        if (e is InputEventKey { Pressed: true, Keycode: Key.Escape } && Modal.Open == 0)
+        if (Controls.Back(e) && Modal.Open == 0)
         {
             Leave();
             GetViewport().SetInputAsHandled();

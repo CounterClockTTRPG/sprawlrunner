@@ -1,6 +1,8 @@
 # Sprawlrunner: a fourth look -- what makes it Shadowrun
 
-> **Status.** Analysis only; nothing here is built yet. Written after the
+> **Status.** Section 1 (the quick fixes) is built, with checks in
+> `tests/SmokeTest.LooseEnds.cs`; the balance report's archetype edge is a rough
+> per-kit guess, not yet the bot's results. The rest is unbuilt. Written after the
 > eighth pass. Sources: a survey of the code (file:line evidence), the
 > self-check and balance report of 2026-10-11 (all sections pass), and the
 > leftovers of `docs/NEXT2.md`.

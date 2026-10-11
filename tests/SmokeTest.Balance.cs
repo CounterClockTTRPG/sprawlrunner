@@ -41,11 +41,13 @@ public partial class SmokeTest
                     Job j = c.Active ?? c.Board.Where(x => x.Type != JobType.Hub).OrderByDescending(x => x.Story).ThenByDescending(x => x.Threat <= c.MaxThreat ? x.Pay : 0).FirstOrDefault();
                     if (j != null)
                     {
+                        // A runner with the mouth for it pushes the Johnson once; a walk-out loses the job.
+                        if (j.Johnson && c.A(Attr.Charisma) >= 4) c.Haggle(j);
                         if (j.Johnson) j.Negotiated = true;
-                        if (c.Accept(j) == null)
+                        if (c.Board.Contains(j) && c.Accept(j) == null)
                         {
-                            // Harder jobs go wrong more often; good gear and chrome help a little.
-                            float win = 0.93f - 0.04f * j.Threat + 0.01f * Math.Min(8, c.Cyber.Count + c.Weapons.Count);
+                            // Harder jobs go wrong more often; good gear and chrome help a little, and so does a kit made for the job.
+                            float win = 0.93f - 0.04f * j.Threat + 0.01f * Math.Min(8, c.Cyber.Count + c.Weapons.Count) + KitFit(arch, j.Type);
                             var res = r.Chance(win) ? Won(c, alarm: r.Chance(0.4f), kills: r.Range(0, 12)) : Lost(c);
                             res.TargetFled = j.Type == JobType.Eliminate && !res.Success;
                             c.TraumaLinks = Math.Max(c.TraumaLinks, 1);
@@ -79,6 +81,17 @@ public partial class SmokeTest
         Offer best = c.Offers(where).Where(o => o.Block == null && o.Owned == null && Buys.Contains(o.Kind) && o.Price > 0 && o.Price < c.Cash * 0.5f)
             .OrderByDescending(o => o.Price).FirstOrDefault();
         if (best != null) c.Buy(best);
-        if (c.Medkits < 2 && c.Cash > 2000) { c.Medkits++; c.Cash -= 300; c.Count("spent", 300); }
+        if (c.Medkits < 2 && c.Cash > 2000 && c.Offers("arms").FirstOrDefault(o => o.Kind == ShopKind.Medkit && o.Block == null) is Offer kit) c.Buy(kit);
     }
+
+    /// <summary>A rough guess at what each kit is for: a little more likely to win those jobs, a little less the rest.</summary>
+    private static float KitFit(string arch, JobType t) => (arch, t) switch
+    {
+        ("samurai", JobType.Eliminate or JobType.Clear or JobType.Defend or JobType.Bounty) => 0.05f,
+        ("decker", JobType.Datasteal or JobType.Hack) => 0.07f,
+        ("face", JobType.Retrieve or JobType.Investigate or JobType.Escort or JobType.Kidnap) => 0.05f,
+        ("engineer", JobType.Destroy or JobType.Plant or JobType.Clear) => 0.06f,
+        ("mage", JobType.Rescue or JobType.Escort or JobType.Clear) => 0.05f,
+        _ => -0.02f,
+    };
 }

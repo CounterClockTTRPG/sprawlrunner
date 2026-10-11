@@ -165,7 +165,7 @@ public sealed partial class Run
             if (StepNoiseT <= 0)
             {
                 StepNoiseT = 0.35f;
-                Noise(p.Pos, 2.4f * (1 - 0.1f * C.S(Skill.Stealth)) * StepNoiseMul, true, quiet: true);
+                Noise(p.Pos, 2.4f * (1 - 0.1f * C.S(Skill.Stealth)) * StepNoiseMul * Tables.Armor(C.ArmorId).Steps, true, quiet: true);
             }
         }
 

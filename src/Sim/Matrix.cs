@@ -105,7 +105,7 @@ public sealed class MatrixRun
     public readonly MatrixSetup S;
     public Pt You, From, Entry, Core = new(-1, -1), PlantAt = new(-1, -1);
     public int Rating, Damage, Boxes, Firewall, UsedMp;
-    public float Trace, CoreHp, CoreMax, Locked, SlowT, DecoyT, LaunchT, HoldT, PlantT, MoveCd, SpikeCd, DecoyCd;
+    public float Trace, CoreHp, CoreMax, Locked, SlowT, DecoyT, LaunchT, HoldT, MoveCd, SpikeCd, DecoyCd;
     public Pt Decoy;
     public bool Alert, CoreDown, Planted, SpoofLeft, SlipLeft, Out;
     public string Ended;

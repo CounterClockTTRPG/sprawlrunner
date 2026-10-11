@@ -47,9 +47,9 @@ public partial class Modal : Control
         Closed?.Invoke();
     }
 
-    public override void _UnhandledKeyInput(InputEvent e)
+    public override void _UnhandledInput(InputEvent e)
     {
-        if (e is InputEventKey { Pressed: true, Keycode: Key.Escape } && EscapeCloses)
+        if (Controls.Back(e) && EscapeCloses)
         {
             Close();
             GetViewport().SetInputAsHandled();

@@ -86,6 +86,15 @@ public static class Controls
         return false;
     }
 
+    /// <summary>
+    /// Did this event back out of a menu: Escape, the pause binding, or B on a pad.
+    /// Where the player types (<paramref name="typing"/>), a pause key rebound to a letter doesn't count.
+    /// </summary>
+    public static bool Back(InputEvent e, bool typing = false) =>
+        e is InputEventKey { Pressed: true, Echo: false, Keycode: Key.Escape }
+        || !typing && e is InputEventKey && Is(e, Act.Pause)
+        || e is InputEventJoypadButton { Pressed: true, ButtonIndex: JoyButton.B } && !AgentRunner.Active;
+
     public static bool PadOn => !AgentRunner.Active && Input.GetConnectedJoypads().Count > 0;
 
     /// <summary>A stick with a dead zone: left (move/steer) or right (aim).</summary>

@@ -58,6 +58,8 @@ public sealed class ArmorDef
     public float SpeedMul = 1;
     /// <summary>Detection slower by this much (a stealth suit); spell power up by this much (a warded coat).</summary>
     public float Stealth, Magic;
+    /// <summary>Footstep noise times this (sound-dampening soles).</summary>
+    public float Steps = 1;
     public bool Elite;
 }
 
@@ -329,7 +331,7 @@ public static partial class Tables
         new() { Id = "jacket", Name = "Armoured jacket", Armor = 3, Cost = 1500, Desc = "Ballistic weave under the chrome trim." },
         new() { Id = "coat", Name = "Lined coat", Armor = 5, Cost = 4500, Loyalty = 1, Desc = "Long, black, and bullet-resistant." },
         new() { Id = "fullbody", Name = "Full body armour", Armor = 8, SpeedMul = 0.94f, Cost = 11000, Loyalty = 3, Desc = "Riot plates. Slower, much harder to kill." },
-        new() { Id = "sneaksuit", Name = "Second-skin suit", Armor = 4, Stealth = 0.25f, Cost = 24000, Loyalty = 3, Desc = "Chameleon fibre and sound-dampening soles: spotted 25 % slower, footsteps near silent." },
+        new() { Id = "sneaksuit", Name = "Second-skin suit", Armor = 4, Stealth = 0.25f, Steps = 0.35f, Cost = 24000, Loyalty = 3, Desc = "Chameleon fibre and sound-dampening soles: spotted 25 % slower, footsteps near silent." },
         new() { Id = "moonsilver", Name = "Moonsilver coat", Armor = 4, Magic = 0.15f, Cost = 26000, Loyalty = 3, Desc = "Warded thread woven through the lining. Spells +15 %; Sabine had a hand in it." },
         new() { Id = "security", Name = "Security armour", Armor = 11, SpeedMul = 0.92f, Cost = 22000, Loyalty = 4, Desc = "What a Halcyon SWAT team wears, minus the logo." },
         new() { Id = "milspec", Name = "Mil-spec battle armour", Armor = 15, SpeedMul = 0.88f, Cost = 48000, Loyalty = 5, Elite = true, Desc = "Hardened military plate with a sealed helmet. You walk like a tank and die like one: slowly." },

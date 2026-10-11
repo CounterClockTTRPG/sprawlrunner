@@ -63,7 +63,7 @@ public partial class Terminal : PanelContainer
         _in.TextSubmitted += t => { Run(t); _in.Text = ""; };
         _in.GuiInput += e =>
         {
-            if (e is InputEventKey { Pressed: true, Keycode: Key.Escape }) { _in.ReleaseFocus(); Escape?.Invoke(); _in.AcceptEvent(); }
+            if (Controls.Back(e, typing: true)) { _in.ReleaseFocus(); Escape?.Invoke(); _in.AcceptEvent(); }
         };
         row.AddChild(UITheme.Grow(_in));
         v.AddChild(row);
