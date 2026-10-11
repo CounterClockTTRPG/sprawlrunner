@@ -4,8 +4,27 @@ using System.Linq;
 
 namespace Sprawl;
 
-public enum CTile : byte { Road, Sidewalk, Building, Grass, Tree, Water, Parking, Pier, Plaza, Statue }
-public enum LotKind { Building, Park, Parking }
+public enum CTile : byte
+{
+    Road, Sidewalk, Building, Grass, Tree, Water, Parking, Pier, Plaza, Statue,
+    /// <summary>A two-tile service lane through a block, avenue to avenue (cars fit, cruisers don't follow).</summary>
+    Alley,
+    /// <summary>Waste ground: drivable, slow unless the ride is built for it.</summary>
+    Dirt,
+    /// <summary>A heap of what used to be a building, or a burnt-out car.</summary>
+    Rubble,
+    /// <summary>Stacked shipping containers or crates.</summary>
+    Container,
+    /// <summary>A rail spur through an Industrial block: drivable, the sleepers loosen your grip.</summary>
+    Rail,
+    /// <summary>The Bayshore Causeway and its ramps: smooth and fast.</summary>
+    Highway,
+    /// <summary>The causeway's crash barrier, and the Spire's bollards.</summary>
+    Barrier,
+    /// <summary>A neon arcade through a Strip block: people walk it, cars can (carefully).</summary>
+    Arcade,
+}
+public enum LotKind { Building, Park, Parking, Yard }
 
 public sealed class Lot
 {
@@ -45,7 +64,21 @@ public sealed class City
     public CTile this[int x, int y] => x >= 0 && y >= 0 && x < W && y < H ? T[y * W + x] : CTile.Water;
     public bool In(int x, int y) => x >= 0 && y >= 0 && x < W && y < H;
 
-    public bool Solid(int x, int y) => this[x, y] is CTile.Building or CTile.Tree or CTile.Water or CTile.Statue;
+    public bool Solid(int x, int y) => this[x, y] is CTile.Building or CTile.Tree or CTile.Water or CTile.Statue or CTile.Rubble or CTile.Container or CTile.Barrier;
+
+    /// <summary>A lane through a block (alley, arcade, rail spur): too tight for a cruiser.</summary>
+    public bool Narrow(int x, int y) => this[x, y] is CTile.Alley or CTile.Arcade or CTile.Rail;
+
+    /// <summary>Where people walk: the pavement, and the Strip's arcades.</summary>
+    public bool Walk(CTile t) => t is CTile.Sidewalk or CTile.Arcade;
+
+    /// <summary>Potholes in the Barrens' avenues (tile index): a jolt at speed.</summary>
+    public readonly HashSet<int> Potholes = new();
+    /// <summary>The lanes cut through blocks, for the checks and the map.</summary>
+    public readonly List<Rect> Alleys = new();
+    /// <summary>The Bayshore Causeway: its two legs over the bay (south and east), and the ramps down to the avenues.</summary>
+    public Rect CausewaySouth, CausewayEast;
+    public readonly List<Rect> Ramps = new();
 
     /// <summary>The lot that is this place ("home", a contact, a hub), or null.</summary>
     public Lot Place(string id) => id == null ? Lots.FirstOrDefault(l => l.Place == null) : _places.TryGetValue(id, out Lot l) ? l : null;
@@ -119,8 +152,197 @@ public sealed class City
         c.AssignPlaces(r);
         foreach (Lot l in c.Lots)
             if (l.Place != null) c._places.TryAdd(l.Place, l);
+        // After every address is dealt, and from a stream of its own: the streets get their character
+        // without moving a single door, so a saved career keeps its city.
+        c.Dress(blocks, marks, new Rng(seed ^ 0xD2E55UL));
+        c.BuildCauseway(new Rng(seed ^ 0xCA05EUL));
         return c;
     }
+
+    // ---- the districts' own streets ------------------------------------------------------
+
+    /// <summary>How often a deep block in each district has a lane cut through it.</summary>
+    private static float AlleyChance(string district) => district switch
+    {
+        "barrens" => 0.65f, "strip" => 0.6f, "docks" => 0.45f, "industrial" => 0.45f, _ => 0.2f,
+    };
+
+    /// <summary>
+    /// The districts' own streets: lanes through the blocks (alleys; arcades on the Strip; rail spurs in
+    /// Industrial), container yards at the Docks, waste ground and potholes in the Barrens, crate yards in
+    /// Industrial, corporate plazas behind bollards in the Spire. Only open lots change kind; buildings
+    /// give up a tile of depth to a lane, never their door.
+    /// </summary>
+    private void Dress(List<Rect> blocks, Dictionary<Rect, string> marks, Rng r)
+    {
+        foreach (Rect block in blocks)
+        {
+            if (marks.ContainsKey(block)) continue;
+            string dist = DistrictAt[block.Centre.Y * W + block.Centre.X];
+            if (!r.Chance(AlleyChance(dist))) continue;
+            CutLane(block, dist);
+        }
+        foreach (Lot l in Lots)
+        {
+            if (l.Landmark != null || l.Place != null) continue;
+            switch (l.District)
+            {
+                case "docks" when l.Kind is LotKind.Parking or LotKind.Park && r.Chance(0.8f):
+                    Yard(l, 2, r);
+                    break;
+                case "industrial" when l.Kind == LotKind.Parking && r.Chance(0.6f):
+                    Yard(l, 1, r);
+                    break;
+                case "barrens" when l.Kind is LotKind.Park or LotKind.Parking:
+                    WasteGround(l, r);
+                    break;
+                case "spire" when l.Kind == LotKind.Park:
+                    CorporatePlaza(l);
+                    break;
+            }
+        }
+        // The Barrens' avenues are falling apart: potholes in the lanes, never in a junction.
+        for (int y = 0; y < LandH; y++)
+        for (int x = 0; x < LandW; x++)
+        {
+            if (T[y * W + x] != CTile.Road || DistrictAt[y * W + x] != "barrens") continue;
+            bool inX = RoadX.Exists(rx => x >= rx && x < rx + Road), inY = RoadY.Exists(ry => y >= ry && y < ry + Road);
+            if (inX && inY) continue;
+            if (r.Chance(0.035f)) Potholes.Add(y * W + x);
+        }
+    }
+
+    /// <summary>
+    /// A two-tile lane along the line where a block's two strips of lots meet, from avenue to avenue across
+    /// the pavement ring. Each lot beside it loses one tile of depth (and keeps its door, which faces out).
+    /// </summary>
+    private void CutLane(Rect block, string dist)
+    {
+        Rect inner = block.Inset(1);
+        bool wide = inner.W >= inner.H;
+        int depth = wide ? inner.H : inner.W;
+        if (depth < 10) return;
+        var inside = Lots.Where(l => inner.Contains(new Pt(l.R.X, l.R.Y))).ToList();
+        if (inside.Count < 2) return;
+        // The seam: the far edge of the first strip.
+        Lot first = inside.FirstOrDefault(l => wide ? l.R.Y == inner.Y : l.R.X == inner.X);
+        if (first == null) return;
+        int cut = wide ? first.R.Bottom : first.R.Right;
+        var before = new List<Lot>();
+        var after = new List<Lot>();
+        foreach (Lot l in inside)
+        {
+            int lo = wide ? l.R.Y : l.R.X, hi = wide ? l.R.Bottom : l.R.Right;
+            if (hi == cut) before.Add(l);
+            else if (lo == cut) after.Add(l);
+            else return; // not two strips after all
+            if (hi - lo < 4) return;
+            // A door on the seam would open into the lane.
+            int dc = wide ? l.Door.Y : l.Door.X;
+            if (dc == cut - 1 || dc == cut) return;
+        }
+        if (before.Count == 0 || after.Count == 0) return;
+        foreach (Lot l in before) l.R = wide ? new Rect(l.R.X, l.R.Y, l.R.W, l.R.H - 1) : new Rect(l.R.X, l.R.Y, l.R.W - 1, l.R.H);
+        foreach (Lot l in after) l.R = wide ? new Rect(l.R.X, l.R.Y + 1, l.R.W, l.R.H - 1) : new Rect(l.R.X + 1, l.R.Y, l.R.W - 1, l.R.H);
+        CTile lane = dist switch { "strip" => CTile.Arcade, "industrial" => CTile.Rail, _ => CTile.Alley };
+        Rect a = wide ? new Rect(block.X, cut - 1, block.W, 2) : new Rect(cut - 1, block.Y, 2, block.H);
+        for (int y = a.Y; y < a.Bottom; y++)
+        for (int x = a.X; x < a.Right; x++) T[y * W + x] = lane;
+        Alleys.Add(a);
+    }
+
+    /// <summary>Rows of stacks <paramref name="stack"/> tiles wide with two-tile lanes between, and a clear apron along the street.</summary>
+    private void Yard(Lot l, int stack, Rng r)
+    {
+        l.Kind = LotKind.Yard;
+        bool rowsAcross = l.Facing.Y != 0; // the street is north or south: the lanes run north-south
+        CTile floor = l.District == "docks" ? CTile.Parking : CTile.Dirt;
+        for (int y = l.R.Y; y < l.R.Bottom; y++)
+        for (int x = l.R.X; x < l.R.Right; x++)
+        {
+            bool apron = l.Facing.Y < 0 ? y == l.R.Y : l.Facing.Y > 0 ? y == l.R.Bottom - 1 : l.Facing.X < 0 ? x == l.R.X : x == l.R.Right - 1;
+            int k = rowsAcross ? x - l.R.X : y - l.R.Y;
+            bool lane = k % (stack + 2) >= stack;
+            T[y * W + x] = apron || lane ? floor : r.Chance(0.92f) ? CTile.Container : floor;
+        }
+    }
+
+    /// <summary>Where a building came down: dirt, heaps of rubble, a burnt-out car.</summary>
+    private void WasteGround(Lot l, Rng r)
+    {
+        l.Kind = LotKind.Yard;
+        for (int y = l.R.Y; y < l.R.Bottom; y++)
+        for (int x = l.R.X; x < l.R.Right; x++)
+        {
+            bool edge = x == l.R.X || y == l.R.Y || x == l.R.Right - 1 || y == l.R.Bottom - 1;
+            T[y * W + x] = !edge && r.Chance(0.16f) ? CTile.Rubble : CTile.Dirt;
+        }
+    }
+
+    /// <summary>A Spire park becomes a corporate plaza: paving, planters in rows, bollards along the street with a gap.</summary>
+    private void CorporatePlaza(Lot l)
+    {
+        for (int y = l.R.Y; y < l.R.Bottom; y++)
+        for (int x = l.R.X; x < l.R.Right; x++)
+        {
+            bool front = l.Facing.Y < 0 ? y == l.R.Y : l.Facing.Y > 0 ? y == l.R.Bottom - 1 : l.Facing.X < 0 ? x == l.R.X : x == l.R.Right - 1;
+            int along = l.Facing.Y != 0 ? x - l.R.X : y - l.R.Y, len = l.Facing.Y != 0 ? l.R.W : l.R.H;
+            bool gap = Math.Abs(along - len / 2) <= 1;
+            bool planter = !front && (x - l.R.X) % 3 == 1 && (y - l.R.Y) % 3 == 1;
+            T[y * W + x] = front ? (gap || along % 2 == 1 ? CTile.Plaza : CTile.Barrier) : planter ? CTile.Tree : CTile.Plaza;
+        }
+    }
+
+    // ---- the Bayshore Causeway -----------------------------------------------------------
+
+    /// <summary>
+    /// An expressway on stilts over the bay, along the south and east shores, joined at the corner, with a
+    /// crash barrier both sides and ramps down to the waterfront avenues. No junctions, no traffic lights,
+    /// nobody on foot: the quick way round the city's edge, and the piers stop short of it.
+    /// </summary>
+    private void BuildCauseway(Rng r)
+    {
+        int sy = LandH + 6, ex = LandW + 6;
+        CausewaySouth = new Rect(0, sy, ex + Road, Road);
+        CausewayEast = new Rect(ex, 0, Road, sy + Road);
+        // The piers end at the causeway's inner barrier.
+        for (int y = LandH + 5; y < H; y++)
+        for (int x = 0; x < W; x++)
+            if (T[y * W + x] == CTile.Pier) T[y * W + x] = CTile.Water;
+        foreach (Rect leg in new[] { CausewaySouth, CausewayEast })
+            for (int y = leg.Y - 1; y <= leg.Bottom; y++)
+            for (int x = leg.X - 1; x <= leg.Right; x++)
+            {
+                if (!In(x, y)) continue;
+                bool deck = leg.Contains(new Pt(x, y)) || CausewaySouth.Contains(new Pt(x, y)) || CausewayEast.Contains(new Pt(x, y));
+                T[y * W + x] = deck ? CTile.Highway : T[y * W + x] == CTile.Highway ? CTile.Highway : CTile.Barrier;
+            }
+        // Ramps: from the waterfront avenue's end of a north-south avenue (south leg) or an east-west one (east leg).
+        var south = new List<int> { 0 };
+        for (int i = 1; i < RoadX.Count - 1; i++) if (r.Chance(0.3f) && RoadX[i] - RoadX[south[^1]] > 40) south.Add(i);
+        var east = new List<int> { 0 };
+        for (int j = 1; j < RoadY.Count - 1; j++) if (r.Chance(0.4f) && RoadY[j] - RoadY[east[^1]] > 34) east.Add(j);
+        foreach (int i in south) Ramp(new Rect(RoadX[i], LandH, Road, sy - LandH));
+        foreach (int j in east) Ramp(new Rect(LandW, RoadY[j], ex - LandW, Road));
+    }
+
+    private void Ramp(Rect ramp)
+    {
+        for (int y = ramp.Y; y < ramp.Bottom; y++)
+        for (int x = ramp.X; x < ramp.Right; x++) T[y * W + x] = CTile.Highway;
+        // Barriers down both sides of the ramp, over the water.
+        bool down = ramp.H > ramp.W;
+        for (int k = 0; k < (down ? ramp.H : ramp.W); k++)
+            foreach (int side in new[] { -1, down ? ramp.W : ramp.H })
+            {
+                int x = down ? ramp.X + side : ramp.X + k, y = down ? ramp.Y + k : ramp.Y + side;
+                if (In(x, y) && T[y * W + x] is CTile.Water or CTile.Pier) T[y * W + x] = CTile.Barrier;
+            }
+        Ramps.Add(ramp);
+    }
+
+    /// <summary>On the causeway or a ramp.</summary>
+    public bool OnCauseway(V2 p) => this[(int)MathF.Floor(p.X), (int)MathF.Floor(p.Y)] == CTile.Highway;
 
     private string NearestDistrict(int x, int y)
     {

@@ -266,6 +266,13 @@ public static partial class Tables
     public const int EdgeMax = 4, EdgeKarma = 15;
     public const float EdgeHeal = 0.33f, EdgeGrace = 1.2f;
     public const float RoadblockClear = 14, RoadblockSees = 12, RoadblockStop = 4, RoadblockWait = 2;
+    /// <summary>The city's own streets: a pothole jolts above this speed (tiles/s) for this much hull; top speed on the causeway.</summary>
+    public const float PotholeSpeed = 7, PotholeDamage = 1.5f, CausewaySpeed = 1.2f;
+    /// <summary>Happenings on the street: stadium night's extra cars and fans; the gang war's wrecks; the motorcade's pace and the heat for ramming it.</summary>
+    public const int StadiumCars = 24, StadiumFans = 40, WarWrecks = 4;
+    public const float MotorcadeCruise = 5, MotorcadeHeat = 2;
+    /// <summary>A street race: how near the finish counts as over the line; the hotshot's pace.</summary>
+    public const float RaceFinish = 4, StreetRacerCruise = 11.5f;
 
     // ---- weapons ----------------------------------------------------------------
     public static readonly WeaponDef[] Weapons =

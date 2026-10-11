@@ -113,6 +113,13 @@ public static class M
     }
 
     public static string Money(int n) => "¥" + n.ToString("N0", System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>Time played, to the minute: "42m", "3h 05m".</summary>
+    public static string Played(double seconds)
+    {
+        long min = (long)Math.Max(0, seconds) / 60;
+        return min < 60 ? $"{min}m" : $"{min / 60}h {min % 60:00}m";
+    }
 }
 
 public static class Json

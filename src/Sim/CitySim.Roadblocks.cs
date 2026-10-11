@@ -31,8 +31,8 @@ public sealed partial class CitySim
     private readonly HashSet<int> _blockTiles = new();
     private bool _blocksFor;
 
-    /// <summary>Walls, water -- and the barriers of a checkpoint that hasn't waved you through.</summary>
-    public bool CarSolid(int x, int y) => City.Solid(x, y) || _blockTiles.Count > 0 && _blockTiles.Contains(y * City.W + x);
+    /// <summary>Walls, water -- the barriers of a checkpoint that hasn't waved you through, the festival's, a burning wreck.</summary>
+    public bool CarSolid(int x, int y) => City.Solid(x, y) || _blockTiles.Count > 0 && _blockTiles.Contains(y * City.W + x) || _shutTiles.Count > 0 && _shutTiles.Contains(y * City.W + x);
 
     /// <summary>Raise the checkpoints when a crackdown starts, take them down when it ends.</summary>
     private void PlaceRoadblocks()
@@ -69,11 +69,11 @@ public sealed partial class CitySim
         }
     }
 
-    /// <summary>The junction-to-junction steps a checkpoint closes (for route planning).</summary>
-    public bool Closed((int, int) a, (int, int) b) => Roadblocks.Any(rb => rb.A == a && rb.B == b || rb.A == b && rb.B == a);
+    /// <summary>The junction-to-junction steps a checkpoint or the festival closes (for route planning).</summary>
+    public bool Closed((int, int) a, (int, int) b) => Roadblocks.Any(rb => rb.A == a && rb.B == b || rb.A == b && rb.B == a) || Shut(a.Item1, a.Item2, b.Item1, b.Item2);
 
-    /// <summary>A route to a door that goes round the checkpoints.</summary>
-    public DriveAutopilot RouteTo(Lot lot) => new(City, Player.Pos, lot, Roadblocks.Count > 0 ? Closed : null);
+    /// <summary>A route to a door that goes round the checkpoints and the festival.</summary>
+    public DriveAutopilot RouteTo(Lot lot) => new(City, Player.Pos, lot, AnyClosed ? Closed : null);
 
     private void StepRoadblocks(float dt)
     {

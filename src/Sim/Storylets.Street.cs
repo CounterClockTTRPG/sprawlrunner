@@ -99,5 +99,59 @@ public static partial class Storylets
                 }), "¥600 at the drop, heat +1"),
                 Ok("Drive on", "He shrugs and waves at the next car."),
             }, Cooldown: 6, Place: "street:waving");
+
+        yield return new("street-stop", Hook.Drive, "Lone Star", "Pulled over",
+            "The cruiser's lights fill your mirrors. An officer in a mirrored visor walks up, slow, one hand on her holster. 'Licence. And step out of the car.'",
+            c => c.Here != null && c.Holder(c.Here) != Faction.Vipers && !c.On("strike") && c.Day >= 3,
+            new[]
+            {
+                Fx(new Choice("Hand her the fine ({¥fine})", (c, m) => { c.Cash -= Money(m, "fine"); c.Count("spent", Money(m, "fine")); c.Heat = 0; return "She writes you up for a broken tail light that isn't broken. Your file stays closed. Heat 0."; },
+                    (c, m) => c.Cash >= Money(m, "fine") ? null : "You don't have it."), "-{¥fine}, heat 0"),
+                Talk("Security", "Talk shop with her", (c, m) => { c.Heat = MathF.Max(0, c.Heat - 1); return "You know the shift rota, the sergeant's name and the canteen's coffee. She laughs and waves you on. Heat -1."; }),
+                Fx(new Choice("Floor it", (c, m) => { c.Set("street:cruiser"); c.Heat = MathF.Min(5, MathF.Max(c.Heat, 1) + 1); return "You're gone before she gets back to her car. She isn't far behind."; }), "a cruiser after you, heat +1"),
+            }, Weight: 0.9f, Cooldown: 5, Place: "street:patrol",
+            Bind: c => V(("fine", (250 + 150 * (int)c.Heat + 10 * Math.Min(c.Day, 30)).ToString())));
+
+        yield return new("street-race", Hook.Drive, "A hotshot", "At the lights",
+            "A lime-green hotshot rolls up beside you at the lights and drops his window. 'Nice ride. Bet it's all paint.' He holds up a credstick. '{¥stake} says I'm across town before you.'",
+            c => c.Here is "strip" or "industrial" or "docks" && c.CityRef != null,
+            new[]
+            {
+                Fx(new Choice("You're on ({¥stake})", (c, m) => { int s = Money(m, "stake"); c.Cash -= s; c.Count("spent", s); c.Set("street:race", s); return "The light goes green."; },
+                    (c, m) => c.Cash >= Money(m, "stake") ? null : "You can't cover it."), "race him: double or nothing"),
+                Ok("Drive on", "You wind the window up. 'All paint,' he shouts, and burns off on the red."),
+            }, Cooldown: 4, Place: "street:racer",
+            Bind: c => V(("stake", (300 + 100 * Math.Min(c.Day / 4, 10)).ToString())));
+
+        yield return new("street-van", Hook.Drive, "The street", "Armoured van",
+            "A Halcyon cash van lies on its side, wheels still turning. One guard is out cold behind the wheel; the other is crawling away. The back doors are buckled half open, and the alarm hasn't gone off. Yet.",
+            c => c.Here is "spire" or "industrial" or "strip",
+            new[]
+            {
+                Fx(new Choice("Help the guards out", (c, m) => { c.Karma += 1; c.KarmaEarned += 1; c.Count("rescues"); return "You drag the driver clear before the fuel goes. The other one remembers your face, kindly. Karma +1."; }), "karma +1"),
+                Fx(new Choice("Empty the back", (c, m) =>
+                {
+                    int cash = Money(m, "cash");
+                    c.Cash += cash;
+                    c.Count("earned", cash);
+                    c.Grudge[Faction.Halcyon] = c.Grudge.GetValueOrDefault(Faction.Halcyon) + 1;
+                    c.Heat = MathF.Min(5, c.Heat + 1.5f);
+                    c.Infamy(1);
+                    return $"Bricks of corporate scrip, {M.Money(cash)} of it, still in Halcyon bands. The alarm starts as you pull away. Heat +1.5, notoriety +1, Halcyon grudge +1.";
+                }), "+{¥cash}, heat +1.5, Halcyon grudge +1"),
+                Ok("Drive on", "Somebody else's bad night."),
+            }, Weight: 0.7f, Cooldown: 9, Place: "street:van",
+            Bind: c => V(("cash", (1500 + (int)(Career.Stable("van" + c.Day) % 8) * 250).ToString())));
+
+        yield return new("street-ghoul", Hook.Drive, "The street", "In your lights",
+            "It was a man, once. Grey skin, milk-white eyes, crouched over something in the road. It looks up into your headlights and doesn't move.",
+            c => c.Here == "barrens" && c.Day >= 4,
+            new[]
+            {
+                Fx(new Choice("Put your foot down", (c, m) => { c.CarHp = Math.Max(1, c.CarHp - 12); return "It doesn't get out of the way. Your bonnet will need Torque, and you'll need a drink."; }), "car damage"),
+                Fx(new Choice("Lean on the horn and back off", (c, m) => "The horn does nothing. Reversing does. It goes back to what it was eating."), "nothing happens"),
+                Talk("Magic", "Look at it properly", (c, m) => { c.Karma += 1; c.KarmaEarned += 1; c.Count("ghouls"); return "Its aura's starving, not mad. You throw it the protein bars from the glovebox. It takes them and is gone into the dark. Karma +1."; }),
+                Ok("Drive on", "You go round it very slowly. It watches you all the way."),
+            }, Weight: 0.8f, Cooldown: 7, Place: "street:ghoul");
     }
 }

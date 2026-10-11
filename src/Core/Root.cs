@@ -62,6 +62,29 @@ public partial class Root : Node
         else if (CityScreen != null && IsInstanceValid(CityScreen)) CityScreen.PauseIfDriving();
     }
 
+    public override void _Process(double delta)
+    {
+        // The walkthrough and the self-check play no one's career.
+        if (!Profile.Scratch) CountPlayTime(delta);
+    }
+
+    /// <summary>Real time on the clock of the career in play: only while it is being played --
+    /// driving, in a place, on a run, reading a debrief -- never with a pause menu up, never on the
+    /// title, and not while the window is in the background.</summary>
+    public void CountPlayTime(double delta)
+    {
+        if (Career == null || Career.Dead || Career.Retired || !Playing) return;
+        if (!AgentRunner.Active && !Profile.Scratch && !GetWindow().HasFocus()) return;
+        // A hitch (a screen being built, the machine waking up) is not a minute played.
+        Career.PlaySeconds += Math.Min(delta, 0.25);
+    }
+
+    /// <summary>On a screen of the game itself, and not paused.</summary>
+    public bool Playing =>
+        RunScreen != null && IsInstanceValid(RunScreen) ? !RunScreen.IsPaused
+        : CityScreen != null && IsInstanceValid(CityScreen) ? !CityScreen.PauseMenuUp
+        : Screen is DebriefScreen;
+
     public override void _Input(InputEvent e)
     {
         if (e is InputEventKey { Pressed: true, Echo: false, Keycode: Key.F11 })
@@ -112,8 +135,10 @@ public partial class Root : Node
         Sfx.Instance?.Rain(0.25f);
     }
 
-    public void NewCareer(string name, string archetype, string background = "street", bool gentle = false, bool intro = true, ICollection<string> declined = null)
+    /// <summary>A new runner, in <paramref name="slot"/> (by default the slot in play), over whatever was there.</summary>
+    public void NewCareer(string name, string archetype, string background = "street", bool gentle = false, bool intro = true, ICollection<string> declined = null, int slot = 0)
     {
+        if (slot > 0) Profile.UseSlot(slot);
         ulong seed = ((ulong)GD.Randi() << 32) | GD.Randi();
         Career = Career.New(name, archetype, seed);
         Career.SetBackground(background);
@@ -129,10 +154,14 @@ public partial class Root : Node
         Show(new IntroScreen(Intro.For(background), () => EnterCity()));
     }
 
-    public bool Continue()
+    public bool Continue() => Continue(Profile.Slot);
+
+    /// <summary>Pick up the career in a slot where it was left.</summary>
+    public bool Continue(int slot)
     {
-        Career c = Profile.LoadCareer();
+        Career c = Profile.LoadCareer(slot);
         if (c == null || c.Dead) return false;
+        Profile.UseSlot(slot);
         Career = c;
         City = City.Generate(Career.Seed);
         Career.CityRef = City;
@@ -277,6 +306,8 @@ public partial class Root : Node
             Sfx.Instance?.Play(Sound.Fail);
             Show(new DebriefScreen(d, run, () =>
             {
+                // The day is undone; the hours spent on it are not.
+                morning.PlaySeconds = Math.Max(morning.PlaySeconds, Career.PlaySeconds);
                 Career = morning;
                 Career.CityRef = City;
                 Career.Say("You wake up with the taste of a death you didn't have. It's this morning again.");

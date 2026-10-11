@@ -149,9 +149,13 @@ public partial class CityScreen : Control
         PauseMenu();
     }
 
+    /// <summary>The pause menu is up: the career's clock stops.</summary>
+    public bool PauseMenuUp => _pauseMenu != null && IsInstanceValid(_pauseMenu) && _pauseMenu.IsInsideTree() && !_pauseMenu.IsQueuedForDeletion();
+    private Modal _pauseMenu;
+
     private void PauseMenu()
     {
-        var m = new Modal("PAUSED", 420);
+        var m = _pauseMenu = new Modal("PAUSED", 420);
         m.Add(UITheme.Button("Resume", () => m.Close(), 0, 44));
         m.Add(UITheme.Button("PDA  [P]", () => { m.QueueFree(); AddChild(new Pda(C, Sim)); }, 0, 44));
         m.Add(UITheme.Button("Settings", () => Settings.Open(m), 0, 44));
@@ -291,8 +295,8 @@ public partial class CityScreen : Control
         modal.Closed = () =>
         {
             if (m.Answer < 0 && s.Choices is { Length: > 0 }) C.Choose(m, s.Choices.Length - 1);
-            // What the street does back: a toll you ran sends the bikes after you.
-            if (C.Flag("street:ambush") is int n && n > 0) { C.Set("street:ambush", 0); Sim.Ambush(n); }
+            // What the street does back: a toll you ran sends the bikes after you, a stop you ran a cruiser, a race starts.
+            Sim.AfterStreet();
         };
         AddChild(modal);
     }
@@ -393,6 +397,14 @@ public partial class CityScreen : Control
             DrawLine(p - new Vector2(r, -r), p + new Vector2(r, -r), c, 2.5f);
         }
 
+        /// <summary>What today's happenings put on the street: the festival's closed blocks, the gang war's wrecks.</summary>
+        private void StreetWorks(CitySim sim, Vector2 mo, float ms, float r)
+        {
+            foreach (var (a, b) in sim.Festival)
+                Cross(mo + Art.G((sim.City.Node(a.Item1, a.Item2) + sim.City.Node(b.Item1, b.Item2)) / 2) * ms, r, UITheme.Amber);
+            foreach (Wreck w in sim.Wrecks) DrawCircle(mo + Art.G(w.At) * ms, r * 0.8f, MathF.Sin(sim.Time * 7) > 0 ? new Color(1f, 0.5f, 0.1f) : UITheme.Bad);
+        }
+
         public CityScreen S;
         private ImageTexture _mini;
 
@@ -418,6 +430,12 @@ public partial class CityScreen : Control
                     CTile.Parking => new Color(0.2f, 0.2f, 0.22f),
                     CTile.Pier => new Color(0.3f, 0.22f, 0.14f),
                     CTile.Plaza or CTile.Statue => new Color(0.4f, 0.4f, 0.38f),
+                    CTile.Alley or CTile.Rail => new Color(0.27f, 0.28f, 0.33f),
+                    CTile.Arcade => new Color(0.42f, 0.22f, 0.4f),
+                    CTile.Dirt or CTile.Rubble => new Color(0.24f, 0.19f, 0.13f),
+                    CTile.Container => new Color(0.45f, 0.28f, 0.16f),
+                    CTile.Highway => new Color(0.5f, 0.52f, 0.58f),
+                    CTile.Barrier => new Color(0.6f, 0.55f, 0.3f),
                     _ => new Color(0.02f, 0.05f, 0.12f),
                 };
                 img.SetPixel(x, y, col);
@@ -525,10 +543,22 @@ public partial class CityScreen : Control
                 UITheme.Write(this, tb.Position + new Vector2(12, 20), $"TARGET  {S.LotName(target)}  ·  {V2.Distance(target.Door.Centre, sim.Player.Pos) * 4:0} m   (M: change or clear)", 14, UITheme.Cyan, heading: true);
             }
             foreach (Roadblock rb in sim.Roadblocks) Cross(mo + Art.G(rb.At) * ms, 4, UITheme.Bad);
+            StreetWorks(sim, mo, ms, 3.5f);
             foreach (Chaser ch in sim.Chasers)
             {
                 Vector2 bp = mo + Art.G(ch.Car.Pos) * ms;
                 DrawCircle(bp, 3.5f, ch.Kind == ChaserKind.Police ? (MathF.Sin(sim.Time * 10) > 0 ? UITheme.Bad : UITheme.Cyan) : ch.Kind == ChaserKind.Racer ? UITheme.Yellow : UITheme.Good);
+            }
+            // A street race: where the line is, and how far each of you has to go.
+            if (sim.Race is StreetRace race)
+            {
+                EdgeArrow(race.Finish, UITheme.Yellow, "FINISH");
+                DrawArc(mo + Art.G(race.Finish) * ms, 6, 0, MathF.Tau, 16, UITheme.Yellow, 2);
+                var rp = new Rect2(size.X / 2 - 190, 16, 380, 50);
+                UITheme.DrawPanel(this, rp, UITheme.Yellow, width: 2);
+                float you = V2.Distance(sim.Player.Pos, race.Finish) * 4;
+                string line = race.Rival != null ? $"RACE TO {race.Where.ToUpperInvariant()}  you {you:0} m  ·  him {V2.Distance(race.Rival.Car.Pos, race.Finish) * 4:0} m" : $"RACE TO {race.Where.ToUpperInvariant()}  {you:0} m to go";
+                UITheme.Write(this, rp.Position + new Vector2(0, 33), line, 18, UITheme.Yellow, HorizontalAlignment.Center, 380, heading: true);
             }
 
             // Car.
@@ -548,7 +578,14 @@ public partial class CityScreen : Control
             // Street encounter prompt (it takes the door prompt's place).
             if (sim.AtStreet() && !S._map)
             {
-                string what = sim.Street.Kind switch { StreetKind.Wreck => "E  Get out and look", StreetKind.Toll => "E  Deal with the toll", _ => "E  Wind the window down" };
+                string what = sim.Street.Kind switch
+                {
+                    StreetKind.Wreck or StreetKind.Van => "E  Get out and look",
+                    StreetKind.Toll => "E  Deal with the toll",
+                    StreetKind.Patrol => "E  Pull over",
+                    StreetKind.Ghoul => "E  Stop and look",
+                    _ => "E  Wind the window down",
+                };
                 var pr = new Rect2(size.X / 2 - 300, size.Y - 120, 600, 44);
                 UITheme.DrawPanel(this, pr, UITheme.Amber);
                 UITheme.Write(this, new Vector2(pr.Position.X, pr.Position.Y + 29), what, 19, UITheme.Amber, HorizontalAlignment.Center, 600, heading: true);
@@ -707,6 +744,8 @@ public partial class CityScreen : Control
             if ((S._overlay & 2) != 0)
                 foreach (TrafficCar t in sim.Traffic.Where(t => t.Kind == CarKind.Patrol)) DrawCircle(mo + Art.G(t.Pos) * ms, 3, UITheme.Bad with { A = 0.8f });
             foreach (Roadblock rb in sim.Roadblocks) Cross(mo + Art.G(rb.At) * ms, 7, UITheme.Bad);
+            StreetWorks(sim, mo, ms, 6);
+            if (sim.Race is StreetRace rc) DrawArc(mo + Art.G(rc.Finish) * ms, 9, 0, MathF.Tau, 20, UITheme.Yellow, 2);
             foreach (Chaser ch in sim.Chasers) DrawCircle(mo + Art.G(ch.Car.Pos) * ms, 4, ch.Kind == ChaserKind.Police ? UITheme.Bad : ch.Kind == ChaserKind.Racer ? UITheme.Yellow : UITheme.Good);
             Vector2 cp = mo + Art.G(sim.Player.Pos) * ms;
             Vector2 cf = new(MathF.Cos(sim.Player.Heading), MathF.Sin(sim.Player.Heading));

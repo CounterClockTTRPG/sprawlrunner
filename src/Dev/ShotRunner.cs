@@ -61,6 +61,26 @@ public partial class ShotRunner : Node
                 Root.ShowTitle();
                 await Frames(60);
                 await Shot("01_title");
+                // Two slots taken, one free (the scratch profile: nothing touches the real saves).
+                var vet = Career.New("Kestrel", "decker", 11);
+                vet.Day = 34; vet.Cash = 48250; vet.PlaySeconds = 4 * 3600 + 17 * 60;
+                Profile.UseSlot(1);
+                Profile.SaveCareer(vet);
+                var rookie = Career.New("Static", "mage", 12);
+                rookie.Day = 3; rookie.Cash = 2100; rookie.PlaySeconds = 41 * 60;
+                Profile.UseSlot(3);
+                Profile.SaveCareer(rookie);
+                Root.ShowTitle();
+                await Frames(30);
+                await Shot("01b_title_slots");
+                ((Button)Root.Screen.FindChild("slot3", true, false).GetChild(1)).EmitSignal(BaseButton.SignalName.Pressed);
+                await Frames(10);
+                await Shot("01c_title_overwrite");
+                Profile.DeleteCareer();
+                Profile.UseSlot(1);
+                Profile.DeleteCareer();
+                Root.ShowTitle();
+                await Frames(10);
                 Root.Screen.AddChild(new CreateScreen { Root = Root });
                 await Frames(10);
                 await Shot("02_create");
@@ -351,6 +371,80 @@ public partial class ShotRunner : Node
                     await Shot(name);
                 }
                 Root.CitySim.ParkAt(Root.CitySim.HomeLot);
+            }
+            if (Want("streets"))
+            {
+                CitySim cs = Root.CitySim;
+                City cc = Root.City;
+                async Task Look(V2 at, float heading, string name, float zoom = 1.1f)
+                {
+                    cs.Player.Pos = at;
+                    cs.Player.Heading = heading;
+                    cs.Player.Vel = V2.Zero;
+                    for (int i = 0; i < 60; i++) { cs.Step(1 / 60f, default); Root.CityView.Frame(1 / 60f); }
+                    for (int i = 0; i < 4; i++) { Root.CityView.Zoom = zoom; await Frames(1); }
+                    await Shot(name);
+                }
+                // A lane through a block in each district that has one, from its mouth.
+                foreach (string d in new[] { "barrens", "strip", "industrial", "docks" })
+                {
+                    Rect a = cc.Alleys.FirstOrDefault(x => cc.DistrictAt[x.Centre.Y * City.W + x.Centre.X] == d);
+                    if (a.W == 0) continue;
+                    bool across = a.H == 2;
+                    await Look(across ? new V2(a.X + 3, a.Y + 1) : new V2(a.X + 1, a.Y + 3), across ? 0 : MathF.PI / 2, $"26_lane_{d}");
+                }
+                Lot yard = cc.Lots.FirstOrDefault(l => l.Kind == LotKind.Yard && l.District == "docks");
+                if (yard != null) await Look(cc.Kerb(yard).pos, 0, "26_yard_docks", 0.9f);
+                Lot waste = cc.Lots.FirstOrDefault(l => l.Kind == LotKind.Yard && l.District == "barrens");
+                if (waste != null) await Look(cc.Kerb(waste).pos, 0, "26_waste_barrens", 0.9f);
+                Lot plaza = cc.Lots.FirstOrDefault(l => l.Kind == LotKind.Park && l.District == "spire");
+                if (plaza != null) await Look(cc.Kerb(plaza).pos, 0, "26_plaza_spire", 0.9f);
+                // The causeway: a ramp coming down, and the deck at speed.
+                Rect ramp = cc.Ramps.First(r => r.H > r.W && r.X > 20);
+                await Look(new V2(ramp.X + 2, ramp.Bottom + 1), 0, "27_causeway_ramp", 0.8f);
+                cs.Player.Pos = new V2(cc.CausewaySouth.X + 60, cc.CausewaySouth.Y + 2.5f);
+                cs.Player.Heading = 0;
+                cs.Player.Vel = new V2(14, 0);
+                for (int i = 0; i < 40; i++) { cs.Step(1 / 60f, new DriveInput { Throttle = 1 }); Root.CityView.Frame(1 / 60f); }
+                await Frames(5);
+                await Shot("27_causeway_speed");
+                // The happenings on the street.
+                Career sc = Root.Career;
+                foreach (string id in new[] { "lanterns", "gangwar", "stadium", "election" }) sc.Happenings.Add(new Happening { Id = id, Start = sc.Day, End = sc.Day });
+                cs.Step(1 / 60f, default);
+                if (cs.Festival.Count > 0)
+                {
+                    var (fa, fb) = cs.Festival[0];
+                    await Look((cc.Node(fa.Item1, fa.Item2) + cc.Node(fb.Item1, fb.Item2)) / 2, 0, "28_festival", 0.9f);
+                }
+                if (cs.Wrecks.Count > 0) await Look(cs.Wrecks[0].At + new V2(3, 3), 0, "28_wreck");
+                Lot stadium = cc.Lots.First(l => l.Landmark == "stadium");
+                await Look(new V2(stadium.R.X + stadium.R.W / 2f, stadium.R.Bottom + 2.5f), 0, "28_stadium_night", 0.8f);
+                TrafficCar limo = cs.Traffic.FirstOrDefault(t => t.Motorcade && t.Kind == CarKind.Limo);
+                if (limo != null)
+                {
+                    for (int i = 0; i < 120; i++) cs.Step(1 / 60f, default);
+                    await Look(limo.Pos - limo.Forward * 5 + M.Perp(limo.Forward) * 2, limo.Heading, "28_motorcade");
+                }
+                sc.Happenings.RemoveAll(h => h.Id is "lanterns" or "gangwar" or "stadium" or "election");
+                cs.Step(1 / 60f, default);
+                // Each kind of street encounter, beside it.
+                foreach (StreetKind kind in new[] { StreetKind.Patrol, StreetKind.Racer, StreetKind.Van, StreetKind.Ghoul })
+                {
+                    V2 at = cc.Node(3, 3) + new V2(10, 1);
+                    cs.Street = new StreetEncounter { Story = "street-stop", Kind = kind, At = at, Heading = 0, Life = 99 };
+                    await Look(at - new V2(5, 0), 0, $"29_street_{kind.ToString().ToLowerInvariant()}");
+                }
+                cs.Street = null;
+                // A street race under way.
+                cs.ParkAt(cc.Place("fixer"));
+                cs.StartStreetRace(500);
+                for (int i = 0; i < 120; i++) { cs.Step(1 / 60f, new DriveInput { Throttle = 1 }); Root.CityView.Frame(1 / 60f); }
+                await Frames(5);
+                await Shot("29_street_race");
+                cs.Chasers.Clear();
+                cs.Race = null;
+                cs.ParkAt(cs.HomeLot);
             }
             if (Want("bike"))
             {

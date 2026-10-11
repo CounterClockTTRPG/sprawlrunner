@@ -107,7 +107,13 @@ public sealed partial class CitySim
             _sirenT = 1.6f;
             Events.Add(new CityEvent(CityEv.Siren, Chasers.First(c => c.Kind == ChaserKind.Police).Car.Pos, 1));
         }
-        foreach (Chaser ch in Chasers.ToList()) if (!ch.Gone) { if (ch.Kind == ChaserKind.Racer) StepRacer(ch, dt); else StepChaser(ch, dt); }
+        foreach (Chaser ch in Chasers.ToList())
+            if (!ch.Gone)
+            {
+                if (Race?.Rival == ch) StepStreetRacer(ch, dt);
+                else if (ch.Kind == ChaserKind.Racer) StepRacer(ch, dt);
+                else StepChaser(ch, dt);
+            }
         Chasers.RemoveAll(c => c.Gone);
         StepCourier(dt);
     }
@@ -159,7 +165,7 @@ public sealed partial class CitySim
             ch.ReplanT -= dt;
             if (ch.Route == null || ch.ReplanT <= 0)
             {
-                ch.Route = new DriveAutopilot(City, car.Pos, Player.Pos);
+                ch.Route = new DriveAutopilot(City, car.Pos, Player.Pos, !police && AnyClosed ? Closed : null);
                 ch.ReplanT = 1.2f;
             }
             inp = ch.Route.Step(this, car, dt, 12);

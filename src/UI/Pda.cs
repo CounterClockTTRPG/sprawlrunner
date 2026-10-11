@@ -342,6 +342,7 @@ public partial class Pda : Control
             grid.AddChild(UITheme.Label(value, 16, UITheme.Cyan, wrap: false));
         }
         S("Days survived", C.Day.ToString());
+        S("Time played", M.Played(C.PlaySeconds));
         S("Jobs done / failed", $"{C.JobsDone} / {C.JobsFailed}");
         foreach (JobType t in Enum.GetValues<JobType>().Where(t => t != JobType.Hub))
             S($"  {Tables.JobNames[(int)t]}", $"{C.Stat($"done.{t}")} done, {C.Stat($"failed.{t}")} failed");
