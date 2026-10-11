@@ -65,7 +65,7 @@ public partial class SmokeTest
                     Check(c.Cash >= 0, $"{arch} {seed} day {c.Day}: no debt");
                 }
                 endCash[arch].Add(c.Cash);
-                GD.Print($"      {arch,-8} {seed,3} | {string.Join(" | ", row)}  {c.JobsDone} jobs, chapter {c.Chapter}/4");
+                GD.Print($"      {arch,-8} {seed,3} | {string.Join(" | ", row)}  {c.JobsDone} jobs, chapter {c.Chapter}/4, score {c.Score:N0} ({c.Rank})");
                 Check(c.Day >= 60, $"{arch} {seed}: the career lasts ({c.Day} days)");
                 Check(c.Stat("spent") > c.Stat("earned") / 4, $"{arch} {seed}: the money finds somewhere to go (spent ¥{c.Stat("spent")} of ¥{c.Stat("earned")})");
             }

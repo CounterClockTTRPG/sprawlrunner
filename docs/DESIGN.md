@@ -1468,3 +1468,16 @@ sight, shots and drones cross it, walkers don't), **`Cargo`** (container stacks)
 
 The bot's distance field now follows stairs, so it can play a hold, a crypt or a hotel; the
 `RareSites` checks have it play each place's own jobs.
+
+## The career score (`Career.Score.cs`)
+
+Every career that ends (a death TraumaLink couldn't catch, or retiring) gets a score at the top of its last
+receipt, broken down beneath it. Points (`Tables.Score*`): 10 a day, 100 a job done, 1,500 a story
+finished, 150 a person got out, 40 a guard let live, 250 an achievement this career earned (whether or not
+the profile had it already: `AchievementsHere` re-checks them all on this career), 2 a point of karma; off:
+30 a failed job, 400 a crew member buried, 150 a guard shot after giving up, 100 a TraumaLink pick-up.
+Retiring multiplies it by 1.25, retiring a legend by 1.5. The rank (`Tables.Ranks`) goes Wannabe, Street rat,
+Runner, Professional, Shadow veteran, Prime runner, Shadow legend, Myth of Kessler Bay; the balance report's
+simulated 70-day careers (all four chapters, still running) land at about 23,000, a Prime runner. The profile
+keeps the best score, who ran it and their rank (`Profile.RecordCareer`), shown on the title screen beside the
+longest and busiest careers. Guards let live are now counted where the receipt reads them (they were only a flag).

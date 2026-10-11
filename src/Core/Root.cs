@@ -208,9 +208,11 @@ public partial class Root : Node
         return true;
     }
 
-    /// <summary>Back in the car. <paramref name="parkAt"/> puts it at a lot's kerb.</summary>
     private int _ambush, _respond = -1, _getaway;
+    /// <summary>The career that just ended set the best score yet (said on its last receipt).</summary>
+    private bool _newBest;
 
+    /// <summary>Back in the car. <paramref name="parkAt"/> puts it at a lot's kerb.</summary>
     public void EnterCity(Lot parkAt = null)
     {
         // Gentle mode: the first time out each day, keep a copy of the morning.
@@ -321,8 +323,7 @@ public partial class Root : Node
         if (d.CareerOver)
         {
             Profile.Current.Earn(Career);
-            Profile.Current.BestDays = Math.Max(Profile.Current.BestDays, Career.Day);
-            Profile.Current.BestJobs = Math.Max(Profile.Current.BestJobs, Career.JobsDone);
+            _newBest = Profile.Current.RecordCareer(Career);
             Profile.Current.Save();
             Profile.DeleteCareer();
         }
@@ -338,7 +339,7 @@ public partial class Root : Node
             {
                 Career ended = Career;
                 ShowTitle();
-                Screen?.AddChild(CareerReceipt(ended, "THE LAST RECEIPT", ended.Ending(), died: ended.Dead));
+                Screen?.AddChild(CareerReceipt(ended, "THE LAST RECEIPT", ended.Ending(), died: ended.Dead, newBest: _newBest));
                 return;
             }
             if (!pickedUp) { EnterCity(site); return; }
@@ -369,9 +370,8 @@ public partial class Root : Node
     {
         Career.Retired = true;
         Profile.Current.Earn(Career);
-        Profile.Current.BestDays = Math.Max(Profile.Current.BestDays, Career.Day);
-        Profile.Current.BestJobs = Math.Max(Profile.Current.BestJobs, Career.JobsDone);
         Profile.Current.CheckAchievements(Career);
+        bool best = Profile.Current.RecordCareer(Career);
         Profile.Current.Save();
         Profile.DeleteCareer();
         bool legend = Career.RetiresALegend;
@@ -379,18 +379,21 @@ public partial class Root : Node
             ? $"{Career.Name} sells the car, buys a ticket out of Kessler Bay, and is never heard from again. The street remembers the name."
             : $"{Career.Name} sells the car, pays off the people who need paying, and takes the morning train south with the money. Nobody writes songs about it. Nobody has to.";
         var epilogue = (Career.Epilogue.Count > 0 ? Career.Epilogue : Career.Ending()).Prepend(last);
-        var m = CareerReceipt(Career, legend ? "A LEGEND RETIRES" : "OUT OF THE GAME", epilogue, died: false);
+        var m = CareerReceipt(Career, legend ? "A LEGEND RETIRES" : "OUT OF THE GAME", epilogue, died: false, newBest: best);
         m.Closed = ShowTitle;
         (CityScreen ?? (Node)Screen).AddChild(m);
     }
 
     /// <summary>The whole career on one receipt: the numbers, the people, the city, the last word.</summary>
-    public static Modal CareerReceipt(Career c, string title, IEnumerable<string> epilogue, bool died)
+    public static Modal CareerReceipt(Career c, string title, IEnumerable<string> epilogue, bool died, bool newBest = false)
     {
         var m = new Modal(title, 760);
         var list = UITheme.VBox(6);
         // Wide enough to read: wrapped labels take their width from here, not from their text.
         list.CustomMinimumSize = new Vector2(680, 0);
+        // The headline first: the score and what the street calls you for it (the breakdown is below the receipt).
+        list.AddChild(UITheme.Label($"SCORE  {c.Score:N0}   --   {c.Rank.ToUpperInvariant()}{(newBest ? "   ·   YOUR BEST YET" : "")}", 22, UITheme.Yellow, HorizontalAlignment.Center, heading: true));
+        list.AddChild(UITheme.Spacer(4));
         foreach (var (what, value) in c.Receipt())
         {
             // The label in a fixed column, the value taking the rest (long lists wrap onto a second line).
@@ -403,6 +406,28 @@ public partial class Root : Node
             row.AddChild(val);
             list.AddChild(row);
         }
+        // The score: line by line, how it ended, the total and the rank.
+        list.AddChild(UITheme.Spacer(8));
+        list.AddChild(UITheme.Label("HOW THE SCORE ADDS UP", 17, UITheme.Yellow, heading: true));
+        void ScoreRow(string what, string count, string points, Color col)
+        {
+            var row = UITheme.HBox(12);
+            var name = UITheme.Label(what, 15, UITheme.Dim, wrap: false);
+            name.CustomMinimumSize = new Vector2(300, 0);
+            row.AddChild(name);
+            var n = UITheme.Label(count, 15, UITheme.Text, HorizontalAlignment.Right, wrap: false);
+            n.CustomMinimumSize = new Vector2(120, 0);
+            row.AddChild(n);
+            var pts = UITheme.Label(points, 15, col, HorizontalAlignment.Right, wrap: false);
+            pts.SizeFlagsHorizontal = Control.SizeFlags.ExpandFill;
+            row.AddChild(pts);
+            list.AddChild(row);
+        }
+        foreach (var (what, count, points) in c.ScoreLines())
+            ScoreRow(what, count, points >= 0 ? $"+{points:N0}" : $"{points:N0}", points >= 0 ? UITheme.Good : UITheme.Bad);
+        var (how, mul) = c.HowItEnded;
+        ScoreRow(how, "", $"x{mul:0.##}", UITheme.Text);
+        list.AddChild(UITheme.Label($"{c.Score:N0}  --  {c.Rank.ToUpperInvariant()}", 19, UITheme.Yellow, HorizontalAlignment.Right, heading: true));
         list.AddChild(UITheme.Spacer(6));
         list.AddChild(UITheme.Label(c.Obituary(died), 16, UITheme.Cyan));
         foreach (string e in epilogue) list.AddChild(UITheme.Label(e, 16, UITheme.Text));

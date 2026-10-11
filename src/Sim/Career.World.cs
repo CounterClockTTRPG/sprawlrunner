@@ -328,8 +328,8 @@ public sealed partial class Career
             Set("fateday:" + j.Target, Day);
             d.Lines.Add(($"You let {j.Target} go", "karma +3"));
         }
-        if (r.Spared > 0) { Inc("spared", r.Spared); d.Lines.Add(("Guards you spared", $"{r.Spared}")); }
-        if (r.KilledHelpless > 0) { Infamy(r.KilledHelpless); d.Lines.Add(("Shot the ones who gave up", $"notoriety +{r.KilledHelpless}")); }
+        if (r.Spared > 0) { Inc("spared", r.Spared); Count("spared", r.Spared); d.Lines.Add(("Guards you spared", $"{r.Spared}")); }
+        if (r.KilledHelpless > 0) { Infamy(r.KilledHelpless); Count("helpless", r.KilledHelpless); d.Lines.Add(("Shot the ones who gave up", $"notoriety +{r.KilledHelpless}")); }
         // A ghoul nest or a hack belongs to nobody's turf.
         bool placed = j.District != null && Tables.Districts.Any(x => x.Id == j.District) && j.Type is not (JobType.Bounty or JobType.Hack);
         // Fame.

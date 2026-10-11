@@ -308,7 +308,11 @@ public partial class TitleScreen : Control
         }
         if (Profile.Current.BestJobs > 0)
         {
-            var best = UITheme.Label($"Best career: {Profile.Current.BestJobs} jobs, {Profile.Current.BestDays} days", 15, UITheme.Dim, wrap: false);
+            Profile pf = Profile.Current;
+            string line = pf.BestName != null
+                ? $"Best career: {pf.BestName}, {pf.BestScore:N0} -- {pf.BestRank}   ·   most {pf.BestJobs} jobs, {pf.BestDays} days"
+                : $"Best career: {pf.BestJobs} jobs, {pf.BestDays} days";
+            var best = UITheme.Label(line, 15, UITheme.Dim, wrap: false);
             best.Position = new Vector2(110, 822);
             AddChild(best);
         }

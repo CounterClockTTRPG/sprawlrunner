@@ -31,11 +31,10 @@ public sealed partial class Career
         if (spared > 0) r.Add(("Guards you let live", $"{spared}"));
         var lost = Crew.Where(kv => kv.Value.Dead).Select(kv => Tables.Hires.First(h => h.id == kv.Key).name).ToList();
         if (lost.Count > 0) r.Add(("Crew buried", string.Join(", ", lost)));
-        var stories = new List<string>();
-        if (Flag("story:won") > 0) stories.Add("the Iron Spire");
-        foreach (CampaignDef c in Campaigns) if (Flag(c.Id + ":won") > 0) stories.Add(c.Name);
-        if (Flag("tide:won") > 0) stories.Add("Toxic Tide");
+        var stories = StoriesFinished;
         r.Add(("Stories finished", stories.Count == 0 ? "none" : string.Join(", ", stories)));
+        var here = AchievementsHere;
+        r.Add(("Achievements this career", here.Count == 0 ? "none" : $"{here.Count}: {string.Join(", ", here.Select(a => a.Name))}"));
         if (Property.Count > 0) r.Add(("Property", string.Join(", ", Property.Select(p => Businesses.First(b => b.id == p).name))));
         r.Add(("Lived", Lifestyles[LifeTier].name));
         foreach (DistrictDef d in Tables.Districts) r.Add(($"The {d.Name}", Tables.FactionNames[(int)Holder(d.Id)]));

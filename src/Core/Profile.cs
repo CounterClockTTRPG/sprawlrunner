@@ -37,6 +37,22 @@ public sealed class Profile
     public bool ColourBlind;
     public float TextScale = 1;
     public int BestDays, BestJobs;
+    /// <summary>The best career's score, and who ran it (name, archetype, rank).</summary>
+    public int BestScore;
+    public string BestName, BestRank;
+
+    /// <summary>A career is over: the longest, the busiest and the best-scoring kept. True when this one is the new best score.</summary>
+    public bool RecordCareer(Career c)
+    {
+        BestDays = Math.Max(BestDays, c.Day);
+        BestJobs = Math.Max(BestJobs, c.JobsDone);
+        int score = c.Score;
+        if (score <= BestScore && BestName != null) return false;
+        BestScore = score;
+        BestName = $"{c.Name} ({Career.Archetypes.FirstOrDefault(a => a.id == c.Archetype).name ?? c.Archetype})";
+        BestRank = c.Rank;
+        return true;
+    }
     /// <summary>Perks earned by past careers, carried into new ones.</summary>
     public List<string> Legacy = new();
     /// <summary>Rebound keys (actions missing here use the defaults).</summary>
