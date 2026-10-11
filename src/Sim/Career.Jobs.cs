@@ -462,6 +462,9 @@ public sealed partial class Career
         return j;
     }
 
+    /// <summary>What kind of place a site is, in a brief's words ("an all-night store", "a tangle of old sewer tunnels").</summary>
+    public static string PlaceName(SiteStyle s) => Places[s];
+
     private static readonly Dictionary<SiteStyle, string> Places = new()
     {
         [SiteStyle.Warehouse] = "warehouse", [SiteStyle.Office] = "office block", [SiteStyle.Den] = "gang den",
