@@ -1311,8 +1311,9 @@ public partial class SmokeTest
         late.CityRef = city;
         late.Rep = 20;
         var jobs = Enumerable.Range(0, 400).Select(_ => late.MakeJob(city)).Where(x => x != null).ToList();
-        var towers = jobs.Where(x => x.Floors > 0).ToList();
+        var towers = jobs.Where(x => x.Floors > 0 && x.Style != SiteStyle.Hotel).ToList();
         Check(towers.Count > 5 && towers.All(x => x.Threat >= 5), $"towers are late-game sites ({towers.Count})");
+        Check(jobs.Where(x => x.Style == SiteStyle.Hotel).All(x => x.Floors >= 2), "(a hotel is always a few floors of rooms, at any threat)");
         Check(jobs.Any(x => x.Threat == 6 && x.Floors >= 4 && x.Has(RunMod.Elite)), "prestige towers: threat 6, four floors and up, elite");
         double tp = towers.Where(x => x.Threat == 5).Select(x => x.Pay).DefaultIfEmpty(0).Average(), np = jobs.Where(x => x.Threat == 5 && x.Floors == 0 && !x.Driving).Select(x => x.Pay).DefaultIfEmpty(1).Average();
         Check(tp > np * 1.4f, $"and they pay for every floor ({tp:0} vs {np:0})");

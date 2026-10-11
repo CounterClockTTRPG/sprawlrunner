@@ -421,6 +421,13 @@ public sealed partial class Career
             if (fac == Faction.Lotus && On("council")) j.Pay = (int)(MathF.Round(j.Pay * 1.12f / 50) * 50);
             ElectionMods(j);
         }
+        // A ship doesn't wait: she sails on the tide, with you aboard or not.
+        if (style == SiteStyle.Ship && !j.Has(RunMod.Deadline))
+        {
+            j.Mods.Add(RunMod.Deadline);
+            j.Deadline = Tables.ShipSails + Tables.ShipSailsPerThreat * threat;
+            j.Pay = (int)(MathF.Round(j.Pay * Tables.RunMods.First(x => x.mod == RunMod.Deadline).pay / 50) * 50);
+        }
         if (type is JobType.Courier or JobType.Race)
         {
             // The drop is in another district, well across town.
@@ -460,6 +467,8 @@ public sealed partial class Career
         [SiteStyle.Warehouse] = "warehouse", [SiteStyle.Office] = "office block", [SiteStyle.Den] = "gang den",
         [SiteStyle.Lab] = "research lab", [SiteStyle.Club] = "nightclub",
         [SiteStyle.Tunnels] = "tangle of old sewer tunnels", [SiteStyle.Store] = "all-night store", [SiteStyle.Clinic] = "back-alley clinic",
+        [SiteStyle.Construction] = "half-built tower", [SiteStyle.Casino] = "casino", [SiteStyle.Ship] = "container ship at the quay",
+        [SiteStyle.Cemetery] = "cemetery", [SiteStyle.Hotel] = "hotel", [SiteStyle.Rooftops] = "block of rooftops",
     };
 
     /// <summary>
@@ -471,18 +480,34 @@ public sealed partial class Career
     public static SiteStyle PlaceFor(JobType type, SiteStyle style, Faction fac, string district, bool hive, Rng r)
     {
         if (hive) return style;
-        float roll = r.Float();
-        return type switch
+        float roll = r.Float(), share = 0;
+        // In order, each place takes its share of the jobs of these kinds (where it can be): the first that the roll falls in.
+        foreach (var (types, where, odds, place) in Places2)
         {
-            JobType.Bounty when roll < Tables.NestInTunnels => SiteStyle.Tunnels,
-            JobType.Kidnap when roll < Tables.KidnapAtStore => SiteStyle.Store,
-            JobType.Eliminate when roll < Tables.WetworkAtStore && district != "industrial" => SiteStyle.Store,
-            JobType.Rescue when fac == Faction.Lotus && roll < Tables.BodyBank => SiteStyle.Clinic,
-            JobType.Datasteal or JobType.Retrieve when district is "strip" or "barrens" or "docks" && roll < Tables.ClinicBusiness => SiteStyle.Clinic,
-            JobType.Retrieve or JobType.Rescue or JobType.Clear when district is "barrens" or "docks" && roll > 1 - Tables.GangTunnels => SiteStyle.Tunnels,
-            _ => style,
-        };
+            if (!types.Contains(type) || !where(district, fac)) continue;
+            share += odds;
+            if (roll < share) return place;
+        }
+        return style;
     }
+
+    private static readonly (JobType[] types, Func<string, Faction, bool> where, float odds, SiteStyle place)[] Places2 =
+    {
+        (new[] { JobType.Bounty }, (_, _) => true, Tables.NestInTunnels, SiteStyle.Tunnels),
+        (new[] { JobType.Kidnap }, (_, _) => true, Tables.KidnapAtStore, SiteStyle.Store),
+        (new[] { JobType.Eliminate }, (d, _) => d != "industrial", Tables.WetworkAtStore, SiteStyle.Store),
+        (new[] { JobType.Rescue }, (_, f) => f == Faction.Lotus, Tables.BodyBank, SiteStyle.Clinic),
+        (new[] { JobType.Datasteal, JobType.Retrieve }, (d, _) => d is "strip" or "barrens" or "docks", Tables.ClinicBusiness, SiteStyle.Clinic),
+        // The rare places.
+        (new[] { JobType.Eliminate, JobType.Kidnap, JobType.Datasteal, JobType.Investigate, JobType.Plant }, (d, _) => d is "spire" or "strip", Tables.RareHotel, SiteStyle.Hotel),
+        (new[] { JobType.Datasteal, JobType.Retrieve, JobType.Eliminate, JobType.Kidnap }, (d, _) => d == "strip", Tables.RareCasino, SiteStyle.Casino),
+        (new[] { JobType.Retrieve, JobType.Rescue, JobType.Destroy, JobType.Datasteal }, (d, _) => d == "docks", Tables.RareShip, SiteStyle.Ship),
+        (new[] { JobType.Destroy, JobType.Eliminate, JobType.Clear, JobType.Plant, JobType.Retrieve }, (d, _) => d is "spire" or "industrial" or "docks", Tables.RareBuildSite, SiteStyle.Construction),
+        (new[] { JobType.Bounty, JobType.Investigate, JobType.Plant, JobType.Retrieve, JobType.Eliminate }, (d, _) => d is "barrens" or "docks" or "strip", Tables.RareCemetery, SiteStyle.Cemetery),
+        (new[] { JobType.Eliminate, JobType.Retrieve, JobType.Datasteal }, (d, _) => d is "spire" or "strip" or "industrial", Tables.RareRooftops, SiteStyle.Rooftops),
+        // Last: now and then a gang keeps its stash, or its prisoner, in the tunnels under the slums.
+        (new[] { JobType.Retrieve, JobType.Rescue, JobType.Clear }, (d, _) => d is "barrens" or "docks", Tables.GangTunnels, SiteStyle.Tunnels),
+    };
 
     private void Describe(Job j, City city)
     {

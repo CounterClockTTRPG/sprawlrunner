@@ -25,6 +25,10 @@ public static class LevelArt
             Floor.Earth => new Color(0.12f + n, 0.09f + n, 0.06f + n),
             Floor.Water => new Color(0.06f + n * 0.5f, 0.12f + n * 0.5f, 0.11f + n * 0.5f),
             Floor.Shop => ((x + y) % 2 == 0) ? new Color(0.62f + n, 0.63f + n, 0.6f + n) : new Color(0.52f + n, 0.54f + n, 0.52f + n),
+            Floor.Casino => new Color(0.3f + n, 0.06f + n * 0.5f, 0.09f + n * 0.5f),
+            Floor.Deck => new Color(0.24f + n, 0.28f + n, 0.26f + n),
+            Floor.Roof => new Color(0.16f + n, 0.16f + n, 0.17f + n),
+            Floor.Grass => new Color(0.08f + n, 0.15f + n, 0.08f + n),
             _ => new Color(0.1f, 0.2f, 0.1f),
         };
     }
@@ -59,6 +63,7 @@ public static class LevelArt
         }
 
         float hpFrac = Level.Def(t).Hp > 0 && !float.IsPositiveInfinity(Level.Def(t).Hp) ? L.Hp[i] / Level.Def(t).Hp : 1;
+        if (DrawPlaceTile(ci, L, x, y, t, f, o, hpFrac)) return;
         switch (t)
         {
             case Tile.Rubble:
@@ -367,6 +372,30 @@ public static class LevelArt
                 }
                 if (Art.Hash(x, y, 81) > 0.85f) Blot(ci, o + new Vector2(T / 2f, T / 2f), 6, new Color(0.25f, 0.45f, 0.15f, 0.25f));
                 break;
+            case Floor.Casino:
+                // Patterned casino carpet: gold diamonds on red, made to keep you awake.
+                if ((x + y) % 2 == 0) ci.DrawColoredPolygon(new[] { o + new Vector2(T / 2f, 7), o + new Vector2(T - 7, T / 2f), o + new Vector2(T / 2f, T - 7), o + new Vector2(7, T / 2f) }, new Color(0.7f, 0.5f, 0.15f, 0.35f));
+                else ci.DrawCircle(o + new Vector2(T / 2f, T / 2f), 3, new Color(0.15f, 0.35f, 0.4f, 0.4f));
+                break;
+            case Floor.Deck:
+                // A ship's deck: painted steel plate, weld seams, rust, the odd tie-down ring.
+                ci.DrawRect(new Rect2(o, new Vector2(T, T)), fc.Darkened(0.2f), false, 1);
+                if (Art.Hash(x, y, 170) > 0.85f) Blot(ci, o + new Vector2(Art.Hash(x, y, 171) * T, Art.Hash(x, y, 172) * T), 4 + Art.Hash(x, y, 173) * 6, new Color(0.45f, 0.22f, 0.1f, 0.4f));
+                if (Art.Hash(x, y, 174) > 0.95f) ci.DrawArc(o + new Vector2(T / 2f, T / 2f), 4, 0, MathF.Tau, 10, new Color(0.6f, 0.6f, 0.58f), 1.5f);
+                break;
+            case Floor.Roof:
+                // Tar and gravel, a seam, a puddle.
+                for (int k = 0; k < 4; k++) ci.DrawCircle(o + new Vector2(Art.Hash(x, y, 175 + k) * T, Art.Hash(x, y, 180 + k) * T), 1.2f, fc.Lightened(0.15f));
+                if (y % 4 == 0) ci.DrawLine(o, o + new Vector2(T, 0), fc.Darkened(0.35f), 1.5f);
+                if (Art.Hash(x, y, 185) > 0.93f) Blot(ci, o + new Vector2(T / 2f, T / 2f), 7, new Color(0.2f, 0.25f, 0.32f, 0.3f));
+                break;
+            case Floor.Grass:
+                for (int k = 0; k < 5; k++)
+                {
+                    Vector2 g = o + new Vector2(Art.Hash(x, y, 186 + k) * T, Art.Hash(x, y, 191 + k) * T);
+                    ci.DrawLine(g, g + new Vector2(1, -4), fc.Lightened(0.12f), 1);
+                }
+                break;
             case Floor.Shop:
                 // Linoleum squares, scuffed.
                 ci.DrawRect(new Rect2(o, new Vector2(T, T)), fc.Darkened(0.08f), false, 1);
@@ -394,6 +423,105 @@ public static class LevelArt
         ci.DrawRect(g, new Color(0.06f, 0.06f, 0.07f));
         for (int k = 0; k < 4; k++) ci.DrawLine(g.Position + new Vector2(2, 2 + k * 3.3f), g.Position + new Vector2(12, 2 + k * 3.3f), fc.Darkened(0.2f), 1.5f);
         ci.DrawRect(g, fc.Darkened(0.4f), false, 1);
+    }
+
+    /// <summary>
+    /// The tiles of the rarer places, and the ordinary ones that look different there: the drop (sea under
+    /// a ship's side, the street far below a roof), container stacks, gravestones, a store's shelving, a
+    /// casino's tables and slot machines. True when it drew the tile.
+    /// </summary>
+    private static bool DrawPlaceTile(CanvasItem ci, Level L, int x, int y, Tile t, Floor f, Vector2 o, float hp)
+    {
+        var r = new Rect2(o, new Vector2(T, T));
+        switch (t)
+        {
+            case Tile.Drop when f == Floor.Water:
+            {
+                // The sea: black water, a slow swell of light on it.
+                ci.DrawRect(r, new Color(0.02f, 0.05f, 0.08f));
+                for (int k = 0; k < 2; k++)
+                {
+                    float wy = 6 + k * 16 + Art.Hash(x, y, 120 + k) * 6;
+                    ci.DrawLine(o + new Vector2(2 + Art.Hash(x, y, 122 + k) * 8, wy), o + new Vector2(14 + Art.Hash(x, y, 124 + k) * 16, wy), new Color(0.15f, 0.3f, 0.4f, 0.4f), 1);
+                }
+                return true;
+            }
+            case Tile.Drop:
+            {
+                // Over the edge: the street a long way down, its lights small.
+                ci.DrawRect(r, new Color(0.015f, 0.015f, 0.025f));
+                if (Art.Hash(x, y, 126) > 0.9f) ci.DrawCircle(o + new Vector2(Art.Hash(x, y, 127) * T, Art.Hash(x, y, 128) * T), 1.2f, Art.Hash(x, y, 129) > 0.5f ? new Color(1f, 0.7f, 0.3f, 0.7f) : new Color(0.3f, 0.8f, 1f, 0.6f));
+                // The lip of the roof beside it.
+                Color lip = new(0.35f, 0.35f, 0.38f);
+                if (L[x, y - 1] != Tile.Drop) ci.DrawRect(new Rect2(o, new Vector2(T, 3)), lip);
+                if (L[x - 1, y] != Tile.Drop) ci.DrawRect(new Rect2(o, new Vector2(3, T)), lip);
+                if (L[x + 1, y] != Tile.Drop) ci.DrawRect(new Rect2(o + new Vector2(T - 3, 0), new Vector2(3, T)), lip);
+                if (L[x, y + 1] != Tile.Drop) ci.DrawRect(new Rect2(o + new Vector2(0, T - 3), new Vector2(T, 3)), lip);
+                return true;
+            }
+            case Tile.Cargo:
+            {
+                // A stack of containers from above: corrugated roof, a colour per stack, a shadow off the side.
+                Color[] paint = { new(0.55f, 0.2f, 0.15f), new(0.15f, 0.35f, 0.5f), new(0.2f, 0.42f, 0.25f), new(0.62f, 0.5f, 0.16f), new(0.4f, 0.4f, 0.42f) };
+                Color c = paint[(int)(Art.Hash(x / 2, y / 3, 130) * paint.Length) % paint.Length].Darkened((1 - hp) * 0.4f);
+                ci.DrawRect(r, new Color(0.04f, 0.04f, 0.05f));
+                ci.DrawRect(r.Grow(-1), c);
+                bool horiz = L[x - 1, y] == Tile.Cargo || L[x + 1, y] == Tile.Cargo;
+                for (int k = 4; k < T; k += 5)
+                    ci.DrawLine(o + (horiz ? new Vector2(2, k) : new Vector2(k, 2)), o + (horiz ? new Vector2(T - 2, k) : new Vector2(k, T - 2)), c.Darkened(0.4f), 1);
+                return true;
+            }
+            case Tile.Grave:
+            {
+                // A headstone, its shadow on the grass, a little moss.
+                var b = new Rect2(o + new Vector2(8, 6), new Vector2(T - 16, T - 14));
+                ci.DrawRect(new Rect2(b.Position + new Vector2(3, 4), b.Size), new Color(0, 0, 0, 0.4f));
+                Color s = new Color(0.5f, 0.5f, 0.52f).Lerp(new Color(0.42f, 0.4f, 0.36f), Art.Hash(x, y, 131)).Darkened((1 - hp) * 0.4f);
+                ci.DrawRect(b, s);
+                ci.DrawCircle(b.Position + new Vector2(b.Size.X / 2, 1), b.Size.X / 2, s);
+                ci.DrawLine(b.Position + new Vector2(4, 6), b.Position + new Vector2(b.Size.X - 4, 6), s.Darkened(0.35f), 1);
+                ci.DrawLine(b.Position + new Vector2(5, 9), b.Position + new Vector2(b.Size.X - 5, 9), s.Darkened(0.35f), 1);
+                if (Art.Hash(x, y, 132) > 0.6f) ci.DrawCircle(b.Position + new Vector2(3, b.Size.Y - 3), 3, new Color(0.25f, 0.4f, 0.2f, 0.7f));
+                return true;
+            }
+            case Tile.Rack when f == Floor.Shop:
+            {
+                // A store's shelving: a gondola end, stock in coloured rows.
+                var b = new Rect2(o + new Vector2(1, 3), new Vector2(T - 2, T - 6));
+                ci.DrawRect(new Rect2(b.Position + new Vector2(2, 3), b.Size), new Color(0, 0, 0, 0.3f));
+                ci.DrawRect(b, new Color(0.75f, 0.75f, 0.72f));
+                for (int k = 0; k < 4; k++)
+                {
+                    Color stock = Art.Hash(x, y, 140 + k) switch { > 0.75f => new Color(0.85f, 0.25f, 0.2f), > 0.5f => new Color(0.95f, 0.8f, 0.2f), > 0.25f => new Color(0.2f, 0.55f, 0.85f), _ => new Color(0.3f, 0.7f, 0.35f) };
+                    ci.DrawRect(new Rect2(o + new Vector2(3 + k * 7, 6), new Vector2(5, T - 12)), stock.Darkened((1 - hp) * 0.4f));
+                }
+                ci.DrawRect(b, new Color(0.5f, 0.5f, 0.48f), false, 1);
+                return true;
+            }
+            case Tile.Desk when f == Floor.Casino:
+            {
+                // A gaming table: green felt, a rail, chips.
+                var b = new Rect2(o + new Vector2(1, 4), new Vector2(T - 2, T - 8));
+                ci.DrawRect(new Rect2(b.Position + new Vector2(2, 3), b.Size), new Color(0, 0, 0, 0.35f));
+                ci.DrawRect(b, new Color(0.35f, 0.2f, 0.1f).Darkened((1 - hp) * 0.4f));
+                ci.DrawRect(b.Grow(-2.5f), new Color(0.08f, 0.38f, 0.2f).Darkened((1 - hp) * 0.4f));
+                for (int k = 0; k < 3; k++)
+                    ci.DrawCircle(o + new Vector2(8 + Art.Hash(x, y, 150 + k) * 16, 12 + Art.Hash(x, y, 153 + k) * 8), 2, k == 0 ? new Color(0.9f, 0.2f, 0.2f) : k == 1 ? new Color(0.95f, 0.95f, 0.9f) : new Color(0.2f, 0.4f, 0.9f));
+                return true;
+            }
+            case Tile.Rack when f == Floor.Casino:
+            {
+                // A slot machine: a lit cabinet, three reels, a light on top.
+                var b = new Rect2(o + new Vector2(5, 3), new Vector2(T - 10, T - 6));
+                ci.DrawRect(new Rect2(b.Position + new Vector2(2, 3), b.Size), new Color(0, 0, 0, 0.35f));
+                ci.DrawRect(b, new Color(0.45f, 0.1f, 0.3f).Darkened((1 - hp) * 0.4f));
+                ci.DrawRect(new Rect2(o + new Vector2(8, 9), new Vector2(T - 16, 8)), new Color(0.95f, 0.9f, 0.7f));
+                for (int k = 0; k < 3; k++) ci.DrawRect(new Rect2(o + new Vector2(9 + k * 5, 10), new Vector2(3, 6)), Art.Hash(x, y, 160 + k) > 0.5f ? new Color(0.9f, 0.15f, 0.15f) : new Color(0.15f, 0.2f, 0.8f));
+                ci.DrawCircle(o + new Vector2(T / 2f, 5), 2.5f, new Color(1f, 0.8f, 0.2f));
+                return true;
+            }
+        }
+        return false;
     }
 
     /// <summary>A wall beside a sewer tunnel (its brick lining), not the rock round a cavern.</summary>

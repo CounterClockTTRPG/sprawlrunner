@@ -515,7 +515,7 @@ public sealed partial class Run
     public string FloorNote(V2? objective) => Plan.Tower
         ? objective is V2 to && FloorOf(to) != FloorOf(Player.Pos) ? $"It's on {Plan.FloorName(FloorOf(to))} -- take the stairs{(LiftHacked && Served(FloorOf(to)) ? " or the elevator" : "")}." : null
         : objective is V2 o && Below(o) != Below(Player.Pos)
-        ? (Below(o) ? "It's in the BASEMENT -- take the stairs (^)." : "It's UPSTAIRS -- take the stairs (^).") : null;
+        ? (Below(o) ? $"It's in the {Plan.BelowName} -- take the stairs (^)." : "It's UPSTAIRS -- take the stairs (^).") : null;
 
     public V2? ObjectivePos()
     {
@@ -854,7 +854,7 @@ public sealed partial class Run
     // ---- movement --------------------------------------------------------------------
 
     /// <summary>What a walker and a flier bump into, for <see cref="Collide.PushOut"/> (made once).</summary>
-    private Func<int, int, bool> _solidWalk, _solidFly;
+    private Func<int, int, bool> _solidWalk, _solidFly, _solidLeap;
 
     /// <summary>Move a circle through the level, opening doors it walks into.</summary>
     public void Move(Actor a, V2 delta)
@@ -866,17 +866,21 @@ public sealed partial class Run
         // Sub-step fast moves so a dash cannot tunnel through a wall.
         int steps = (int)MathF.Ceiling(delta.Length() / 0.25f);
         V2 d = delta / steps;
+        // A dash leaps a drop (a gap between roofs): mid-air, nothing underfoot is in the way.
+        bool leap = a.IsPlayer && DashT > 0;
         for (int s = 0; s < steps; s++)
         {
             a.Pos += d;
             OpenDoors(a);
             V2 p = a.Pos;
-            Collide.PushOut(ref p, a.Radius, a.Flying ? _solidFly ??= (x, y) => L.Solid(x, y, true) : _solidWalk ??= (x, y) => L.Solid(x, y, false), out _);
+            Collide.PushOut(ref p, a.Radius, a.Flying ? _solidFly ??= (x, y) => L.Solid(x, y, true)
+                : leap ? _solidLeap ??= (x, y) => L[x, y] != Tile.Drop && L.Solid(x, y, false)
+                : _solidWalk ??= (x, y) => L.Solid(x, y, false), out _);
             a.Pos = p;
         }
-        // Never left inside a wall: hop to the nearest open tile.
+        // Never left inside a wall: hop to the nearest open tile (in the middle of a leap, over the drop is fine).
         Pt at = Pt.Of(a.Pos);
-        if (L.Solid(at.X, at.Y, a.Flying))
+        if (L.Solid(at.X, at.Y, a.Flying) && !(leap && L[at] == Tile.Drop))
             for (int rr = 1; rr <= 3; rr++)
             {
                 Pt best = new(-1, -1);

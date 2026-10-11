@@ -1448,3 +1448,23 @@ Each has its own painted banner (`site-tunnels`, `site-store`, `site-clinic`).
 
 The bot now answers a decision on a run (the first answer), and plays the new places' own jobs in the
 `NewSites` checks.
+
+## Eleventh pass: the rare places
+
+Six more site styles, each a few jobs in a hundred of the kinds that fit it (`Tables.Rare*`,
+in `Career.PlaceFor`'s list, after the tunnels, stores and clinics), each with its own banner.
+Three new tiles: **`Drop`** (nothing to stand on -- the gap between roofs, the sea round a ship:
+sight, shots and drones cross it, walkers don't), **`Cargo`** (container stacks) and **`Grave`**
+(low cover). The basement has a name per site (`LevelPlan.BelowName`): a ship's HOLD, a chapel's CRYPT.
+
+| Place | Where, for what | Its plan | Its rule |
+|---|---|---|---|
+| **Building site** (`Construction`) | Spire, Industrial, Docks: sabotage, wetwork, clears, plants, retrievals | Big concrete bays (BSP 7-15); no door hung anywhere, every opening a 1-3 wide gap; whole bays of the shell open to the yard (`Unfinished`); a column every five tiles in the big bays, pallets, mixers, scaffolding; fences in the yard | The night watchman's dogs: 1 + threat/2 hounds patrolling the yard, whoever owns it |
+| **Casino** | the Strip: datasteals, retrievals, wetwork, kidnaps | The gaming floor at the front (casino carpet; tables in threes, every third bank slot machines), a strip of back rooms: the **cashier's cage** (glass bars, a door locked from inside, a safe), the **count room** (where a datasteal's data is), security, the high-rollers' room (a booth onto the floor), the manager | `Tables.Gamblers` gamblers who panic; 3 + threat cameras whoever owns it, three of them on the floor |
+| **Container ship** (`Ship`) | the Docks: retrievals, rescues, sabotage, datasteals | Always along a long edge of the map, 13 + 2*threat wide; the quay on one side, the sea (`Drop` on water) everywhere else; the hull tapers to a bow; the superstructure across the stern (the **bridge**, quarters, the mess); the deck stacked with containers in blocks (walkways at the rails, a lane down the middle, cross aisles); the **hold** below, always | **She sails**: every ship job carries the Deadline (`Tables.ShipSails` + 25 a threat seconds, and its pay) |
+| **Cemetery** | the Barrens, the Docks, the Strip: bounties, investigations, plants, retrievals, wetwork | A chapel well back in its graveyard: the nave (pews either side of an aisle, the altar), a vestry and an office; graves in rows off gravel paths, two or three mausoleums; the **crypt** below from threat 2 | **Hallowed ground**: spells there are `Tables.Hallowed` (x1.25) stronger; the graves are low cover |
+| **Hotel** | the Spire and the Strip: wetwork, kidnaps, datasteals, investigations, plants | Always a tower (2 + threat/3 floors, paid as one): the lobby (the front desk, a lounge), the bar, kitchen and offices behind; every floor above a cross corridor and bands of identical rooms four wide either side of their corridors (`BuildHotelFloor`), the depth shared out evenly; the penthouse on top, its **suite** where the target is seven times in ten | Guests in a third of the rooms (`Tables.GuestsIn`) who panic; a **housekeeping uniform** in the linen room -- pick it up and you're disguised |
+| **Rooftops** | the Spire, the Strip, Industrial: wetwork, retrievals, datasteals | No ground: five or six roofs in a 3 x 2 grid over the drop, each pulled in 1-3 from its neighbours; a plank (open doorway tiles, linked like stairs, `_bridges`) on a spanning tree of them; a railing where a roof looks over the map's edge; a stairwell hut on each; in by the fire escape on one edge, out by the helicopter on the farthest roof; nobody stands in the yard and reinforcements come up the stairwells | **Leap the gaps**: a dash carries you over the drop; one that comes up short puts you back on the ledge you left, `Tables.FallShort` the worse for it |
+
+The bot's distance field now follows stairs, so it can play a hold, a crypt or a hotel; the
+`RareSites` checks have it play each place's own jobs.

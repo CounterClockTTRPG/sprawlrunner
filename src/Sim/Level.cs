@@ -11,10 +11,17 @@ public enum Tile : byte
     Console, Safe, Locker, Stairs, Lift, Ward,
     /// <summary>Barracks bunks (low cover), and a server room's coolant pipe (rupture it: a freezing cloud).</summary>
     Bunk, Pipe,
+    /// <summary>
+    /// Nothing to stand on: the drop between two roofs, the sea round a ship. You can't walk it, but sight and
+    /// shots cross it, a drone flies over, and a dash carries you over a narrow one.
+    /// </summary>
+    Drop,
+    /// <summary>A stack of shipping containers on a deck (a wall you can't see past, slow to cut through), and a gravestone (low cover).</summary>
+    Cargo, Grave,
 }
 
 /// <summary>What the floor under a tile looks like. Purely visual.</summary>
-public enum Floor : byte { Street, Yard, Concrete, Carpet, LabTile, Dance, Wood, Grass, Ritual, Sewer, Earth, Water, Shop }
+public enum Floor : byte { Street, Yard, Concrete, Carpet, LabTile, Dance, Wood, Grass, Ritual, Sewer, Earth, Water, Shop, Casino, Deck, Roof }
 
 public readonly struct TileDef
 {
@@ -112,6 +119,9 @@ public sealed class Level
         d[(int)Tile.Ward] = new(float.PositiveInfinity, true, false, true);
         d[(int)Tile.Bunk] = new(45, true, false, true, low: true, flammable: true);
         d[(int)Tile.Pipe] = new(35, true, false, true, low: true);
+        d[(int)Tile.Drop] = new(float.PositiveInfinity, true, false, false, low: true);
+        d[(int)Tile.Cargo] = new(500, true, true, true);
+        d[(int)Tile.Grave] = new(220, true, false, true, low: true);
         return d;
     }
 

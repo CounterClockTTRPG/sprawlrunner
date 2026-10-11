@@ -153,7 +153,7 @@ public sealed partial class Run
             Pt t = Pt.Of(aim + across * k);
             if (!L.In(t) || L[t] != Tile.Floor || Actors.Any(a => !a.Dead && Pt.Of(a.Pos) == t)) continue;
             L.Set(t, Tile.Ward);
-            _wards.Add((t, C.Duration(Ability.Ward) * (0.8f + 0.2f * C.PowerOf(Ability.Ward))));
+            _wards.Add((t, C.Duration(Ability.Ward) * (0.8f + 0.2f * Power(Ability.Ward))));
             placed++;
         }
         return placed > 0;

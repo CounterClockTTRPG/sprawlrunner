@@ -153,6 +153,12 @@ public sealed partial class Run
         SiteStyle.Tunnels => ("TUNNELS", "dark, the water slows and splashes"),
         SiteStyle.Store => ("STORE", "shoppers everywhere, the clerk has a panic button"),
         SiteStyle.Clinic => ("CLINIC", "orderlies call it in, the theatre's gas puts people under"),
+        SiteStyle.Construction => ("BUILD SITE", "open floors, long sight lines, a night watchman's dogs"),
+        SiteStyle.Casino => ("CASINO", "cameras on every table, gamblers panic, the cage and the count room"),
+        SiteStyle.Ship => ("SHIP", Job.Has(RunMod.Deadline) ? "she sails on the deadline; the hold below" : "stacks of containers, the hold below"),
+        SiteStyle.Cemetery => ("CEMETERY", "hallowed ground: spells hit harder; graves are low cover"),
+        SiteStyle.Hotel => ("HOTEL", "identical corridors, guests in their rooms, a housekeeping uniform"),
+        SiteStyle.Rooftops => ("ROOFTOPS", "dash across the narrow gaps; a long fall; the chopper on the last roof"),
         _ => null,
     };
 

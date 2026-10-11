@@ -5,7 +5,7 @@ using System.Linq;
 namespace Sprawl;
 
 /// <summary>What a room is for: its furniture, and the one thing in it worth knowing about.</summary>
-public enum RoomKind { Plain, Server, Break, Barracks, Armoury, Manager, Panic, Ritual, Security, LabBay, Dock, Booth, Nest, Stock, Ward, Theatre, Morgue }
+public enum RoomKind { Plain, Server, Break, Barracks, Armoury, Manager, Panic, Ritual, Security, LabBay, Dock, Booth, Nest, Stock, Ward, Theatre, Morgue, Cage, Count, Suite, Bridge, Crypt }
 
 /// <summary>How a defender starts: as usual, off duty (cards at the break-room table), asleep in a bunk, or bound to a circle.</summary>
 public enum Mood { None, OffDuty, Asleep, Bound }
@@ -57,6 +57,18 @@ public static class SetPieces
         (RoomKind.Theatre, new[] { "P.D.P", ".DDD.", "..*.." }),
         (RoomKind.Morgue, new[] { "LLLL", "....", "v.*v" }),
         (RoomKind.Morgue, new[] { "L.L.L", ".....", "vv*vv" }),
+        (RoomKind.Cage, new[] { "S.S", "...", "D*D" }),
+        (RoomKind.Cage, new[] { "SDS", "...", ".*." }),
+        (RoomKind.Count, new[] { "DDD", ".*.", "DDD" }),
+        (RoomKind.Count, new[] { "D.D.D", "..*..", "S...S" }),
+        (RoomKind.Cage, new[] { "S.", ".*" }),
+        (RoomKind.Count, new[] { "D*", "DD" }),
+        (RoomKind.Suite, new[] { "BB.D", "....", ".*.." }),
+        (RoomKind.Suite, new[] { "D..BB", ".....", "D.*.." }),
+        (RoomKind.Bridge, new[] { "CCC", ".*.", "D.D" }),
+        (RoomKind.Bridge, new[] { "C.C.C", ".....", "D.*.D" }),
+        (RoomKind.Crypt, new[] { "c.c.c", ".....", "c.*.c" }),
+        (RoomKind.Crypt, new[] { "c...c", "..*..", "c...c" }),
     };
 
     /// <summary>A piece turned by quarter turns (0-3) and maybe mirrored.</summary>
@@ -122,6 +134,11 @@ public static class SetPieces
         RoomKind.Ward => "A ward. The patients are sedated -- they won't scream, and they won't walk out on their own.",
         RoomKind.Theatre => "An operating theatre. The anaesthetic lines run along the wall -- rupture one and whoever breathes it sleeps.",
         RoomKind.Morgue => "Cold storage. The organ vats are labelled with prices, not names.",
+        RoomKind.Cage => "The cashier's cage: bars, a safe, and the night's chips going in the drawer.",
+        RoomKind.Count => "The count room. Tonight's take, and the machine that tallies it.",
+        RoomKind.Suite => "The suite. Room service trays, a view, and whoever is paying for it.",
+        RoomKind.Bridge => "The bridge. The ship's manifest is on that console -- and the sailing orders.",
+        RoomKind.Crypt => "The crypt. Old stone coffins, and some of the lids have been moved.",
         _ => null,
     };
 
@@ -130,6 +147,7 @@ public static class SetPieces
         RoomKind.Server => "server room", RoomKind.Break => "break room", RoomKind.Barracks => "barracks", RoomKind.Armoury => "armoury",
         RoomKind.Manager => "manager's office", RoomKind.Panic => "panic room", RoomKind.Ritual => "ritual room", RoomKind.Security => "security office",
         RoomKind.LabBay => "lab bay", RoomKind.Dock => "loading dock", RoomKind.Booth => "VIP booth",
-        RoomKind.Nest => "nest", RoomKind.Stock => "stockroom", RoomKind.Ward => "ward", RoomKind.Theatre => "operating theatre", RoomKind.Morgue => "cold room", _ => "room",
+        RoomKind.Nest => "nest", RoomKind.Stock => "stockroom", RoomKind.Ward => "ward", RoomKind.Theatre => "operating theatre", RoomKind.Morgue => "cold room",
+        RoomKind.Cage => "cashier's cage", RoomKind.Count => "count room", RoomKind.Suite => "suite", RoomKind.Bridge => "bridge", RoomKind.Crypt => "crypt", _ => "room",
     };
 }
