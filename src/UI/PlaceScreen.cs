@@ -367,7 +367,7 @@ public partial class PlaceScreen : Control
         Stat("Grenades carried", $"{C.GrenadeCap} per type");
         // Edge and etiquette before the lists that grow (chrome, spells), so they stay on screen.
         d.AddChild(UITheme.Spacer(6));
-        d.AddChild(UITheme.Label($"EDGE  {C.EdgeMax} a run", 15, UITheme.Dim));
+        d.AddChild(UITheme.Label($"EDGE  {C.EdgeMax} {(C.EdgeMax == 1 ? "point" : "points")} a run", 15, UITheme.Dim));
         d.AddChild(UITheme.Label("Luck you make: the last point saves you from a killing blow; spare points slip a detection or a Matrix trace. Charisma gives some; karma buys up to two more.", 13, UITheme.Faint));
         int ec = C.EdgeCost;
         var eb = UITheme.Button(ec < 0 ? "Edge: as lucky as anyone gets" : $"+1 edge ({ec} karma)", () => Spend(C.BuyEdge), 0, 30, ec < 0 ? "Bought all there is." : $"Spend {ec} karma.");
