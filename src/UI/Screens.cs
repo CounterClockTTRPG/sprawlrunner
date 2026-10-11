@@ -562,16 +562,22 @@ public partial class DebriefScreen : Control
         var column = UITheme.VBox(18);
         centre.AddChild(column);
 
-        // The credstick transfer, as the bank's printer leaves it.
-        var paper = new PanelContainer();
+        // The credstick transfer, as the bank's printer leaves it. A long one prints tighter, and if it still runs
+        // past the screen it scrolls, so the button below always shows.
+        bool tight = d.Lines.Count + Math.Min(d.Epilogue.Count, 3) * 2 > 14;
+        int small = tight ? 1 : 0;
+        _scroll = new ScrollContainer { HorizontalScrollMode = ScrollContainer.ScrollMode.Disabled, FollowFocus = false };
+        column.AddChild(_scroll);
+        var paper = new PanelContainer { SizeFlagsHorizontal = SizeFlags.ExpandFill };
         paper.AddThemeStyleboxOverride("panel", new PaperBox { Seed = job.Id });
-        column.AddChild(paper);
-        var body = UITheme.VBox(5);
+        _scroll.AddChild(paper);
+        _paper = paper;
+        var body = UITheme.VBox(tight ? 2 : 5);
         body.CustomMinimumSize = new Vector2(560, 0);
         paper.AddChild(body);
         Label Ink(string text, int size, Color? c = null, HorizontalAlignment align = HorizontalAlignment.Left, bool wrap = true)
         {
-            var l = UITheme.Label(text, size, c ?? Dressing.Ink, align, wrap: wrap, mono: true);
+            var l = UITheme.Label(text, size - small * (size >= 13 ? 2 : 1), c ?? Dressing.Ink, align, wrap: wrap, mono: true);
             l.LabelSettings.Font = UITheme.Ocr;
             body.AddChild(l);
             return l;
@@ -596,11 +602,11 @@ public partial class DebriefScreen : Control
         foreach (var (what, amount) in d.Lines)
         {
             var row = UITheme.HBox();
-            var name = UITheme.Label(what.ToUpperInvariant(), 16, Dressing.Ink, wrap: false);
+            var name = UITheme.Label(what.ToUpperInvariant(), tight ? 14 : 16, Dressing.Ink, wrap: false);
             name.LabelSettings.Font = UITheme.Ocr;
             row.AddChild(UITheme.Grow(name));
             bool bad = amount.StartsWith("-") || amount == "failed";
-            var value = UITheme.Label(amount.ToUpperInvariant(), 16, bad ? Dressing.InkRed : Dressing.Ink, HorizontalAlignment.Right, wrap: false);
+            var value = UITheme.Label(amount.ToUpperInvariant(), tight ? 14 : 16, bad ? Dressing.InkRed : Dressing.Ink, HorizontalAlignment.Right, wrap: false);
             value.LabelSettings.Font = UITheme.Ocr;
             row.AddChild(value);
             body.AddChild(row);
@@ -632,6 +638,19 @@ public partial class DebriefScreen : Control
         column.AddChild(r2);
     }
 
+    private ScrollContainer _scroll;
+    private Control _paper;
+
+    /// <summary>The paper as tall as it prints, but never taller than the screen leaves room for (the button needs ~90 px).</summary>
+    private void FitPaper()
+    {
+        if (_scroll == null || _paper == null) return;
+        Vector2 need = _paper.GetCombinedMinimumSize();
+        float room = GetViewportRect().Size.Y - 46 - 18 - 40;
+        var size = new Vector2(need.X, MathF.Min(need.Y, room));
+        if (_scroll.CustomMinimumSize != size) _scroll.CustomMinimumSize = size;
+    }
+
     // ---- the figures counting up as the printer runs ------------------------------------
 
     /// <summary>Count the figures up (off in the walkthrough, so the shot shows the totals).</summary>
@@ -642,6 +661,7 @@ public partial class DebriefScreen : Control
 
     public override void _Process(double delta)
     {
+        FitPaper();
         if (_rolls.Count == 0) return;
         _t += (float)delta;
         bool ticking = false;
