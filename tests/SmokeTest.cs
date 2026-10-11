@@ -589,6 +589,23 @@ public partial class SmokeTest : Node
         rb.Step(new RunInput { Slot = -1, AbilityQ = true, Aim = spot });
         Steps(rb, 1.5f, new RunInput { Slot = -1, Aim = spot });
         Check(near.Hp < near.MaxHp && beyond.Hp >= beyond.MaxHp, $"a fireball bursts at the cursor (beside it {near.Hp:0}/{near.MaxHp:0}, past it {beyond.Hp:0}/{beyond.MaxHp:0})");
+        // Worth its long wait: into a knot of three guards, a fireball does more than manabolts would in the same time.
+        Run rg = Make(q, JobType.Datasteal, mage);
+        V2 knot = new(9.5f, 1.5f);
+        var group = new[] { rg.AddEnemy(EnemyKind.Guard, knot, 0), rg.AddEnemy(EnemyKind.Guard, knot + new V2(1.5f, 1), 0), rg.AddEnemy(EnemyKind.Guard, knot + new V2(-2.2f, 1), 0) };
+        foreach (Actor gd in group) gd.MaxHp = gd.Hp = 1e4f;
+        rg.Step(new RunInput { Slot = -1, AbilityQ = true, Aim = knot });
+        Steps(rg, 1.5f, new RunInput { Slot = -1, Aim = knot });
+        float burnt = group.Sum(gd => 1e4f - gd.Hp);
+        mage.SlotQ = Ability.Manabolt;
+        Run rm = Make(q, JobType.Datasteal, mage);
+        Actor one = rm.AddEnemy(EnemyKind.Guard, knot, 0);
+        one.MaxHp = one.Hp = 1e4f;
+        rm.Step(new RunInput { Slot = -1, AbilityQ = true, Aim = one.Pos });
+        Steps(rm, 0.3f, new RunInput { Slot = -1, Aim = one.Pos });
+        float bolts = (1e4f - one.Hp) * Career.AbilityCooldown(Ability.Fireball) / Career.AbilityCooldown(Ability.Manabolt);
+        Check(group.All(gd => gd.Hp < 1e4f) && burnt > bolts, $"a fireball into a knot of three beats manabolts over its cooldown ({burnt:0} vs {bolts:0})");
+        mage.SlotQ = Ability.Fireball;
     }
 
     private void Bodies()

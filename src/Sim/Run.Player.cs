@@ -380,7 +380,7 @@ public sealed partial class Run
             {
                 // It flies at the cursor and bursts there (or on whatever it meets first).
                 V2 to = InRange(aim, Tables.FireballRange);
-                var w = new WeaponDef { Id = "fireball", Damage = 70 * Power(a), Speed = 12, Range = Tables.FireballRange, Blast = Tables.FireballBlast, Pellets = 1, Class = WeaponClass.Launcher };
+                var w = new WeaponDef { Id = "fireball", Damage = Tables.FireballDamage * Power(a), Speed = 12, Range = Tables.FireballRange, Blast = Tables.FireballBlast, Pellets = 1, Class = WeaponClass.Launcher };
                 SpawnShot(Player, w, M.Angle(to - Player.Pos), w.Damage, false, V2.Distance(to, Player.Pos));
                 Shots[^1].Kind = ShotKind.Fireball;
                 Shots[^1].Range = V2.Distance(to, Player.Pos);
