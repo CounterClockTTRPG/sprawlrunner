@@ -193,6 +193,22 @@ public static partial class Tables
     public const float RareBuildSite = 0.08f, RareCasino = 0.1f, RareShip = 0.1f, RareCemetery = 0.08f, RareHotel = 0.1f, RareRooftops = 0.06f;
     /// <summary>Hallowed ground: spells in a cemetery this much stronger. A leap that falls short: this much hurt.</summary>
     public const float Hallowed = 1.25f, FallShort = 12f;
+
+    /// <summary>
+    /// The career score (Career.ScoreLines): points per day, job, story, life saved, guard spared, achievement
+    /// earned this career and karma; points off per failed job, crew member buried, guard shot after giving up
+    /// and TraumaLink pick-up. Retiring multiplies it (a legend more).
+    /// </summary>
+    public const int ScoreDay = 10, ScoreJob = 100, ScoreFailed = 30, ScoreStory = 1500, ScoreRescue = 150, ScoreSpared = 40,
+        ScoreAchievement = 250, ScoreKarma = 2, ScoreCrewLost = 400, ScoreHelpless = 150, ScoreTrauma = 100;
+    public const float ScoreRetired = 1.25f, ScoreLegend = 1.5f;
+
+    /// <summary>What the street calls you for a score: from this many points up.</summary>
+    public static readonly (int from, string name)[] Ranks =
+    {
+        (0, "Wannabe"), (800, "Street rat"), (2500, "Runner"), (5500, "Professional"), (10000, "Shadow veteran"),
+        (17000, "Prime runner"), (26000, "Shadow legend"), (38000, "Myth of Kessler Bay"),
+    };
     /// <summary>A ship sails this long after you go aboard (plus a little a threat).</summary>
     public const int ShipSails = 170, ShipSailsPerThreat = 25;
     public const float AnaestheticSleep = 6f, WadeSlow = 0.62f, WadeNoise = 1.7f, PanicButton = 2.5f;
