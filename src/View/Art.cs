@@ -93,6 +93,10 @@ public static class Art
     public static Look LookFor(Actor a, Faction f)
     {
         if (a.IsPlayer) return PlayerLook("samurai");
+        // A ghoul: corpse-pale grey-green all over, hairless, no clothes worth the name, no faction's
+        // colours. A live one is RunView's own figure; this is for its body.
+        if (a.Wild && a.Kind == EnemyKind.Bruiser)
+            return new Look { Body = new Color(0.4f, 0.46f, 0.36f), Trim = new Color(0.3f, 0.36f, 0.27f), Skin = new Color(0.56f, 0.63f, 0.5f), Hair = new Color(0.5f, 0.57f, 0.45f), Heavy = true };
         if (a.IsHostage) return new Look { Body = new Color(0.85f, 0.85f, 0.8f), Trim = new Color(0.6f, 0.6f, 0.65f), Skin = new Color(0.75f, 0.58f, 0.45f), Hair = new Color(0.25f, 0.2f, 0.15f) };
         Color skin = new(0.8f, 0.62f, 0.5f);
         var l = f switch

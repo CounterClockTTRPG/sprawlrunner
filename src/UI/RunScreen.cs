@@ -403,8 +403,8 @@ public partial class RunScreen : Control
                     if (fill > 0) DrawRect(new Rect2(cell.Position, new Vector2(cw * fill, 12)), (k >= 2 ? UITheme.Bad : UITheme.Yellow) with { A = k < lv ? 1 : 0.6f });
                     DrawRect(cell, UITheme.PanelEdge, false, 1);
                 }
-                string now = Run.SecurityLevels[lv].name;
-                string next = lv < 6 ? $"next: {Run.SecurityLevels[lv + 1].name.ToLower()} -- {Run.SecurityLevels[lv + 1].does}" : Run.SecurityLevels[6].does;
+                string now = r.Levels[lv].name;
+                string next = lv < 6 ? $"next: {r.Levels[lv + 1].name.ToLower()} -- {r.Levels[lv + 1].does}" : r.Levels[6].does;
                 string why = r.CloakT > 0 ? "CLOAKED" : r.CoolingOff ? "lost them -- cooling off" : r.SecurityTick > 0 && !r.CoolingOff && lv < 3 && r.AlarmMeter > 0 ? "being called in -- silence them" : null;
                 bool flash = lv >= 3 && MathF.Sin(r.Time * 8) > 0;
                 UITheme.Write(this, new Vector2(x0 + 6 * (cw + gap) + 8, y0 + 11), $"SECURITY {lv}  {now}" + (why != null ? $"  ·  {why}" : ""), 13, flash ? lc.Darkened(0.3f) : lc, heading: true);

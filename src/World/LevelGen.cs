@@ -1624,7 +1624,8 @@ public sealed class LevelGen
                 var (mp, mood, mf) = _moods[0];
                 _moods.RemoveAt(0);
                 s.Pos = mp;
-                s.Mood = mood;
+                // Nothing in a nest is on its break: it's asleep.
+                s.Mood = bounty && mood == Mood.OffDuty ? Mood.Asleep : mood;
                 s.Facing = mf;
                 P.Enemies.Add(s);
                 continue;

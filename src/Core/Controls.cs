@@ -40,7 +40,7 @@ public static class Controls
         [Act.Up] = "Move up / throttle", [Act.Down] = "Move down / brake", [Act.Left] = "Move left / steer left", [Act.Right] = "Move right / steer right",
         [Act.Sneak] = "Sneak (hold)", [Act.Interact] = "Use / enter", [Act.Reload] = "Reload", [Act.Dash] = "Dash", [Act.Medkit] = "Medkit",
         [Act.AbilityQ] = "Ability 1", [Act.AbilityF] = "Ability 2", [Act.Grenade] = "Next grenade", [Act.Whistle] = "Whistle (lure)", [Act.Map] = "Map",
-        [Act.Weapon1] = "Primary", [Act.Weapon2] = "Secondary", [Act.Weapon3] = "Melee", [Act.Handbrake] = "Handbrake", [Act.Pause] = "Pause / back", [Act.Pda] = "PDA (in the city)", [Act.Rig] = "Jack into your drone", [Act.Horn] = "Horn (in the car)",
+        [Act.Weapon1] = "Primary", [Act.Weapon2] = "Secondary", [Act.Weapon3] = "Melee", [Act.Handbrake] = "Handbrake", [Act.Pause] = "Pause / back", [Act.Pda] = "PDA (city, safehouse)", [Act.Rig] = "Jack into your drone", [Act.Horn] = "Horn (in the car)",
     };
 
     private static readonly Dictionary<Act, JoyButton> Pad = new()
@@ -56,19 +56,22 @@ public static class Controls
     /// <summary>The key bound to an action (the agent always plays on the defaults).</summary>
     public static Key KeyOf(Act a) => !AgentRunner.Active && Profile.Current.Bindings.TryGetValue(a, out Key k) ? k : Defaults[a];
 
+    /// <summary>The key's name as printed on the player's keyboard (bindings are positions: Q on AZERTY is the QWERTY A).</summary>
     public static string KeyName(Act a)
     {
         // The HUD asks every frame: remember each action's name until its key changes (a rebinding).
         Key k = KeyOf(a);
         if (_keyNames.TryGetValue(a, out var known) && known.key == k) return known.name;
-        string name = OS.GetKeycodeString(k);
+        Key label = AgentRunner.Active ? Key.None : DisplayServer.KeyboardGetKeycodeFromPhysical(k);
+        string name = OS.GetKeycodeString(label != Key.None ? label : k);
         _keyNames[a] = (k, name);
         return name;
     }
 
     private static readonly Dictionary<Act, (Key key, string name)> _keyNames = new();
 
-    public static bool Down(Key k) => AgentRunner.Active ? AgentKeys.Contains(k) : Input.IsPhysicalKeyPressed(k) || Input.IsKeyPressed(k);
+    /// <summary>Is the key held -- by position only, so a layout's letters never fire a second action (AZERTY's Q is Left, not Ability 1).</summary>
+    public static bool Down(Key k) => AgentRunner.Active ? AgentKeys.Contains(k) : Input.IsPhysicalKeyPressed(k);
 
     /// <summary>Is the action held: its key, the arrow keys for movement, or the gamepad.</summary>
     public static bool Down(Act a)
@@ -81,7 +84,7 @@ public static class Controls
     /// <summary>Did this event just press the action?</summary>
     public static bool Is(InputEvent e, Act a)
     {
-        if (e is InputEventKey { Pressed: true, Echo: false } k) return k.PhysicalKeycode == KeyOf(a) || k.Keycode == KeyOf(a);
+        if (e is InputEventKey { Pressed: true, Echo: false } k) return (k.PhysicalKeycode != Key.None ? k.PhysicalKeycode : k.Keycode) == KeyOf(a);
         if (e is InputEventJoypadButton { Pressed: true } jb && !AgentRunner.Active) return Pad.TryGetValue(a, out JoyButton b) && jb.ButtonIndex == b;
         return false;
     }

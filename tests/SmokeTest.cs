@@ -544,9 +544,22 @@ public partial class SmokeTest : Node
         r.AbilityCd[Ability.Manabolt] = 0;
         r.Step(new RunInput { Slot = -1, AbilityQ = true, Aim = d.Pos });
         Eq(d.Hp, d.MaxHp, "Manabolt does nothing to machines");
+        // Heal lands on the cursor: whoever on your side stands in the circle there, you only if you do.
         r.Player.Hp = 20;
-        r.Step(new RunInput { Slot = -1, AbilityF = true });
-        Check(r.Player.Hp > 50, "Heal heals");
+        Actor mate = r.AddEnemy(EnemyKind.Guard, new V2(10.5f, 2.5f), 0);
+        mate.Team = 0;
+        mate.IsAlly = true;
+        mate.Hp = 20;
+        g.Hp = 20;
+        r.Step(new RunInput { Slot = -1, AbilityF = true, Aim = new V2(10.5f, 1.5f) });
+        Check(mate.Hp > 50 && r.Player.Hp < 25, $"Heal at the cursor heals the ally there ({mate.Hp:0}), not you across the room ({r.Player.Hp:0})");
+        Check(g.Hp < 25, "and never a hostile in the circle");
+        Check(V2.Distance(r.AreaPoint(Ability.Heal, new V2(10.5f, 1.5f)), new V2(10.5f, 1.5f)) < 0.01f, "its preview sits on the cursor");
+        r.AbilityCd[Ability.Heal] = 0;
+        r.Step(new RunInput { Slot = -1, AbilityF = true, Aim = r.Player.Pos });
+        Check(r.Player.Hp > 50, "Heal aimed at yourself heals you");
+        V2 far = r.AreaPoint(Ability.Heal, r.Player.Pos + new V2(40, 0));
+        Check(far.X < 13 && V2.Distance(far, r.Player.Pos) <= Tables.SpellRange, $"aimed past a wall it stops short of it ({far.X:0.0})");
         float power = mage.SpellPower;
         mage.Install("wired");
         Check(mage.SpellPower < power, "chrome weakens magic");
@@ -568,6 +581,14 @@ public partial class SmokeTest : Node
         rf.Step(new RunInput { Slot = -1, AbilityQ = true, Aim = t.Pos });
         Steps(rf, 1.5f, new RunInput { Slot = -1, Aim = t.Pos });
         Check(t.Hp < t.MaxHp, "a fireball burns a guard");
+        // Aimed at open floor, it bursts there -- not on the far wall behind the cursor.
+        Run rb = Make(q, JobType.Datasteal, mage);
+        Actor near = rb.AddEnemy(EnemyKind.Guard, new V2(5.5f, 2.5f), 0), beyond = rb.AddEnemy(EnemyKind.Guard, new V2(12.5f, 1.5f), 0);
+        V2 spot = new V2(5.5f, 1.5f);
+        Check(V2.Distance(rb.AreaPoint(Ability.Fireball, spot), spot) < 0.01f, "the fireball's preview sits on the cursor");
+        rb.Step(new RunInput { Slot = -1, AbilityQ = true, Aim = spot });
+        Steps(rb, 1.5f, new RunInput { Slot = -1, Aim = spot });
+        Check(near.Hp < near.MaxHp && beyond.Hp >= beyond.MaxHp, $"a fireball bursts at the cursor (beside it {near.Hp:0}/{near.MaxHp:0}, past it {beyond.Hp:0}/{beyond.MaxHp:0})");
     }
 
     private void Bodies()
@@ -1312,6 +1333,10 @@ public partial class SmokeTest : Node
         Check(Controls.Is(new InputEventKey { Keycode = Key.C, PhysicalKeycode = Key.C, Pressed = true }, Act.Dash), "the new key triggers it");
         Check(!Controls.Is(new InputEventKey { Keycode = Key.Space, PhysicalKeycode = Key.Space, Pressed = true }, Act.Dash), "the old one does not");
         Profile.Current.Bindings.Clear();
+        // AZERTY: the key labelled Q sits where QWERTY's A is -- it steers left and must not fire Ability 1.
+        var azertyQ = new InputEventKey { Keycode = Key.Q, PhysicalKeycode = Key.A, Pressed = true };
+        Check(Controls.Is(azertyQ, Act.Left) && !Controls.Is(azertyQ, Act.AbilityQ), "keys go by position, not by the layout's letter");
+        Check(Controls.Is(new InputEventKey { Keycode = Key.M, Pressed = true }, Act.Map), "an event with no position falls back to its letter");
         Check(Enum.GetValues<Act>().All(a => Controls.Defaults.ContainsKey(a) && Controls.Names.ContainsKey(a)), "every action has a default key and a name");
     }
 
@@ -1828,6 +1853,12 @@ public partial class SmokeTest : Node
         foreach (ContactDef k in Tables.Contacts)
             Eq(c.Place(k.Id).District, k.District, $"{k.Name} is in the {k.District}");
         Check(City.Landmarks.All(m => c.Lots.Any(l => l.Landmark == m.id)), "every landmark is in the city");
+        foreach (ulong seed in new ulong[] { 12345, 55, 7, 99999 })
+        {
+            City sc = City.Generate(seed);
+            Check(sc.Place("loft")?.Landmark == "arcology", $"city {seed}: the Spire loft is in the Spire");
+            Check(sc.Lots.Count(l => l.Place == "loft") == 1, $"city {seed}: and only there");
+        }
         foreach (Lot l in c.Lots.Where(l => l.Kind == LotKind.Building && l.Landmark == null).Take(400))
             Check(c[l.Door.X, l.Door.Y] == CTile.Sidewalk, $"lot {l.Index} door on pavement");
         for (int i = 0; i < c.RoadX.Count; i++)
@@ -1877,10 +1908,56 @@ public partial class SmokeTest : Node
             Lot lot = sim.City.Place(place);
             var ap = new DriveAutopilot(c, sim.Player.Pos, lot);
             float t = 0;
-            while (!ap.Done && t < 120) { sim.Step(1 / 60f, ap.Step(sim, 1 / 60f)); t += 1 / 60f; }
+            // The line on the map runs from the car to the next waypoint still ahead: never across a block.
+            int ahead = 0;
+            string cut = null;
+            while (!ap.Done && t < 120)
+            {
+                sim.Step(1 / 60f, ap.Step(sim, 1 / 60f));
+                t += 1 / 60f;
+                ahead = ap.Ahead(sim.Player.Pos, ahead);
+                V2 p = sim.Player.Pos, j = ap.OnLeg(p, ahead);
+                if (c[(int)MathF.Floor(p.X), (int)MathF.Floor(p.Y)] is CTile.Road or CTile.Sidewalk)
+                    foreach (var (a, b) in new[] { (p, j), (j, ap.Waypoints[ahead]) })
+                        for (float u = 0, len = MathF.Max(V2.Distance(a, b), 0.5f); u < len && cut == null; u += 0.5f)
+                            if (c[(int)MathF.Floor(a.X + (b.X - a.X) * u / len), (int)MathF.Floor(a.Y + (b.Y - a.Y) * u / len)] is not (CTile.Road or CTile.Sidewalk))
+                                cut = $"at {t:0.0} s from {p.X:0},{p.Y:0} to waypoint {ahead} at {ap.Waypoints[ahead].X:0},{ap.Waypoints[ahead].Y:0}";
+            }
             if (_only == "Autopilot") GD.Print($"    {place}: {t:0} s, hull {sim.Player.Hp:0}, door {lot.Door} kerb {c.Kerb(lot).pos} car {sim.Player.Pos} heading {sim.Player.Heading * 57.3f % 360:0} atdoor {sim.AtDoor()?.Place} near: {string.Join(" ", sim.Traffic.Where(x => V2.Distance(x.Pos, sim.Player.Pos) < 4).Select(x => $"{x.Kind}@{x.Pos.X:0.0},{x.Pos.Y:0.0} sw{x.SwerveT:0.0} v{x.Speed:0.0}"))} tile {c[(int)sim.Player.Pos.X, (int)sim.Player.Pos.Y]}");
+            Check(cut == null, $"the route line to {place} keeps to the streets as you drive it{(cut != null ? ": " + cut : "")}");
             Check(ap.Done && sim.AtDoor() == lot, $"autopilot reaches {place} ({t:0} s, at {sim.Player.Pos.X:0},{sim.Player.Pos.Y:0}, hull {sim.Player.Hp:0})");
         }
+        // The route line keeps to the streets: from all over town to every place, never across a block.
+        var from = new List<V2>();
+        for (int i = 0; i + 1 < c.RoadX.Count; i += 2)
+        for (int j = 0; j < c.RoadY.Count; j += 2)
+        {
+            from.Add(new V2((c.Node(i, j).X + c.Node(i + 1, j).X) / 2, c.Node(i, j).Y + 1));
+            from.Add(new V2(c.Node(i, j).X - 1, (c.Node(i, Math.Max(j - 1, 0)).Y + c.Node(i, j).Y) / 2));
+        }
+        int legs = 0, offRoad = 0;
+        string first = null;
+        foreach (Lot lot in c.Lots.Where(l => l.Place != null))
+        foreach (V2 p0 in from)
+        {
+            var ap = new DriveAutopilot(c, p0, lot);
+            V2 a = ap.From;
+            foreach (V2 b in ap.Waypoints)
+            {
+                legs++;
+                float len = V2.Distance(a, b);
+                for (float u = 0; u <= len; u += 0.5f)
+                {
+                    V2 q = a + (b - a) * (len < 1e-3f ? 0 : u / len);
+                    if (c[(int)MathF.Floor(q.X), (int)MathF.Floor(q.Y)] is CTile.Road or CTile.Sidewalk) continue;
+                    offRoad++;
+                    first ??= $"{lot.Place} from {p0.X:0},{p0.Y:0}: {a.X:0.0},{a.Y:0.0} -> {b.X:0.0},{b.Y:0.0} crosses {c[(int)q.X, (int)q.Y]} at {q.X:0.0},{q.Y:0.0}";
+                    break;
+                }
+                a = b;
+            }
+        }
+        Check(offRoad == 0, $"routes keep to the streets ({legs} legs, {offRoad} across a block{(first != null ? ": " + first : "")})");
     }
 
     private void Police()

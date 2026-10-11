@@ -337,6 +337,19 @@ public partial class ShotRunner : Node
                     await Frames(5);
                     await Shot($"04d_landmark_{l.Landmark}");
                 }
+                // The Spire over its neighbours: from the street along its west side, at rest and at
+                // the zoom of driving fast, then pulled out further from the corner of its block.
+                Lot sp = Root.City.Lots.First(x => x.Landmark == "arcology");
+                float west = Root.City.RoadX.Where(x => x < sp.R.X).Max() + City.Road / 2f;
+                float south = Root.City.RoadY.Where(y => y >= sp.R.Bottom).Min() + City.Road / 2f;
+                foreach (var (at, zoom, name) in new[] { (new V2(west, sp.R.Y + sp.R.H / 2f), 1.35f, "04e_spire_street"), (new V2(west, sp.R.Y + sp.R.H / 2f), 0.85f, "04f_spire_passing"), (new V2(west, south), 0.6f, "04g_spire_far") })
+                {
+                    Root.CitySim.Player.Pos = at;
+                    Root.CitySim.Player.Vel = V2.Zero;
+                    for (int i = 0; i < 90; i++) { Root.CitySim.Step(1 / 60f, default); Root.CityView.Frame(1 / 60f); }
+                    for (int i = 0; i < 4; i++) { Root.CityView.Zoom = zoom; await Frames(1); }
+                    await Shot(name);
+                }
                 Root.CitySim.ParkAt(Root.CitySim.HomeLot);
             }
             if (Want("bike"))
@@ -371,6 +384,19 @@ public partial class ShotRunner : Node
                 ps.Show("Runner");
                 await Frames(10);
                 await Shot("06_runner");
+                // A mage who knows every spell: the longest Runner tab there is.
+                {
+                    Career rc = Root.Career;
+                    string arch = rc.Archetype;
+                    var spells = rc.Spells.ToList();
+                    rc.Archetype = "mage";
+                    rc.Spells = Tables.Spells.Select(s => s.Id).ToList();
+                    ps.Show("Runner");
+                    await Frames(10);
+                    await Shot("06b_runner_mage");
+                    rc.Archetype = arch;
+                    rc.Spells = spells;
+                }
                 ps.Show("Loadout");
                 await Frames(10);
                 await Shot("07_loadout_bare");
@@ -381,6 +407,11 @@ public partial class ShotRunner : Node
                 ps.Show("Loadout");
                 await Frames(10);
                 await Shot("07_loadout");
+                Root.Career.Cyber.AddRange(new[] { "eyes", "dermal" });
+                Root.Career.CyberGrade["dermal"] = "alpha";
+                ps.Show("Deck");
+                await Frames(10);
+                await Shot("07a_deck");
                 ps.Show("Upgrades");
                 await Frames(10);
                 await Shot("07b_upgrades");
@@ -675,11 +706,15 @@ public partial class ShotRunner : Node
             if (Want("people"))
             {
                 // Close-ups of each faction's people: gear, shadows, the breath at rest, a gun kicking.
-                foreach (Faction pf in Enum.GetValues<Faction>())
+                // The last pass is a bounty's nest: ghouls, hellhounds and a barghest, with a Viper ganger
+                // at the end of the line to tell them apart by, then the same line at the game's own zoom.
+                foreach (int pass in Enumerable.Range(0, 4))
                 {
+                    bool nest = pass == 3;
+                    Faction pf = nest ? Faction.Vipers : (Faction)pass;
                     Root.EnterCity();
                     await Frames(5);
-                    var pj = new Job { Id = 953 + (int)pf, Type = JobType.Clear, Style = SiteStyle.Warehouse, Threat = 3, Seed = 77, Faction = pf, District = "docks", Target = "x", Item = "case", Title = "People", Lot = -1 };
+                    var pj = new Job { Id = 953 + pass, Type = nest ? JobType.Bounty : JobType.Clear, Style = SiteStyle.Warehouse, Threat = 3, Seed = 77, Faction = pf, District = "docks", Target = "x", Item = "case", Title = "People", Lot = -1 };
                     Root.StartRun(pj);
                     await Frames(10);
                     Sprawl.Run pr = Root.RunScreen.R;
@@ -688,7 +723,7 @@ public partial class ShotRunner : Node
                     V2 c0 = pr.Player.Pos;
                     for (int k = 0; k < 40; k++) { V2 t = pr.Player.Pos + new V2(0, 3 + k * 0.25f); if (Enumerable.Range(-4, 9).All(dx => pr.L[Pt.Of(t + new V2(dx, 1.4f))] == Tile.Floor && pr.L[Pt.Of(t + new V2(dx, -1.2f))] == Tile.Floor)) { c0 = t; break; } }
                     pr.Player.Pos = c0 - new V2(0, 1.2f);
-                    EnemyKind[] who = pf switch
+                    EnemyKind[] who = nest ? new[] { EnemyKind.Bruiser, EnemyKind.Bruiser, EnemyKind.Hound, EnemyKind.Barghest, EnemyKind.Ganger } : pf switch
                     {
                         Faction.Vipers => new[] { EnemyKind.Ganger, EnemyKind.Bruiser, EnemyKind.Firebug, EnemyKind.Hound, EnemyKind.Barghest },
                         Faction.Lotus => new[] { EnemyKind.Guard, EnemyKind.Blade, EnemyKind.Mage, EnemyKind.Bruiser, EnemyKind.Heavy },
@@ -702,7 +737,13 @@ public partial class ShotRunner : Node
                     }
                     Root.RunView.Cam.Zoom = new Vector2(3.2f, 3.2f);
                     for (int i = 0; i < 4; i++) { pr.Time = 0.08f; Root.RunView.Frame(1 / 60f); pr.Events.Clear(); await Frames(1); }
-                    await Shot($"23z_people_{pf.ToString().ToLowerInvariant()}");
+                    await Shot($"23z_people_{(nest ? "nest" : pf.ToString().ToLowerInvariant())}");
+                    if (nest)
+                    {
+                        Root.RunView.Cam.Zoom = new Vector2(1.45f, 1.45f);
+                        for (int i = 0; i < 4; i++) { pr.Time = 0.08f; Root.RunView.Frame(1 / 60f); pr.Events.Clear(); await Frames(1); }
+                        await Shot("23z_people_nest_far");
+                    }
                 }
                 Root.EnterCity();
             }

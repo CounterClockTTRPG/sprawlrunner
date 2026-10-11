@@ -20,7 +20,7 @@ graded chrome, the Matrix, vehicles and chases, and policing in the city. The
 headline gaps:
 
 1. **No metatypes.** Everyone is a human-shaped "runner"; the troll and elf
-   exist only as two hires' descriptions (`Tables.cs:569-570`) and Mr. Tusk.
+   exist only as two hires' descriptions (`Tables.cs:574-575`) and Mr. Tusk.
 2. **Magic is free.** No drain (no code mentions it), one tradition, one spirit
    type that can't be bound, no adepts, sites with no background count or wards.
 3. **No SIN.** Being SINless is the intro's first line (`Intro.cs:34`) and then
@@ -39,11 +39,11 @@ headline gaps:
 
 | What | Where | Fix |
 |---|---|---|
-| Second-skin suit promises "footsteps near silent"; armour never touches step noise | `Tables.cs:332`, `Run.Player.cs:168` | an `ArmorDef.Quiet` multiplier on step noise (0.4 for the suit) |
+| Second-skin suit promises "footsteps near silent"; armour never touches step noise | `Tables.cs:334`, `Run.Player.cs:168` | an `ArmorDef.Quiet` multiplier on step noise (0.4 for the suit) |
 | `lead:collector` set ("Sorensen-Aoki") and never read | `Storylets.cs:199` | a follow-up: a Sorensen-Aoki job or a call that the collector got careless |
 | `burned:johnson` has no follow-up storylet, unlike heat/scanner/fled/crew | `Career.World.cs:313`, `Storylets.cs:319-352` | a storylet (Juno confronts the Johnson, or you do) -- check `crossed` first |
 | Write-only fields: `LastRun.Died`, `MatrixRun.PlantT`, `CitySim.LastFine` | `Story.cs:48`, `Matrix.cs:108`, `CitySim.Pursuit.cs:215` | use or remove |
-| Balance report buys medkits at ¥300; the shop charges ¥400 | `tests/SmokeTest.Balance.cs:82`, `Tables.cs:338` | use `Tables.MedkitCost` |
+| Balance report buys medkits at ¥300; the shop charges ¥400 | `tests/SmokeTest.Balance.cs:82`, `Tables.cs:340` | use `Tables.MedkitCost` |
 | Balance report: seed 23 gives near-identical numbers for every archetype | `SmokeTest.Balance.cs:48` | archetype-aware win rates from the bot's results |
 | Escape/Enter matched by keycode; no Back action, so no gamepad "B" in menus | `PlaceScreen.cs:144`, `Screens.cs:52`, `Pda.cs:79`, `StoryUi.cs:85,92`, `Terminal.cs:74` | `Act.Back` in `Controls` |
 | Boss bar draws a fill under `DrawSegBar`, which already fills | `RunScreen.cs:499-501` | drop the fill |
@@ -161,7 +161,7 @@ Without orders the crew is a turret that walks.
 
 | What | Proposal |
 |---|---|
-| **Drugs** | Combat drugs from the fence: jazz (Overclock-lite), kamikaze (strength, pain immunity, crash after), novacoke (+Cha for one meeting). Each has a crash after the run and an addiction chance that becomes a storylet and a weekly cost. Ties into Lotus's turf (BTL master copy is already loot, `Tables.cs:593`). |
+| **Drugs** | Combat drugs from the fence: jazz (Overclock-lite), kamikaze (strength, pain immunity, crash after), novacoke (+Cha for one meeting). Each has a crash after the run and an addiction chance that becomes a storylet and a weekly cost. Ties into Lotus's turf (BTL master copy is already loot, `Tables.cs:598`). |
 | **Extraterritoriality** | Halcyon sites are corporate soil: no police ever come, but their own response team does, and a kill there is a corporate-court matter (a bounty, a storylet) rather than heat. Vipers' and Lotus's turf get the police. |
 | **Shady docs** | Cheap implants from a back-alley doc: chance of a tracker (a Halcyon tail until you pay Ichikawa to dig it out), used grade (cheaper, more essence). |
 | **Low essence** | Phantoms already appear below 1.5 (`Run.cs:745`). Add a social cost: contacts' loyalty grows slower, the Face's bluff falls, children cross the street. |

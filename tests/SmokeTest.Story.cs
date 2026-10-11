@@ -817,6 +817,18 @@ public partial class SmokeTest
             var bj = new Job { Type = JobType.Bounty, Style = SiteStyle.Den, Faction = Faction.Vipers, Threat = 1 + (int)seed % 5, Seed = seed, Title = "x", Target = "x", Item = "x" };
             var bp = LevelGen.Generate(bj);
             Check(bp.Enemies.Count > 0 && bp.Enemies.All(x => x.Kind is EnemyKind.Hound or EnemyKind.Bruiser or EnemyKind.Spirit or EnemyKind.Barghest), $"a nest is critters ({string.Join(",", bp.Enemies.Select(x => x.Kind).Distinct())})");
+            Check(bp.Enemies.All(x => x.Mood != Mood.OffDuty), "nothing in a nest is on its break");
+        }
+        // Stirred all the way up, a nest sends more of itself, never somebody's gangers.
+        {
+            var bj = new Job { Id = 6, Type = JobType.Bounty, Style = SiteStyle.Den, Faction = Faction.Vipers, Threat = 4, Seed = 3, Title = "x", Target = "x", Item = "x", Lot = -1 };
+            var br = new Run(bj, TestCareer(), LevelGen.Generate(bj));
+            br.RaiseSecurity(6);
+            for (int i = 0; i < 60 * 60; i++) br.Step(new RunInput { Slot = -1, Aim = br.Player.Pos + new V2(1, 0) });
+            var foes = br.Actors.Where(a => a.Team == 1 && a.Def != null).ToList();
+            Check(br.Alarm && foes.All(a => a.Kind is EnemyKind.Hound or EnemyKind.Bruiser or EnemyKind.Spirit or EnemyKind.Barghest),
+                $"a stirred nest sends only critters ({string.Join(",", foes.Select(a => a.Kind).Distinct())})");
+            Check(foes.Where(a => a.Kind is EnemyKind.Hound or EnemyKind.Bruiser).All(a => a.Wild), "and draws them as ghouls and hellhounds");
         }
         // The board: races for the rigger, hacks for the decker, all with a place to be.
         City city = City.Generate(55);
@@ -959,6 +971,14 @@ public partial class SmokeTest
         fc.Send("fork-talismonger");
         fc.Choose(fc.Inbox.Last(), 1);
         Check(fc.ArcPath("talismonger") == 2 && fc.Essence < ess && fc.ArmorValue == TestCareer().ArmorValue, "drawing on the circle costs essence, and no ward");
+        // Ichikawa's files burned, his chrome declined: no booster, better medkits.
+        Career nc = TestCareer();
+        nc.ArcStep["doc"] = 3;
+        nc.Set("arc:doc", -1);
+        float heal = nc.MedkitHeal, essN = nc.Essence;
+        nc.Send("fork-doc");
+        nc.Choose(nc.Inbox.Last(), 2);
+        Check(nc.ArcPath("doc") == 3 && !nc.Cyber.Contains("booster") && nc.Essence == essN && MathF.Abs(nc.MedkitHeal - heal * 1.5f) < 0.01f, "no thanks to the booster: essence kept, medkits heal half as much again");
         Career oc = TestCareer();
         oc.ArcStep["arms"] = 3;
         Eq(oc.ArcPath("arms"), 1, "a story finished before the forks counts as the usual ending");
@@ -1004,6 +1024,25 @@ public partial class SmokeTest
             hc.Finish(h, Won(hc));
         }
         Check(hc.Flag("heists") == 1 && hc.Flag("heist:stage") == 0, "the score of the decade");
+        // And the heist you don't show up for: warned every morning, named when it lapses.
+        Career hl = TestCareer();
+        hl.CityRef = city;
+        hl.Rep = 9;
+        hl.Day = 12;
+        hl.Choose(hl.Send("heist"), 0);
+        Job night = hl.Board.FirstOrDefault(x => x.Tag == "heist:1");
+        Check(night != null && Career.CountedOn(night), "a heist night is one somebody is counting on");
+        Check(night != null && hl.StakeOf(night).Contains("heist") && hl.DeadlineOf(night).Contains($"day {night.Expires}"),
+            "and the morning card says what missing it costs, and by when");
+        if (night != null)
+        {
+            hl.Day = night.Expires;
+            Check(hl.DeadlineOf(night) == "today is the last chance", "on its last day it says so");
+            hl.Day = night.Expires + 1;
+            hl.RefreshBoard(city);
+            Check(hl.Flag("heist:stage") == 0 && hl.News.Any(n => n.Contains("never showed") && n.Contains(night.Title)),
+                "a lapsed night calls the heist off, and says which night was missed");
+        }
     }
 }
 
@@ -1060,6 +1099,28 @@ public partial class SmokeTest
         s.RefreshBoard(city);
         Job fin = s.Board.FirstOrDefault(x => x.Story == 12);
         Check(fin != null && fin.Has(RunMod.ShiftChange) && fin.Has(RunMod.Elite), "a sneaky gunslinger meets double patrols in heavy armour");
+        // Your past: "come and see me" means something when you do.
+        foreach (var (bg, place, first) in new[] { ("street", "fence", 17), ("corp", "press", 21), ("cop", "cop", 25), ("shaman", "talismonger", 29), ("barrens", "rigger", 33) })
+        {
+            Career pc = TestCareer();
+            pc.CityRef = city;
+            pc.Background = bg;
+            pc.JobsDone = 4;
+            pc.RefreshBoard(city);
+            Job pj = pc.Board.FirstOrDefault(x => x.Story == first);
+            Check(pj != null && pc.Inbox.Any(m => m.Story == $"past-{bg}-open"), $"{bg}: the mail, and the first chapter on the board");
+            Mail visit = pc.Tell(Hook.Place, place).FirstOrDefault();
+            Check(visit?.Story == $"past-{bg}-visit" && pj != null && visit.Text.Contains(pj.Title), $"{bg}: go and see them and they tell you about it");
+            Check(pc.Tell(Hook.Place, place).All(m => m.Story != $"past-{bg}-visit"), $"{bg}: once");
+        }
+        // Story work can't fill the whole board: half of it stays ordinary jobs.
+        Career full = TestCareer();
+        full.CityRef = city;
+        for (int k = 0; k < full.BoardSize; k++)
+            full.Board.Add(new Job { Id = full.NextJobId++, Story = 1 + k, Type = JobType.Retrieve, Employer = "fixer", District = "docks", Expires = full.Day + 30, Lot = -1, Title = $"story {k}", Target = "x", Item = "x" });
+        full.RefreshBoard(city);
+        Check(full.Board.Count(Career.Ordinary) >= (full.BoardSize + 1) / 2, "a board full of story work still gets ordinary jobs: half of it");
+        Check(full.Board.Count(j => !Career.Ordinary(j)) >= full.BoardSize, "and the story jobs all stay");
         // The Wyrm's Ledger.
         for (int ch = 1; ch <= 4; ch++)
         {

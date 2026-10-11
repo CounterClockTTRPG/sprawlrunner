@@ -73,7 +73,7 @@ public partial class CityScreen : Control
         // Arrived, or the place has gone off the list (the job you were heading for is done): back to the job.
         if (Sim.AtDoor() == _routeTo || V2.Distance(Sim.Player.Pos, _routeTo.Door.Centre) < 3 || !Sim.Destinations().Contains(_routeTo)) { ClearRoute(); return; }
         var w = _route.Waypoints;
-        while (_routeFrom < w.Count - 1 && (V2.Distance(Sim.Player.Pos, w[_routeFrom]) < 3 || V2.Dot(Sim.Player.Pos - w[_routeFrom], w[_routeFrom + 1] - w[_routeFrom]) > 0)) _routeFrom++;
+        _routeFrom = _route.Ahead(Sim.Player.Pos, _routeFrom);
         if ((_replanT -= dt) <= 0)
         {
             _replanT = 1.5f;
@@ -82,6 +82,7 @@ public partial class CityScreen : Control
         var pts = _routePts;
         pts.Clear();
         pts.Add(Sim.Player.Pos);
+        pts.Add(_route.OnLeg(Sim.Player.Pos, _routeFrom));
         for (int k = _routeFrom; k < _route.Waypoints.Count; k++) pts.Add(_route.Waypoints[k]);
         Root.CityView.Route = pts;
     }
@@ -307,8 +308,16 @@ public partial class CityScreen : Control
         if (today.Count == 0 && !C.Today.Any()) m.Add(UITheme.Label("A quiet morning. Rain on the window.", 15, UITheme.Dim));
         int unread = C.Unread, waiting = C.Inbox.Count(C.Waiting);
         if (unread + waiting > 0) m.Add(UITheme.Label($"{unread} new message(s), {waiting} waiting on an answer -- P for the PDA.", 15, UITheme.Amber));
-        foreach (Job u in C.Board.Where(b => b.Tag != null && b.Tag.StartsWith("danger:")))
-            m.Add(UITheme.Label($"URGENT: {u.Title} -- {(u.Expires <= C.Day ? "today is the last chance" : $"by the end of day {u.Expires}")}. Miss it and they're shut for a week{(C.Flag("dangerfail:" + u.Tag[7..]) >= 1 ? " -- and this time, gone for good" : "")}.", 15, UITheme.Bad));
+        // Every job somebody is counting on, every morning it is waiting: a
+        // contact's call for help, or the next night of the heist. A heist night
+        // used to sit on the board unannounced until it lapsed.
+        foreach (Job u in C.Board.Where(Career.CountedOn))
+        {
+            bool last = u.Expires <= C.Day;
+            string kind = u.Tag.StartsWith("heist:") ? "HEIST" : "URGENT";
+            m.Add(UITheme.Label($"{kind}: {u.Title} -- {C.DeadlineOf(u)}. {C.StakeOf(u)}", 15,
+                last || kind == "URGENT" ? UITheme.Bad : UITheme.Amber));
+        }
         foreach (ContactDef k in Tables.Contacts.Where(k => C.Shut(k.Id) != null && C.Loyalty.GetValueOrDefault(k.Id) > 0)) m.Add(UITheme.Label(C.Shut(k.Id), 14, UITheme.Bad));
         var row = UITheme.HBox();
         row.Alignment = BoxContainer.AlignmentMode.Center;
@@ -474,10 +483,10 @@ public partial class CityScreen : Control
             if (j != null)
             {
                 // Someone's counting on you: the deadline in plain words, flashing on the last day.
-                bool urgent = j.Tag != null && j.Tag.StartsWith("danger:");
+                bool urgent = Career.CountedOn(j);
                 bool lastDay = j.Expires <= c.Day;
-                UITheme.Write(this, new Vector2(30, 142), urgent ? "URGENT  " + j.Title : j.Title, 17, urgent ? UITheme.Bad : UITheme.Magenta, heading: true);
-                string when = urgent ? (lastDay ? "TODAY is the last chance" : $"by the end of day {j.Expires} (tomorrow)") : $"{j.Expires - c.Day + 1} day(s) left";
+                UITheme.Write(this, new Vector2(30, 142), urgent ? (j.Tag.StartsWith("heist:") ? "HEIST  " : "URGENT  ") + j.Title : j.Title, 17, urgent ? UITheme.Bad : UITheme.Magenta, heading: true);
+                string when = urgent ? (lastDay ? "TODAY is the last chance" : c.DeadlineOf(j)) : $"{j.Expires - c.Day + 1} day(s) left";
                 UITheme.Write(this, new Vector2(30, 166), $"{Tables.District(j.District).Name}  {j.Skulls}  {M.Money(j.Pay)}  ·  {when}", 15, urgent && lastDay && MathF.Sin(sim.Time * 6) > 0 ? UITheme.Bad : UITheme.Text);
             }
             else UITheme.Write(this, new Vector2(30, 144), "No job on. The terminal at the safehouse has work.", 15, UITheme.Dim);
@@ -494,7 +503,7 @@ public partial class CityScreen : Control
             foreach (Lot l in sim.Destinations())
             {
                 bool job = j != null && l.Index == j.Lot;
-                DrawCircle(mo + Art.G(l.Door.Centre) * ms, job ? 5 : 3.5f, job ? UITheme.Magenta : Art.C(l.Sign == 0 ? 0x40ffb0ffu : l.Sign));
+                Pin(mo + Art.G(l.Door.Centre) * ms, l, job, job ? 5 : 3.5f);
             }
             Vector2 cp = mo + Art.G(sim.Player.Pos) * ms;
             Vector2 cf = new(MathF.Cos(sim.Player.Heading), MathF.Sin(sim.Player.Heading));
@@ -625,7 +634,7 @@ public partial class CityScreen : Control
         private void DrawRoute(Vector2 mo, float ms, float width = 2)
         {
             if (S._route == null) return;
-            var pts = new System.Collections.Generic.List<Vector2> { mo + Art.G(S.Sim.Player.Pos) * ms };
+            var pts = new System.Collections.Generic.List<Vector2> { mo + Art.G(S.Sim.Player.Pos) * ms, mo + Art.G(S._route.OnLeg(S.Sim.Player.Pos, S._routeFrom)) * ms };
             for (int k = S._routeFrom; k < S._route.Waypoints.Count; k++) pts.Add(mo + Art.G(S._route.Waypoints[k]) * ms);
             if (pts.Count >= 2) DrawPolyline(pts.ToArray(), UITheme.Cyan with { A = 0.8f }, width);
         }
@@ -675,9 +684,9 @@ public partial class CityScreen : Control
             foreach (Lot l in sim.Destinations().Distinct().OrderBy(l => l == hover ? 1 : 0))
             {
                 bool job = j != null && l.Index == j.Lot;
-                Color lc = job ? UITheme.Magenta : Art.C(l.Sign == 0 ? 0x40ffb0ffu : l.Sign);
+                Color lc = PinColour(l, job);
                 Vector2 p = mo + Art.G(l.Door.Centre) * ms;
-                DrawCircle(p, job ? 6 : 4.5f, lc);
+                Pin(p, l, job, job ? 6 : 4.5f);
                 if (l == S._routeTo) DrawArc(p, 9, 0, MathF.Tau, 16, UITheme.Cyan, 2);
                 // People: who has something to say, whose shutters are down.
                 if ((S._overlay & 4) != 0 && l.Place != null && Tables.Contacts.Any(k => k.Id == l.Place))
@@ -705,6 +714,18 @@ public partial class CityScreen : Control
             string On(int bit) => (S._overlay & bit) != 0 ? "on" : "off";
             UITheme.Write(this, new Vector2(0, size.Y - 54), $"Click a place: make it your target{(S._routeTo != null ? $" (now {S.LotName(S._routeTo)}: click it again or right-click to clear)" : " (otherwise the job is)")}   ·   [1] turf {On(1)}   [2] police {On(2)}   [3] people {On(4)}   ·   M: close", 15, UITheme.Dim, HorizontalAlignment.Center, size.X);
             if (hover != null) UITheme.Write(this, new Vector2(0, size.Y - 30), $"{(hover.Place == null ? "Job site" : City.PlaceName(hover.Place) + (City.PlaceWho(hover.Place) is string who && who.Length > 0 ? " -- " + who : ""))}  ·  {Tables.District(hover.District).Name}  ·  {V2.Distance(hover.Door.Centre, sim.Player.Pos) * 4:0} m", 15, UITheme.Text, HorizontalAlignment.Center, size.X);
+        }
+
+        private static Color PinColour(Lot l, bool job) => job ? UITheme.Magenta : Art.C(l.Sign == 0 ? 0x40ffb0ffu : l.Sign);
+
+        /// <summary>A place on a map: a dot, or for the safehouse a white-edged square in its own colour.</summary>
+        private void Pin(Vector2 p, Lot l, bool job, float r)
+        {
+            Color c = PinColour(l, job);
+            if (!City.IsSafehouse(l.Place)) { DrawCircle(p, r, c); return; }
+            float h = r + 1;
+            DrawRect(new Rect2(p - new Vector2(h + 1, h + 1), new Vector2(h + 1, h + 1) * 2), Colors.White);
+            DrawRect(new Rect2(p - new Vector2(h, h), new Vector2(h, h) * 2), c);
         }
 
         private void Star(Vector2 c, float r, Color col)

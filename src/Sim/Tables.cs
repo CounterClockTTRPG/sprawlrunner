@@ -409,7 +409,7 @@ public static partial class Tables
     public static readonly SpellDef[] Spells =
     {
         new() { Id = "manabolt", Name = "Manabolt", Grants = Ability.Manabolt, Cost = 4000, Desc = "Spell: raw mana tears into one target you can see. Ignores armour; useless on machines." },
-        new() { Id = "heal", Name = "Heal", Grants = Ability.Heal, Cost = 5000, Desc = "Spell: knit flesh. Restores health." },
+        new() { Id = "heal", Name = "Heal", Grants = Ability.Heal, Cost = 5000, Desc = "Spell: knit flesh where you aim -- you and anyone on your side in the circle. Restores health." },
         new() { Id = "fireball", Name = "Fireball", Grants = Ability.Fireball, Cost = 9000, Loyalty = 1, Desc = "Spell: a ball of fire that bursts where it lands. Walls and crates suffer too." },
         new() { Id = "astral", Name = "Astral sight", Grants = Ability.Astral, Cost = 6000, Loyalty = 1, Desc = "Spell: for 8 s see every living thing within 14 tiles, walls or no walls." },
         new() { Id = "summon", Name = "Summon fire spirit", Grants = Ability.Summon, Cost = 16000, Loyalty = 2, Desc = "Spell: a fire spirit fights beside you for 30 s, burning what it touches." },
@@ -417,6 +417,9 @@ public static partial class Tables
         new() { Id = "ward", Name = "Ward", Grants = Ability.Ward, Cost = 10000, Loyalty = 1, Desc = "Spell: a barrier of light across a corridor for 10 s. Nothing gets through it -- bullets included." },
         new() { Id = "invisibility", Name = "Invisibility", Grants = Ability.Cloak, Cost = 14000, Loyalty = 2, Desc = "Spell: unseen for 5 s, or until you fire. Cameras too." },
     };
+
+    /// <summary>How far an aimed spell reaches (Manabolt, Heal); a fireball's flight and burst; the circle a heal knits.</summary>
+    public const float SpellRange = 15, FireballRange = 16, FireballBlast = 2.2f, HealRadius = 2f;
 
     public const int FocusCost = 12000;
 

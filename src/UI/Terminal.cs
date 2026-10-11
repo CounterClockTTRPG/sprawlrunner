@@ -15,6 +15,8 @@ public partial class Terminal : PanelContainer
     public Root Root;
     public Action Changed;
     public Action Escape;
+    /// <summary>The 'pda' command (the safehouse's terminal; P would only type a p).</summary>
+    public Action Pda;
     private VBoxContainer _out;
     private ScrollContainer _scroll;
     private LineEdit _in;
@@ -50,8 +52,14 @@ public partial class Terminal : PanelContainer
         // A long line runs off the glass instead of widening the whole monitor.
         _scroll.HorizontalScrollMode = ScrollContainer.ScrollMode.ShowNever;
         v.AddChild(_scroll);
-        var row = UITheme.HBox(4);
-        row.AddChild(UITheme.Label(">", 18, G, mono: true));
+        // Follow the output down: the bar's range only grows a layout after a line is added, so scroll when it does.
+        _scroll.GetVScrollBar().Changed += () => _scroll.ScrollVertical = (int)_scroll.GetVScrollBar().MaxValue;
+        // A gap above the prompt, so the last line never sits on the input box.
+        v.AddChild(UITheme.Spacer(8));
+        var row = UITheme.HBox(6);
+        var prompt = UITheme.Label(">", 18, G, mono: true);
+        prompt.CustomMinimumSize = new Vector2(14, 0);
+        row.AddChild(prompt);
         _in = new LineEdit { CustomMinimumSize = new Vector2(0, 32), PlaceholderText = "type 'help'", CaretBlink = true };
         _in.AddThemeFontOverride("font", UITheme.Mono);
         _in.AddThemeColorOverride("font_color", G);
@@ -137,6 +145,7 @@ public partial class Terminal : PanelContainer
                 Line("  drop         walk away from the active job (-1 rep)", GDim);
                 Line("  news         what the street is saying", GDim);
                 Line("  mail         your inbox;  read N  opens one;  reply N K  answers it", GDim);
+                if (Pda != null) Line("  pda          your PDA (inbox, travel, contacts, the city)", GDim);
                 Line("  clear        clear the screen", GDim);
                 break;
             case "jobs": case "ls": case "list": Jobs(); break;
@@ -158,6 +167,7 @@ public partial class Terminal : PanelContainer
             case "mail": case "inbox": Mailbox(); break;
             case "read": case "r": Read(n); break;
             case "reply": Reply(n, w.Length > 2 && int.TryParse(w[2], out int kk) ? kk : -1); break;
+            case "pda" when Pda != null: Pda(); break;
             case "clear": case "cls":
                 foreach (Node c in _out.GetChildren()) c.QueueFree();
                 break;
@@ -232,14 +242,14 @@ public partial class Terminal : PanelContainer
         Line($"JOB BOARD  ·  day {C.Day}  ·  rep {C.Rep} (threat up to {C.MaxThreat})", G);
         var grudges = C.Grudge.Where(g => g.Value > 0).Select(g => $"{Tables.FactionNames[(int)g.Key].ToLower()} {g.Value}").ToList();
         if (grudges.Count > 0) Line($"grudges: {string.Join(", ", grudges)}  (each job against a faction adds one; 3: their sites get elite security; 5: they send hitters; fades a point a week)", GDim);
-        Line(" #   TYPE        DISTRICT     THREAT    PAY       KARMA  DAYS", GDim);
+        Line(" #   TYPE        FROM           DISTRICT     THREAT    PAY       KARMA  DAYS", GDim);
         if (board.Count == 0) Line("  nothing on the board. sleep on it.", GDim);
         for (int i = 0; i < board.Count; i++)
         {
             Job j = board[i];
             int idx = i + 1;
             bool active = j.Id == C.ActiveJob;
-            string line = $"{(active ? "*" : j.Tutorial ? "T" : j.Story > 0 ? "S" : j.Arc != null ? "C" : j.Tag != null ? "!" : j.Contested ? "R" : j.Johnson ? "J" : " ")}{idx,-3} {Tables.JobNames[(int)j.Type],-11} {Tables.District(j.District).Name,-12} {Threat(j.Threat),-9} {M.Money(j.Pay),-9} +{j.Karma,-5} {j.Expires - C.Day + 1}";
+            string line = $"{(active ? "*" : j.Tutorial ? "T" : j.Story > 0 ? "S" : j.Arc != null ? "C" : j.Tag != null ? "!" : j.Contested ? "R" : j.Johnson ? "J" : " ")}{idx,-3} {Tables.JobNames[(int)j.Type],-11} {Tables.Contact(j.Employer).Name,-14} {Tables.District(j.District).Name,-12} {Threat(j.Threat),-9} {M.Money(j.Pay),-9} +{j.Karma,-5} {j.Expires - C.Day + 1}";
             Line(line, active ? UITheme.Magenta : G, () => Info(idx));
         }
         Line("click a job, or 'info N'.  (* active  T tutorial  S story  C a contact's own story", GDim);

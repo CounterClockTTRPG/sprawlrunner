@@ -78,6 +78,26 @@ public static partial class Storylets
         yield return new("past-cop-open", Hook.Morning, Dace, "Kettle Street", "Sgt. Dace: 'Remember Kettle Street? The case Rook closed the week you handed in your badge? Somebody just reopened it. Not us. Drop by the Lamp.'", c => false);
         yield return new("past-shaman-open", Hook.Morning, Sabine, "Your totem", "Madame Sabine: 'I dreamed of your totem last night, darling. It was hungry, and it was frightened. Totems are never frightened. Come and see me.'", c => false);
         yield return new("past-barrens-open", Hook.Morning, Torque, "Your brother", "Torque, not looking up from an engine: 'A kid tried to sell me a fuel tank with your brother's tag on it. I asked where he got it. He ran. Come by the shop.'", c => false);
+        // "Come and see me": the visit, while the first chapter waits on the board.
+        foreach (var (id, first, place, from, subject, text, reply) in new[]
+        {
+            ("past-street", 17, "fence", Wen, "The roof crew", "Wen pulls the shutter halfway down before he says anything. 'Tam, Jory, Little Sun -- your old roof crew. They run for the Vipers now. Tam sold them your old hideout, and your tin box is still up there.' He writes an address on a receipt. 'It's on your terminal: {job}.'",
+                ("'Thanks, Wen.'", "'Don't thank me. Get the box before Tam opens it.'")),
+            ("past-corp", 21, "press", Quill, "Your file", "Quill closes the door to the night desk and hands you a printout. 'Recovery order. Asset retrieval. The asset is you.' She taps a line. 'Your old desk is still on the floor, files and all. I put the job on your board: {job}.'",
+                ("'Why help me?'", "'Because it's a story. Don't make me regret it.'")),
+            ("past-cop", 25, "cop", Dace, "Kettle Street", "Dace waits until the booth next to you empties. 'Rook closed Kettle Street the week you quit. Now the locker says the case never happened -- and the Vipers have the real evidence.' He slides a napkin over. 'Your board has it: {job}.'",
+                ("'I'll look.'", "'Quietly. Half this bar still wears a badge.'")),
+            ("past-shaman", 29, "talismonger", Sabine, "Your totem", "Madame Sabine takes both your hands and doesn't let go. 'Something in the Barrens is eating the little spirits, darling, and your totem can smell it. It nests in an old squat.' She lets go. 'I've sent it to your terminal: {job}.'",
+                ("'I'll go.'", "'Take salt. And come back.'")),
+            ("past-barrens", 33, "rigger", Torque, "Your brother", "Torque wipes his hands for a long time. 'The fuel tank was your brother's. The kid who brought it runs with the Vipers, and their old crew's books are in a den on the Viper side. They'll say who pulled the trigger.' He doesn't look up. 'It's on your board: {job}.'",
+                ("'Thanks, Torque.'", "'Don't. Just find out.'")),
+        })
+        {
+            int story = first;
+            yield return new($"{id}-visit", Hook.Place, from, subject, text,
+                c => c.Board.Any(j => j.Story == story), new[] { Ok(reply.Item1, reply.Item2) }, Weight: 50, Place: place,
+                Bind: c => V(("job", c.Board.FirstOrDefault(j => j.Story == story)?.Title ?? "the first job")));
+        }
         foreach (var (id, base_) in new[] { ("past-street", 20), ("past-corp", 24), ("past-cop", 28), ("past-shaman", 32), ("past-barrens", 36) })
         {
             string pid = id;

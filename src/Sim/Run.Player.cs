@@ -358,10 +358,13 @@ public sealed partial class Run
             }
             case Ability.Fireball:
             {
-                var w = new WeaponDef { Id = "fireball", Damage = 70 * C.PowerOf(a), Speed = 12, Range = 16, Blast = 2.2f, Pellets = 1, Class = WeaponClass.Launcher };
-                SpawnShot(Player, w, Player.Facing, w.Damage, false, V2.Distance(aim, Player.Pos));
+                // It flies at the cursor and bursts there (or on whatever it meets first).
+                V2 to = InRange(aim, Tables.FireballRange);
+                var w = new WeaponDef { Id = "fireball", Damage = 70 * C.PowerOf(a), Speed = 12, Range = Tables.FireballRange, Blast = Tables.FireballBlast, Pellets = 1, Class = WeaponClass.Launcher };
+                SpawnShot(Player, w, M.Angle(to - Player.Pos), w.Damage, false, V2.Distance(to, Player.Pos));
                 Shots[^1].Kind = ShotKind.Fireball;
-                Events.Add(new RunEvent(Ev.Spell, Player.Pos, aim, (int)a));
+                Shots[^1].Range = V2.Distance(to, Player.Pos);
+                Events.Add(new RunEvent(Ev.Spell, Player.Pos, to, (int)a));
                 Noise(Player.Pos, 10, true);
                 break;
             }
@@ -389,16 +392,52 @@ public sealed partial class Run
                 Events.Add(new RunEvent(Ev.Spell, Player.Pos, aim, (int)a));
                 break;
             case Ability.Heal:
-                if (Player.Hp >= Player.MaxHp) { Say("Heal: you're not hurt."); Events.Add(new RunEvent(Ev.Empty, Player.Pos)); return; }
-                Player.Hp = MathF.Min(Player.MaxHp, Player.Hp + 45 * C.PowerOf(a));
-                Player.Burn = 0;
-                Events.Add(new RunEvent(Ev.Heal, Player.Pos));
+            {
+                // Everyone on your side inside the circle at the cursor -- you only if you stand in it.
+                V2 at = AreaPoint(a, aim);
+                var hurt = Actors.Where(f => f.Team == 0 && !f.Dead && !f.IsGhost && !f.IsDrone && f.Kind is not (EnemyKind.Turret or EnemyKind.Drone or EnemyKind.Camera)
+                    && f.Hp < f.MaxHp && V2.Distance(f.Pos, at) <= Tables.HealRadius + f.Radius && L.Los(at, f.Pos)).ToList();
+                if (hurt.Count == 0) { Say("Heal: no one hurt there."); Events.Add(new RunEvent(Ev.Empty, Player.Pos)); return; }
+                foreach (Actor f in hurt)
+                {
+                    f.Hp = MathF.Min(f.MaxHp, f.Hp + 45 * C.PowerOf(a));
+                    f.Burn = 0;
+                    Events.Add(new RunEvent(Ev.Heal, f.Pos));
+                }
+                Events.Add(new RunEvent(Ev.Spell, Player.Pos, at, (int)a));
                 break;
+            }
         }
         AbilityCd[a] = C.Cooldown(a);
         if (a is Ability.Manabolt or Ability.Fireball or Ability.Heal or Ability.Summon or Ability.Astral or Ability.Project or Ability.Ward || a == Ability.Cloak && C.Spells.Contains("invisibility")) SpellsCast++;
         Events.Add(new RunEvent(Ev.Ability, Player.Pos, Value: (int)a));
     }
+
+    /// <summary>The aim point, pulled in to this far from the runner.</summary>
+    private V2 InRange(V2 aim, float range)
+    {
+        V2 d = aim - Player.Pos;
+        float len = d.Length();
+        return len > range ? Player.Pos + d / len * range : aim;
+    }
+
+    /// <summary>
+    /// Where an area spell cast at this aim point takes effect (the preview ring
+    /// sits here too): the cursor, pulled in to the spell's range, and short of the
+    /// first wall -- a fireball bursts on what stops a shot, a heal can't reach what
+    /// you can't see.
+    /// </summary>
+    public V2 AreaPoint(Ability a, V2 aim)
+    {
+        V2 to = InRange(aim, a == Ability.Fireball ? Tables.FireballRange : Tables.SpellRange);
+        V2 at = to;
+        bool blocked = a == Ability.Fireball ? L.FirstShotBlock(Player.Pos, to, out _, out at) : (at = L.FirstSightBlock(Player.Pos, to)) != to;
+        // Stop a hair short of the wall's face, on the near side of it.
+        return blocked ? at - M.Norm(to - Player.Pos) * 0.05f : to;
+    }
+
+    /// <summary>How far an area spell reaches from where it lands (0: not an area spell).</summary>
+    public static float AreaRadius(Ability a) => a switch { Ability.Fireball => Tables.FireballBlast, Ability.Heal => Tables.HealRadius, _ => 0 };
 
     /// <summary>A living (not mechanical) hostile near the aim point, in sight.</summary>
     private Actor SpellTarget(V2 aim)
@@ -409,7 +448,7 @@ public sealed partial class Run
         {
             if (!e.Hostile || e.Def == null || e.Kind is EnemyKind.Turret or EnemyKind.Drone or EnemyKind.Camera) continue;
             float d = V2.Distance(e.Pos, aim);
-            if (d < bd && V2.Distance(e.Pos, Player.Pos) < 15 && L.Los(Player.Pos, e.Pos)) { bd = d; best = e; }
+            if (d < bd && V2.Distance(e.Pos, Player.Pos) < Tables.SpellRange && L.Los(Player.Pos, e.Pos)) { bd = d; best = e; }
         }
         return best;
     }

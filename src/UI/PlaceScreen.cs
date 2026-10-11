@@ -91,6 +91,7 @@ public partial class PlaceScreen : Control
         left.AddChild(_status);
         left.AddChild(UITheme.Spacer(10));
         if (home) left.AddChild(UITheme.Button("Sleep until tomorrow", Sleep, 0, 42, "A new day: the board refreshes. Saves the career."));
+        if (home) left.AddChild(UITheme.Button(C.Unread > 0 ? $"PDA ({C.Unread} new)  [P]" : "PDA  [P]", OpenPda, 0, 42, "Inbox, travel, contacts, factions, the city."));
         // A career with a story to end on can end by choice, not only by death.
         if (home && C.Active == null && C.RetireReason() is string why)
             left.AddChild(UITheme.Button("Retire...", () => Modal.Confirm(this, "WALK AWAY?", $"{why} You could stop here: the career ends, with its receipt and whatever legacy it earned. There is no coming back.", "Retire", () =>
@@ -111,7 +112,7 @@ public partial class PlaceScreen : Control
 
         string[] tabs = _kind switch
         {
-            "home" or "loft" => new[] { "Terminal", "Runner", "Loadout", "Upgrades", "Garage" },
+            "home" or "loft" => new[] { "Terminal", "Runner", "Loadout", "Deck", "Upgrades", "Garage" },
             "fixer" => new[] { "Terminal", "Intel" },
             "doc" => new[] { "Clinic" },
             "arms" => new[] { "Guns & gear" },
@@ -139,11 +140,27 @@ public partial class PlaceScreen : Control
 
     public override void _UnhandledInput(InputEvent e)
     {
-        if (Controls.Back(e) && Modal.Open == 0)
+        if (Modal.Open > 0 || Pda.Open > 0) return;
+        if (Controls.Back(e))
         {
             Leave();
             GetViewport().SetInputAsHandled();
         }
+        else if (_kind is "home" or "loft" && Controls.Is(e, Act.Pda))
+        {
+            OpenPda();
+            GetViewport().SetInputAsHandled();
+        }
+    }
+
+    /// <summary>The PDA from the sofa. Travelling from it walks you out to the car, now parked somewhere else.</summary>
+    private void OpenPda()
+    {
+        if (Pda.Open > 0) return;
+        GetViewport().GuiReleaseFocus(); // or the terminal's prompt would take Esc and walk you out
+        var pda = new Pda(C, _root.CitySim) { Travelled = Leave, Here = _lot };
+        pda.TreeExited += () => { if (!IsQueuedForDeletion() && IsInsideTree()) { Refresh(); Show(_tab); } };
+        AddChild(pda);
     }
 
     public void Leave()
@@ -193,19 +210,20 @@ public partial class PlaceScreen : Control
         switch (tab)
         {
             case "Terminal":
-                var term = new Terminal { Root = _root, Changed = Refresh, Escape = Leave, SizeFlagsVertical = SizeFlags.ExpandFill };
+                var term = new Terminal { Root = _root, Changed = Refresh, Escape = Leave, Pda = _kind is "home" or "loft" ? OpenPda : null, SizeFlagsVertical = SizeFlags.ExpandFill };
                 _content.AddChild(term);
                 break;
             case "Runner": RunnerTab(); break;
             case "Loadout": LoadoutTab(); break;
+            case "Deck": DeckTab(); break;
             case "Upgrades": Offers("home", $"Safehouse upgrades, bought once and kept for good -- and how you live (now {Career.Lifestyles[C.LifeTier].name.ToLower()}: {M.Money(C.RentDue)} a week).", o => o.Kind is ShopKind.Upgrade or ShopKind.Lifestyle); break;
             case "Garage": GarageTab(); break;
             case "Intel": Offers("fixer", "Juno sells what she knows about your current job's site."); break;
             case "Clinic": Offers("doc", $"Essence {C.Essence:0.00} / 6.00. Chrome eats your essence; medkits work worse the lower it gets."); break;
             case "Guns & gear": Offers("arms", "Weapons, armour, grenades and medkits. Mods fit weapons you own."); break;
             case "Vehicles": Offers("rigger", "Wheels. The one you buy is the one you drive away in."); break;
-            case "Programs": Offers("decker", $"Programs run loaded in your deck's memory ({C.ActiveDeck.Name}: {C.MemoryFree}/{C.Memory} Mp free; load them in the safehouse Loadout tab). Paydata you pull shares the same memory.", o => o.Kind is not (ShopKind.Deck or ShopKind.Sell)); break;
-            case "Decks": Offers("decker", $"Null's hardware. You carry the {C.ActiveDeck.Name} (rating {C.ActiveDeck.Rating}, {C.Memory} Mp). Arrays are Attack, Sleaze, Data processing, Firewall -- deal them out as you like in the Loadout tab.", o => o.Kind == ShopKind.Deck); break;
+            case "Programs": Offers("decker", $"Programs run loaded in your deck's memory ({C.ActiveDeck.Name}: {C.MemoryFree}/{C.Memory} Mp free; load them on the safehouse Deck tab). Paydata you pull shares the same memory.", o => o.Kind is not (ShopKind.Deck or ShopKind.Sell)); break;
+            case "Decks": Offers("decker", $"Null's hardware. You carry the {C.ActiveDeck.Name} (rating {C.ActiveDeck.Rating}, {C.Memory} Mp). Arrays are Attack, Sleaze, Data processing, Firewall -- deal them out as you like on the safehouse Deck tab.", o => o.Kind == ShopKind.Deck); break;
             case "Paydata": Offers("decker", "Null buys paydata at what it's worth. Wen pays her cut, like for anything else.", o => o.Kind == ShopKind.Sell); break;
             case "Precinct": Offers("cop", "Dace sells what his badge is worth. Cash, and he never met you."); break;
             case "Newsroom": Offers("press", "Quill buys true stories, kills false ones, and prints the ones that hurt the right people."); break;
@@ -309,8 +327,11 @@ public partial class PlaceScreen : Control
     private void RunnerTab()
     {
         _content.AddChild(UITheme.Label($"{C.Name} -- {C.ArchetypeName}.   Karma to spend: {C.Karma}", 20, UITheme.Cyan, heading: true));
+        // Scrolls when a mage's spells run long.
         var cols = UITheme.HBox(30);
-        _content.AddChild(cols);
+        var scroll = UITheme.Scroll(cols, 0);
+        scroll.SizeFlagsVertical = SizeFlags.ExpandFill;
+        _content.AddChild(scroll);
         var a = UITheme.VBox(4);
         a.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         cols.AddChild(a);
@@ -323,7 +344,7 @@ public partial class PlaceScreen : Control
         }
         a.AddChild(UITheme.Spacer(6));
         a.AddChild(UITheme.Label("SKILLS", 15, UITheme.Dim));
-        for (int i = 0; i < 7; i++)
+        for (int i = 0; i < Tables.SkillNames.Length; i++)
         {
             var sk = (Skill)i;
             int cost = C.SkillCost(sk);
@@ -344,10 +365,27 @@ public partial class PlaceScreen : Control
         Stat("Deck", $"{C.ActiveDeck.Name}, {C.DeckBoxes} boxes, {C.Memory} Mp");
         Stat("Dash cooldown", $"{C.DashCooldown:0.0} s");
         Stat("Grenades carried", $"{C.GrenadeCap} per type");
+        // Edge and etiquette before the lists that grow (chrome, spells), so they stay on screen.
         d.AddChild(UITheme.Spacer(6));
-        d.AddChild(UITheme.Label("CYBERWARE", 15, UITheme.Dim));
-        if (C.Cyber.Count == 0) d.AddChild(UITheme.Label("All meat.", 15, UITheme.Dim));
-        foreach (string id in C.Cyber) d.AddChild(UITheme.Label($"{Tables.CyberById(id).Name} ({Tables.CyberById(id).Essence:0.0})", 15, UITheme.Violet));
+        d.AddChild(UITheme.Label($"EDGE  {C.EdgeMax} a run", 15, UITheme.Dim));
+        d.AddChild(UITheme.Label("Luck you make: the last point saves you from a killing blow; spare points slip a detection or a Matrix trace. Charisma gives some; karma buys up to two more.", 13, UITheme.Faint));
+        int ec = C.EdgeCost;
+        var eb = UITheme.Button(ec < 0 ? "Edge: as lucky as anyone gets" : $"+1 edge ({ec} karma)", () => Spend(C.BuyEdge), 0, 30, ec < 0 ? "Bought all there is." : $"Spend {ec} karma.");
+        eb.Disabled = ec < 0 || C.Karma < ec || C.EdgeMax >= Tables.EdgeMax;
+        d.AddChild(eb);
+        d.AddChild(UITheme.Spacer(6));
+        d.AddChild(UITheme.Label("ETIQUETTE", 15, UITheme.Dim));
+        d.AddChild(UITheme.Label("The codes you can talk. They open choices when people talk to you.", 13, UITheme.Faint));
+        var et = new HFlowContainer();
+        foreach (string e in Career.AllEtiquettes)
+        {
+            string ee = e;
+            int cost = (int)MathF.Round(Career.EtiquetteCost * C.KarmaMul);
+            var b = UITheme.Button(C.Talks(e) ? $"{e} ✓" : $"{e} ({cost})", () => Spend(() => C.LearnEtiquette(ee)), 0, 30, C.Talks(e) ? "You talk it." : $"Learn it for {cost} karma.");
+            b.Disabled = C.Talks(e) || C.Karma < cost;
+            et.AddChild(b);
+        }
+        d.AddChild(et);
         d.AddChild(UITheme.Spacer(6));
         d.AddChild(UITheme.Label($"Jobs {C.JobsDone} done, {C.JobsFailed} failed.  Kills {C.Kills}.", 15, UITheme.Dim));
         if (C.Spells.Count > 0)
@@ -360,56 +398,25 @@ public partial class PlaceScreen : Control
                 int cost = C.SpellRankCost(sp);
                 var srow = UITheme.HBox(8);
                 srow.AddChild(UITheme.Grow(UITheme.Label($"{Tables.Spells.First(x => x.Id == sp).Name}  {new string('■', C.SpellRank.GetValueOrDefault(sp))}{new string('□', 3 - C.SpellRank.GetValueOrDefault(sp))}", 15, UITheme.Violet)));
-                var sb = UITheme.Button(cost < 0 ? "mastered" : $"+ ({cost})", () =>
-                {
-                    string err = C.RaiseSpell(spp);
-                    if (err != null) { Sfx.Instance?.Play(Sound.Error); _status.Text = err; return; }
-                    Sfx.Instance?.Play(Sound.Heal);
-                    Profile.SaveCareer(C);
-                    Show(_tab);
-                    Refresh();
-                }, 0, 28, cost < 0 ? "Mastered." : $"Spend {cost} karma.");
+                var sb = UITheme.Button(cost < 0 ? "mastered" : $"+ ({cost})", () => Spend(() => C.RaiseSpell(spp)), 0, 28, cost < 0 ? "Mastered." : $"Spend {cost} karma.");
                 sb.Disabled = cost < 0 || C.Karma < cost;
                 srow.AddChild(sb);
                 d.AddChild(srow);
             }
         }
-        d.AddChild(UITheme.Spacer(6));
-        d.AddChild(UITheme.Label($"EDGE  {C.EdgeMax} a run", 15, UITheme.Dim));
-        d.AddChild(UITheme.Label("Luck you make: the last point saves you from a killing blow; spare points slip a detection or a Matrix trace. Charisma gives some; karma buys up to two more.", 13, UITheme.Faint));
-        int ec = C.EdgeCost;
-        var eb = UITheme.Button(ec < 0 ? "Edge: as lucky as anyone gets" : $"+1 edge ({ec} karma)", () =>
-        {
-            string err = C.BuyEdge();
-            if (err != null) { Sfx.Instance?.Play(Sound.Error); _status.Text = err; return; }
-            Sfx.Instance?.Play(Sound.Heal);
-            Profile.SaveCareer(C);
-            Show(_tab);
-            Refresh();
-        }, 0, 30, ec < 0 ? "Bought all there is." : $"Spend {ec} karma.");
-        eb.Disabled = ec < 0 || C.Karma < ec || C.EdgeMax >= Tables.EdgeMax;
-        d.AddChild(eb);
-        d.AddChild(UITheme.Spacer(6));
-        d.AddChild(UITheme.Label("ETIQUETTE", 15, UITheme.Dim));
-        d.AddChild(UITheme.Label("The codes you can talk. They open choices when people talk to you.", 13, UITheme.Faint));
-        var et = new HFlowContainer();
-        foreach (string e in Career.AllEtiquettes)
-        {
-            string ee = e;
-            int cost = (int)MathF.Round(Career.EtiquetteCost * C.KarmaMul);
-            var b = UITheme.Button(C.Talks(e) ? $"{e} ✓" : $"{e} ({cost})", () =>
-            {
-                string err = C.LearnEtiquette(ee);
-                if (err != null) { Sfx.Instance?.Play(Sound.Error); _status.Text = err; return; }
-                Sfx.Instance?.Play(Sound.Heal);
-                Profile.SaveCareer(C);
-                Show(_tab);
-                Refresh();
-            }, 0, 30, C.Talks(e) ? "You talk it." : $"Learn it for {cost} karma.");
-            b.Disabled = C.Talks(e) || C.Karma < cost;
-            et.AddChild(b);
-        }
-        d.AddChild(et);
+    }
+
+    /// <summary>Spend karma on the Runner tab, then redraw it where it was scrolled to.</summary>
+    private void Spend(Func<string> raise)
+    {
+        string err = raise();
+        if (err != null) { Sfx.Instance?.Play(Sound.Error); _status.Text = err; return; }
+        Sfx.Instance?.Play(Sound.Heal);
+        Profile.SaveCareer(C);
+        int scroll = FindScroll(_content)?.ScrollVertical ?? 0;
+        Show(_tab);
+        GetTree().CreateTimer(0.05).Timeout += () => { if (IsInstanceValid(this) && FindScroll(_content) is ScrollContainer sc) sc.ScrollVertical = scroll; };
+        Refresh();
     }
 
     private Control StatRow(string name, int value, string desc, int cost, Func<string> raise)
@@ -422,15 +429,7 @@ public partial class PlaceScreen : Control
         row.AddChild(n);
         row.AddChild(UITheme.Label(new string('■', value) + new string('□', 6 - value), 17, UITheme.Cyan, wrap: false));
         row.AddChild(UITheme.Grow(UITheme.Label(desc, 13, UITheme.Dim)));
-        var b = UITheme.Button(cost < 0 ? "max" : $"+ ({cost} karma)", () =>
-        {
-            string err = raise();
-            if (err != null) { Sfx.Instance?.Play(Sound.Error); _status.Text = err; return; }
-            Sfx.Instance?.Play(Sound.Heal);
-            Profile.SaveCareer(C);
-            Show(_tab);
-            Refresh();
-        }, 130, 30, cost < 0 ? "Already at the maximum." : C.Karma < cost ? $"Needs {cost} karma (you have {C.Karma})." : $"Spend {cost} karma.");
+        var b = UITheme.Button(cost < 0 ? "max" : $"+ ({cost} karma)", () => Spend(raise), 130, 30, cost < 0 ? "Already at the maximum." : C.Karma < cost ? $"Needs {cost} karma (you have {C.Karma})." : $"Spend {cost} karma.");
         b.Disabled = cost < 0 || C.Karma < cost;
         row.AddChild(b);
         return row;
@@ -476,13 +475,36 @@ public partial class PlaceScreen : Control
         if (C.Vehicle == "van") _content.AddChild(UITheme.Label("The van carries one more of each grenade type you own.", 15, UITheme.Good));
         if (C.Mods.Count > 0) _content.AddChild(UITheme.Label("Mods: " + string.Join(", ", C.Mods.Select(m => $"{Tables.Weapon(m.Split(':')[0]).Name} {Tables.Mods.First(x => x.Id == m.Split(':')[1]).Name.ToLower()}")), 15, UITheme.Dim));
         if (C.Spells.Count > 0) _content.AddChild(UITheme.Label($"Spells: {string.Join(", ", C.Spells.Select(id => Tables.Spells.First(x => x.Id == id).Name))}  (power x{C.SpellPower:0.00})", 15, UITheme.Violet));
+    }
+
+    // ---- deck and chrome --------------------------------------------------------------
+
+    /// <summary>What you jack in with and what's in you: the deck, its array and programs, then the cyberware.</summary>
+    private void DeckTab()
+    {
+        _content.AddChild(UITheme.Label("The deck you carry, and the chrome you carry in you.", 16, UITheme.Dim));
         DeckSection();
+        _content.AddChild(UITheme.Spacer(6));
+        _content.AddChild(UITheme.Rule(UITheme.Faint));
+        _content.AddChild(UITheme.Label($"CYBERWARE   essence {C.Essence:0.00} / 6.00", 15, UITheme.Dim));
+        if (C.Cyber.Count == 0) _content.AddChild(UITheme.Label("All meat. The doc's clinic fits chrome.", 15, UITheme.Dim));
+        foreach (string id in C.Cyber)
+        {
+            CyberDef cd = Tables.CyberById(id);
+            var g = C.GradeOf(id);
+            var row = UITheme.HBox(12);
+            var n = UITheme.Label(cd.Name + (g.id is null or "standard" ? "" : $" ({g.name.ToLower()})"), 16, UITheme.Violet, wrap: false);
+            n.CustomMinimumSize = new Vector2(280, 0);
+            row.AddChild(n);
+            row.AddChild(UITheme.Label($"{C.EssenceOf(id):0.00}", 16, UITheme.Cyan, wrap: false));
+            row.AddChild(UITheme.Grow(UITheme.Label(cd.Desc, 13, UITheme.Dim)));
+            _content.AddChild(row);
+        }
     }
 
     /// <summary>The deck: which one, how its values are dealt out, which programs are loaded into its memory.</summary>
     private void DeckSection()
     {
-        _content.AddChild(UITheme.Rule(UITheme.Faint));
         Choice("Deck", C.DecksOwned.ToList(), C.ActiveDeck.Id, v => C.CarryDeck(v), id => $"{Tables.Deck(id).Name} (R{Tables.Deck(id).Rating}, {Tables.Deck(id).Memory} Mp)");
         int[] v = C.DeckValues(C.ActiveDeck.Id);
         var row = UITheme.HBox(8);
@@ -595,6 +617,9 @@ public partial class PlaceScreen : Control
         row.AddChild(cell);
     }
 
+    /// <summary>The job whose brief has typed out already, so a rebuild shows it whole.</summary>
+    private int _briefTyped = -1;
+
     private void BuildBriefing()
     {
         Job j = C.Active;
@@ -625,7 +650,10 @@ public partial class PlaceScreen : Control
         left.CustomMinimumSize = new Vector2(plans ? 640 : 700, 0);
         left.SizeFlagsHorizontal = SizeFlags.ExpandFill;
         cols.AddChild(left);
-        left.AddChild(UITheme.TypeOut(UITheme.Label(j.Brief, 19, UITheme.Text), MathF.Min(1.6f, j.Brief.Length / 90f)));
+        Label brief = UITheme.Label(j.Brief, 19, UITheme.Text);
+        if (_briefTyped != j.Id) UITheme.TypeOut(brief, MathF.Min(1.6f, j.Brief.Length / 90f));
+        _briefTyped = j.Id;
+        left.AddChild(brief);
         // Who you will meet in there: every threat-5 site has a boss (LevelGen), and a hire comes along.
         var faces = UITheme.HBox(18);
         if (site && j.Threat >= 5) Face(faces, Assets.BossPicture(j.Faction), "In charge", Tables.BossOf(j.Faction).name, UITheme.Bad);
