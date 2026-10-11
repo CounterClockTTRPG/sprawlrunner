@@ -28,6 +28,8 @@ public sealed partial class Career
     public Rng Rng = new(1);
     public int Day = 1;
     public int Cash;
+    /// <summary>Real time spent playing this career, in seconds: driving, in places, on runs (never paused, never on the title).</summary>
+    public double PlaySeconds;
     public int Karma, KarmaEarned;
     public int Rep;
     public int[] Attrs = new int[6];

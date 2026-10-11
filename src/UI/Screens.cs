@@ -292,6 +292,8 @@ public partial class TitleScreen : Control
         box.AddChild(UITheme.Label("Kessler Bay never sleeps. Neither do you.", 22, UITheme.Cyan));
         box.AddChild(UITheme.Spacer(20));
         _menu = UITheme.VBox(10);
+        // One width for every row: a slot button and its "New here" span the same as Settings below.
+        _menu.CustomMinimumSize = new Vector2(540, 0);
         box.AddChild(_menu);
         Build();
         var foot = UITheme.Label("WASD drive / move   Mouse aim & fire   E enter / use   Esc menu   F11 fullscreen", 15, UITheme.Dim, wrap: false);
@@ -315,22 +317,52 @@ public partial class TitleScreen : Control
     private void Build()
     {
         foreach (Node n in _menu.GetChildren()) n.QueueFree();
-        if (Profile.HasCareer)
+        // The slots: continue a career, or start one in an empty slot (or over one, after a warning).
+        var names = new string[Profile.Slots + 1];
+        for (int s = 1; s <= Profile.Slots; s++)
         {
-            Career c = Profile.LoadCareer();
-            string label = c != null ? $"Continue -- {c.Name}, day {c.Day}" : "Continue";
-            _menu.AddChild(UITheme.Button(label, () => { if (!Root.Continue()) Modal.Tell(this, "NO SIGNAL", "That career could not be loaded."); }, 420, 46));
+            int slot = s;
+            var row = UITheme.HBox(8);
+            row.Name = $"slot{slot}";
+            if (Profile.HasSlot(slot))
+            {
+                Career c = Profile.LoadCareer(slot);
+                names[slot] = c != null ? $"{c.Name} (day {c.Day})" : "the career there";
+                string label = c != null
+                    ? $"Continue -- {c.Name}, day {c.Day}\n{c.ArchetypeName}   ·   {M.Played(c.PlaySeconds)} played   ·   {M.Money(c.Cash)}"
+                    : $"Continue -- slot {slot}\n(this save could not be read)";
+                var go = UITheme.Button(label, () => { if (!Root.Continue(slot)) Modal.Tell(this, "NO SIGNAL", "That career could not be loaded."); }, 420, 58);
+                if (slot == Profile.Slot && Profile.Slots > 1) go.AddThemeColorOverride("font_color", UITheme.Cyan);
+                row.AddChild(UITheme.Grow(go));
+                row.AddChild(UITheme.Button("New here", () => StartOver(slot, names[slot]), 110, 58, "Start a new career in this slot. Ironman: the one there is erased."));
+            }
+            else
+            {
+                var empty = UITheme.Button(Profile.Slots > 1 ? $"Slot {slot}  --  empty\nstart a new career here" : "No career yet\nstart a new one", () => Create(slot), 420, 58);
+                empty.AddThemeColorOverride("font_color", UITheme.Dim);
+                row.AddChild(UITheme.Grow(empty));
+            }
+            _menu.AddChild(row);
         }
         _menu.AddChild(UITheme.Button("New career", () =>
         {
-            if (Profile.HasCareer) Modal.Confirm(this, "NEW CAREER", "One career at a time. Starting over erases the one you have.", "Start over", () => AddChild(new CreateScreen { Root = Root }));
-            else AddChild(new CreateScreen { Root = Root });
-        }, 420, 46));
+            int free = Profile.FreeSlot();
+            if (free > 0) Create(free);
+            else StartOver(Profile.Slot, names[Profile.Slot]);
+        }, 420, 42));
         int earned = Achievements.All.Count(a => Profile.Current.Achieved.Contains(a.Id));
-        _menu.AddChild(UITheme.Button($"Achievements  ({earned} / {Achievements.All.Length})", () => AchievementList.Open(this), 420, 46));
-        _menu.AddChild(UITheme.Button("Settings", () => Settings.Open(this), 420, 46));
-        _menu.AddChild(UITheme.Button("Quit", () => GetTree().Quit(), 420, 46));
+        _menu.AddChild(UITheme.Button($"Achievements  ({earned} / {Achievements.All.Length})", () => AchievementList.Open(this), 420, 42));
+        _menu.AddChild(UITheme.Button("Settings", () => Settings.Open(this), 420, 42));
+        _menu.AddChild(UITheme.Button("Quit", () => GetTree().Quit(), 420, 42));
     }
+
+    private void Create(int slot) => AddChild(new CreateScreen { Root = Root, Slot = slot });
+
+    /// <summary>Ironman: a new career over an old one erases it, so ask first.</summary>
+    private void StartOver(int slot, string who) =>
+        Modal.Confirm(this, Profile.Slots > 1 ? $"NEW CAREER IN SLOT {slot}" : "NEW CAREER",
+            $"Starting over erases {who ?? "the career there"} for good." + (Profile.Slots > 1 ? " The other slots are left alone." : ""),
+            "Start over", () => Create(slot));
 
     public override void _Process(double delta)
     {
@@ -370,6 +402,8 @@ public partial class IdPhoto : Control
 public partial class CreateScreen : Modal
 {
     public Root Root;
+    /// <summary>The save slot the new runner goes in (0: the slot in play).</summary>
+    public int Slot;
     private string _arch = "samurai";
     private LineEdit _name;
     private Label _blurb;
@@ -466,7 +500,7 @@ public partial class CreateScreen : Modal
         Add(legacy);
         var row = UITheme.HBox(12);
         row.Alignment = BoxContainer.AlignmentMode.Center;
-        row.AddChild(UITheme.Button("Hit the streets", () => Root.NewCareer(_name.Text, _arch, _bg, _gentle, declined: _declined), 220, 44));
+        row.AddChild(UITheme.Button("Hit the streets", () => Root.NewCareer(_name.Text, _arch, _bg, _gentle, declined: _declined, slot: Slot), 220, 44));
         row.AddChild(UITheme.Button("Back", () => Close(), 140, 44));
         Add(row);
         Pick(_arch);

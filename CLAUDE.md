@@ -5,7 +5,7 @@ Shadowrun (original names and setting). Drive Kessler Bay, visit contacts,
 take jobs from the safehouse terminal, run them on foot in real time
 (destructible sites, field of view, stealth, guns, grenades, cyberware), and
 spend the pay and karma on attributes, skills, chrome, gear, cars and the
-safehouse. One ironman career. Same machine setup as `../warlords`: Windows
+safehouse. Ironman careers, up to three side by side in save slots. Same machine setup as `../warlords`: Windows
 Godot and `dotnet.exe` driven from WSL. Design and every number:
 `docs/DESIGN.md`, `src/Sim/Tables.cs`.
 
@@ -36,7 +36,7 @@ Godot and `dotnet.exe` driven from WSL. Design and every number:
                                 drop-off; `drive PLACE street` stops when an encounter turns up.
 
 Machine paths default in `scripts/common.sh`; override in `.env` (see `.env.example`).
-Sound is off until turned on in Settings. Settings live in `user://sprawlrunner.json`, the career in `user://career.json`.
+Sound is off until turned on in Settings. Settings live in `user://sprawlrunner.json`, the careers in `user://career1.json` .. `career3.json` (three slots; an old single `user://career.json` moves into slot 1 on start).
 `--check` and `--shots` use a scratch profile and never touch them.
 
 ## Layout

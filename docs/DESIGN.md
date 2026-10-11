@@ -7,8 +7,11 @@ contacts, take jobs from the terminal in your safehouse, and run them --
 on foot, real time, top-down, with guns, grenades, cyberware and a little
 magic on the other side. Every number lives in `src/Sim/Tables.cs`.
 
-One career, saved after every run (ironman). Die on a run without a
-TraumaLink contract and the career is over.
+One career per save slot (three slots, side by side), saved after every run (ironman).
+Die on a run without a TraumaLink contract and that career is over; its slot empties,
+the others are untouched. Starting over in a taken slot asks first. Each career keeps
+its real time played (driving, in places, on runs; never paused or on the title),
+shown on the title's slot, the PDA's Stats tab and the last receipt.
 
 ## The loop
 

@@ -149,9 +149,13 @@ public partial class CityScreen : Control
         PauseMenu();
     }
 
+    /// <summary>The pause menu is up: the career's clock stops.</summary>
+    public bool PauseMenuUp => _pauseMenu != null && IsInstanceValid(_pauseMenu) && _pauseMenu.IsInsideTree() && !_pauseMenu.IsQueuedForDeletion();
+    private Modal _pauseMenu;
+
     private void PauseMenu()
     {
-        var m = new Modal("PAUSED", 420);
+        var m = _pauseMenu = new Modal("PAUSED", 420);
         m.Add(UITheme.Button("Resume", () => m.Close(), 0, 44));
         m.Add(UITheme.Button("PDA  [P]", () => { m.QueueFree(); AddChild(new Pda(C, Sim)); }, 0, 44));
         m.Add(UITheme.Button("Settings", () => Settings.Open(m), 0, 44));
