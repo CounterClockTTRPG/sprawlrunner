@@ -351,7 +351,8 @@ public sealed partial class Career
                 Tick(ClockOf(j.Faction), j.Type is JobType.Destroy or JobType.Datasteal ? -2 : -1);
                 d.Lines.Add(($"{Tables.FactionNames[(int)j.Faction]} plans", "set back"));
             }
-            if (!r.Aborted && j.Type is not JobType.Bounty) d.Lines.Add(($"{Tables.FactionNames[(int)j.Faction]} grudge", $"{Grudge.GetValueOrDefault(j.Faction)}"));
+            string grudge = $"{Tables.FactionNames[(int)j.Faction]} grudge";
+            if (!r.Aborted && j.Type is not JobType.Bounty && !d.Lines.Any(l => l.Item1 == grudge)) d.Lines.Add((grudge, $"{Grudge.GetValueOrDefault(j.Faction)}"));
         }
         CrewAfter(j, r, d);
         JohnsonAfter(j, r, d);

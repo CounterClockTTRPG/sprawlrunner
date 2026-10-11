@@ -329,6 +329,22 @@ public partial class ShotRunner : Node
                 await Shot("21_story_epilogue");
                 ds.QueueFree();
                 await Frames(3);
+                // A crowded receipt (a finale, a crew pick-up, the city's answer, a repair bill): it must still show its button.
+                var lj = new Job { Id = 4445, Type = JobType.Destroy, Title = "TIDE 4/4: Low Tide", Seed = 345989, District = "docks", Faction = Faction.Lotus, Employer = "fixer", Pay = 23100, Karma = 19, Threat = 5, Target = "x", Item = "x" };
+                var ld = new Debrief { Headline = "The tide turns" };
+                foreach (var (w, a) in new[] { ("Payment", "¥23,100"), ("Wisp's cut", "on the house"), ("Cash found", "¥12,964"), ("The Jade Widow's chrome", "to fence"), ("Corporate ledger", "to fence"),
+                    ("Karma", "+19"), ("Street rep", "+2"), ("Toxic Tide", "chapter 4 of 4"), ("The water runs clear", "for now"), ("Red Lotus grudge", "+1 (now 2)"), ("Shot the ones who gave up", "notoriety +1"),
+                    ("Public awareness", "+3 (now 4)"), ("Red Lotus turf, Docks", "-8 %"), ("Red Lotus plans", "set back"), ("Wisp", "TraumaLink pick-up"), ("Rebuilding the Steel Lynx", "-¥11,250"),
+                    ("Mr. Grey", "remembers you"), ("Lone Star", "looking for you"), ("Heat", "+2"), ("Ox", "shot, recovering"), ("Medkits used", "3"), ("Notoriety", "now 4") })
+                    ld.Lines.Add((w, a));
+                ld.Unlocked.Add("Low Tide");
+                ld.Epilogue.AddRange(new[] { "The pool under the port goes still and dark. In the morning the water in the Docks tastes of rust and nothing else. Madame Sabine closes her shop for a day, the first time anyone can remember, and lights a candle at St. Brigid's.", "Doc Ichikawa's clinic treats four hundred people who drank the water. Most of them get better. Some of them remember your name.", "The Red Lotus count their dead and say nothing, which is worse." });
+                var lds = new DebriefScreen(ld, lj, true, "TIME 03:24   KILLS 39   ALARM RAISED", () => { });
+                Root.CityScreen.AddChild(lds);
+                await Frames(15);
+                await Shot("21a_long_receipt");
+                lds.QueueFree();
+                await Frames(3);
                 // The career receipt, as a death would print it.
                 var rc = Root.CareerReceipt(c, "THE LAST RECEIPT", c.Ending(), died: true);
                 Root.CityScreen.AddChild(rc);
