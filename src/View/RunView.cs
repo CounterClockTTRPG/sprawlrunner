@@ -873,9 +873,29 @@ public partial class RunView : Node2D
                 Color c = k.Kind switch
                 {
                     PickupKind.Cash => UITheme.Yellow, PickupKind.Medkit => UITheme.Good, PickupKind.Grenade => new Color(0.6f, 0.8f, 0.4f),
-                    PickupKind.Loot => UITheme.Violet, PickupKind.Suit => UITheme.Cyan, PickupKind.Badge => new Color(0.4f, 0.7f, 1f), _ => UITheme.Magenta,
+                    PickupKind.Loot => LootGold, PickupKind.Suit => UITheme.Cyan, PickupKind.Badge => new Color(0.4f, 0.7f, 1f),
+                    PickupKind.Clue => UITheme.Cyan, _ => UITheme.Magenta,
                 };
                 Art.DrawGlow(this, p, 18, c with { A = 0.3f });
+                // Valuables, what you came for and evidence: the thing itself, drawn small (its kind by its name) --
+                // loot with a gold glint, the objective with a ring that breathes, a clue with a tag.
+                if (k.Kind is PickupKind.Loot or PickupKind.Objective or PickupKind.Clue)
+                {
+                    Vector2 at = p + new Vector2(0, bob);
+                    if (k.Kind == PickupKind.Objective)
+                    {
+                        float pulse = 0.5f + 0.5f * MathF.Sin(time * 3);
+                        DrawArc(p, 13 + pulse * 3, 0, MathF.Tau, 24, c with { A = 0.45f + 0.35f * pulse }, 1.5f);
+                    }
+                    DrawItem(at, k.Name ?? "");
+                    if (k.Kind == PickupKind.Loot)
+                    {
+                        LootBrackets(p, LootGold with { A = 0.75f });
+                        Glint(at + new Vector2(6, -7), time + k.Pos.X, LootGold);
+                    }
+                    if (k.Kind == PickupKind.Clue) DrawColoredPolygon(new[] { at + new Vector2(5, 3), at + new Vector2(10, 3), at + new Vector2(10, 8), at + new Vector2(7, 9) }, c);
+                    continue;
+                }
                 switch (k.Kind)
                 {
                     case PickupKind.Cash:
@@ -900,6 +920,12 @@ public partial class RunView : Node2D
                         DrawRect(new Rect2(p + new Vector2(-6, -4 + bob), new Vector2(12, 8)), new Color(0.85f, 0.88f, 0.92f));
                         DrawRect(new Rect2(p + new Vector2(-6, -4 + bob), new Vector2(12, 3)), new Color(0.3f, 0.55f, 0.9f));
                         DrawRect(new Rect2(p + new Vector2(-4, 0 + bob), new Vector2(4, 3)), new Color(0.6f, 0.6f, 0.65f));
+                        break;
+                    case PickupKind.Uniform:
+                        // Housekeeping: a folded maroon uniform, a white apron on top.
+                        DrawRect(new Rect2(p + new Vector2(-7, -5 + bob), new Vector2(14, 10)), new Color(0.45f, 0.12f, 0.16f));
+                        DrawRect(new Rect2(p + new Vector2(-4, -4 + bob), new Vector2(8, 8)), new Color(0.92f, 0.9f, 0.86f));
+                        DrawLine(p + new Vector2(-7, 0 + bob), p + new Vector2(7, 0 + bob), new Color(0.3f, 0.08f, 0.1f), 1);
                         break;
                     default:
                         DrawRect(new Rect2(p + new Vector2(-6, -6 + bob), new Vector2(12, 12)), new Color(0.1f, 0.1f, 0.14f));

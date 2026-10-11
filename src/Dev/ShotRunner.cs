@@ -707,6 +707,40 @@ public partial class ShotRunner : Node
                     await Shot("13g_fixtures");
                 }
             }
+            if (Want("run") || Want("loot"))
+            {
+                // Every valuable laid out on the floor round the runner: each should read as what it is, and as loot.
+                Root.EnterCity();
+                await Frames(5);
+                var lj = new Job { Id = 953, Type = JobType.Retrieve, Style = SiteStyle.Warehouse, Threat = 1, Seed = 601, Faction = Faction.Vipers, District = "docks", Target = "x", Item = "case", Title = "Loot", Lot = -1, Schematics = true };
+                Root.StartRun(lj);
+                await Frames(10);
+                Sprawl.Run lr = Root.RunScreen.R;
+                foreach (Actor a in lr.Actors.Where(a => a.Hostile).ToList()) lr.Actors.Remove(a);
+                lr.Player.MaxHp = lr.Player.Hp = 1e6f;
+                lr.Pickups.Clear();
+                var items = new (PickupKind k, string n)[]
+                {
+                    (PickupKind.Loot, "paydata chip"), (PickupKind.Loot, "corporate ledger"), (PickupKind.Loot, "gold-plated commlink"), (PickupKind.Loot, "prototype optic"),
+                    (PickupKind.Loot, "art deco cyberhand"), (PickupKind.Loot, "bearer credstick"), (PickupKind.Loot, "bearer bonds"), (PickupKind.Loot, "diamond chip"),
+                    (PickupKind.Objective, "prototype cyberarm"), (PickupKind.Objective, "sealed briefcase"), (PickupKind.Objective, "stolen drone core"), (PickupKind.Objective, "dragon's scale"),
+                    (PickupKind.Objective, "sample case of nanites"), (PickupKind.Clue, "a recording"), (PickupKind.Clue, "a file of photographs"), (PickupKind.Uniform, "housekeeping uniform"),
+                };
+                // The biggest open patch of floor: a 4x4 grid of tiles, two apart, all floor.
+                Pt origin = new(-1, -1);
+                for (int y = 1; y < lr.L.H - 8 && origin.X < 0; y++)
+                    for (int x = 1; x < lr.L.W - 8 && origin.X < 0; x++)
+                        if (Enumerable.Range(0, 64).All(i => lr.L[new Pt(x + i % 8, y + i / 8)] == Tile.Floor)) origin = new Pt(x, y);
+                if (origin.X >= 0)
+                {
+                    for (int i = 0; i < items.Length; i++)
+                        lr.Pickups.Add(new Pickup { Kind = items[i].k, Name = items[i].n, Pos = new Pt(origin.X + 1 + i % 4 * 2, origin.Y + 1 + i / 4 * 2).Centre, Id = "shot" + i });
+                    lr.Player.Pos = new Pt(origin.X + 4, origin.Y + 4).Centre;
+                    Root.RunView.Cam.Zoom = new Vector2(3f, 3f);
+                    for (int i = 0; i < 40; i++) { lr.Step(new RunInput { Slot = -1, Aim = lr.Player.Pos + new V2(0, -40) }); Root.RunView.Frame(1 / 60f); lr.Events.Clear(); await Frames(1); }
+                    await Shot("13g2_loot");
+                }
+            }
             if (Want("run") || Want("rooms"))
             {
                 // Rooms with a purpose: one site per kind worth seeing, the runner stood in it, the map known.
