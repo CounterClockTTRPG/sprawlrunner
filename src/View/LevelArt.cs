@@ -281,11 +281,34 @@ public static class LevelArt
                 break;
             case Tile.Mainframe:
             {
-                var b = new Rect2(o + new Vector2(1, 1), new Vector2(T - 2, T - 2));
-                ci.DrawRect(b, new Color(0.06f, 0.06f, 0.09f));
-                ci.DrawRect(b, UITheme.Violet, false, 2);
-                ci.DrawRect(new Rect2(o + new Vector2(6, 6), new Vector2(T - 12, 10)), new Color(0.3f, 0.9f, 1f));
-                for (int k = 0; k < 3; k++) ci.DrawRect(new Rect2(o + new Vector2(6 + k * 7, 20), new Vector2(5, 5)), UITheme.Magenta);
+                // A server cabinet: a bevelled gunmetal case trimmed in violet, a status screen at the top,
+                // three drive blades with their LED columns and vents, cables trailing out of the base.
+                ci.DrawRect(new Rect2(o + new Vector2(4, 4), new Vector2(T - 4, T - 4)), new Color(0, 0, 0, 0.45f));
+                var b = new Rect2(o + new Vector2(2, 1), new Vector2(T - 4, T - 4));
+                Color casing = new(0.13f, 0.13f, 0.18f);
+                ci.DrawRect(b, casing);
+                ci.DrawLine(b.Position, b.Position + new Vector2(b.Size.X, 0), casing.Lightened(0.35f), 1.5f);
+                ci.DrawLine(b.Position, b.Position + new Vector2(0, b.Size.Y), casing.Lightened(0.2f), 1);
+                ci.DrawLine(b.End, b.End - new Vector2(b.Size.X, 0), casing.Darkened(0.5f), 1.5f);
+                ci.DrawLine(b.End, b.End - new Vector2(0, b.Size.Y), casing.Darkened(0.4f), 1);
+                ci.DrawRect(new Rect2(b.Position + new Vector2(1.5f, 1.5f), b.Size - new Vector2(3, 3)), UITheme.Violet with { A = 0.55f }, false, 1);
+                // The screen: dark glass, a few lines of code.
+                ci.DrawRect(new Rect2(o + new Vector2(5, 4), new Vector2(T - 10, 8)), new Color(0.02f, 0.05f, 0.07f));
+                for (int k = 0; k < 3; k++)
+                    ci.DrawLine(o + new Vector2(6.5f, 5.8f + k * 2.2f), o + new Vector2(6.5f + 4 + Art.Hash(x, y, 40 + k) * 13, 5.8f + k * 2.2f), new Color(0.3f, 0.9f, 1f, 0.22f), 1);
+                // The blades.
+                for (int k = 0; k < 3; k++)
+                {
+                    var bl = new Rect2(o + new Vector2(5 + k * 7.6f, 14), new Vector2(6.4f, 12));
+                    ci.DrawRect(bl, new Color(0.21f, 0.21f, 0.27f));
+                    ci.DrawLine(bl.Position, bl.Position + new Vector2(bl.Size.X, 0), new Color(0.38f, 0.38f, 0.46f), 1);
+                    for (int g = 0; g < 3; g++) ci.DrawLine(bl.Position + new Vector2(0.8f, 3.2f + g * 3), bl.Position + new Vector2(3.6f, 3.2f + g * 3), new Color(0.06f, 0.06f, 0.08f), 1);
+                    for (int j = 0; j < 3; j++) ci.DrawRect(new Rect2(bl.Position + new Vector2(4.4f, 1.8f + j * 3.3f), new Vector2(1.5f, 1.5f)), UITheme.Magenta.Darkened(0.55f));
+                }
+                // Cables out of the base.
+                ci.DrawLine(o + new Vector2(9, T - 3), o + new Vector2(7, T), new Color(0.3f, 0.75f, 0.95f, 0.8f), 1.5f);
+                ci.DrawLine(o + new Vector2(13, T - 3), o + new Vector2(14, T), new Color(0.85f, 0.3f, 0.7f, 0.8f), 1.5f);
+                ci.DrawLine(o + new Vector2(22, T - 3), o + new Vector2(24, T), new Color(0.2f, 0.2f, 0.24f), 2);
                 break;
             }
         }

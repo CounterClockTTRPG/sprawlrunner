@@ -586,11 +586,26 @@ public partial class RunView : Node2D
                         break;
                     case Tile.Mainframe:
                     {
-                        // A light running along the front, and the drive bays blinking.
-                        int at = (int)(time * 6 + h * 10) % 3;
-                        for (int k = 0; k < 3; k++) DrawRect(new Rect2(o + new Vector2(6 + k * 7, 20), new Vector2(5, 5)), k == at ? new Color(1f, 0.6f, 1f) : UITheme.Magenta.Darkened(0.5f));
-                        float scan = (time * 0.8f + h) % 1f;
-                        DrawRect(new Rect2(o + new Vector2(6, 6 + scan * 9), new Vector2(T - 12, 1)), new Color(1, 1, 1, 0.5f));
+                        // Code scrolling up the screen, the drive LEDs blinking, a running light down the blades.
+                        float line = time * 3 + h * 7;
+                        for (int k = 0; k < 3; k++)
+                        {
+                            int n = (int)line + k;
+                            float len = 4 + Art.Hash(p.X + n, p.Y, 41) * 13;
+                            DrawLine(o + new Vector2(6.5f, 5.8f + k * 2.2f), o + new Vector2(6.5f + len, 5.8f + k * 2.2f), new Color(0.45f, 1f, 1f, k == 2 ? 0.95f : 0.6f), 1);
+                        }
+                        if (MathF.Sin(time * 5 + h * 3) > 0) DrawRect(new Rect2(o + new Vector2(T - 8, 9.6f), new Vector2(2, 1.6f)), new Color(0.45f, 1f, 1f));
+                        int at = (int)(time * 4 + h * 10) % 9;
+                        for (int k = 0; k < 3; k++)
+                            for (int j = 0; j < 3; j++)
+                            {
+                                bool on = k * 3 + j == at || MathF.Sin(time * (2.5f + Art.Hash(p.X, p.Y, k * 3 + j) * 6) + h * 9 + k * 3 + j) > 0.55f;
+                                if (!on) continue;
+                                Color led = k * 3 + j == at ? new Color(1f, 0.65f, 1f) : Art.Hash(p.X, p.Y, 50 + k * 3 + j) > 0.35f ? new Color(0.5f, 1f, 0.6f) : new Color(1f, 0.75f, 0.3f);
+                                Vector2 lp = o + new Vector2(5 + k * 7.6f + 4.4f, 14 + 1.8f + j * 3.3f);
+                                DrawRect(new Rect2(lp, new Vector2(1.5f, 1.5f)), led);
+                                DrawRect(new Rect2(lp - new Vector2(1, 1), new Vector2(3.5f, 3.5f)), led with { A = 0.2f });
+                            }
                         break;
                     }
                     case Tile.Console when !r.Used(p) && !(r.WorkingNow && r.WorkTile == p):
