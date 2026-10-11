@@ -440,8 +440,8 @@ public static partial class Tables
         new() { Id = "invisibility", Name = "Invisibility", Grants = Ability.Cloak, Cost = 14000, Loyalty = 2, Desc = "Spell: unseen for 5 s, or until you fire. Cameras too." },
     };
 
-    /// <summary>How far an aimed spell reaches (Manabolt, Heal); a fireball's flight and burst; the circle a heal knits.</summary>
-    public const float SpellRange = 15, FireballRange = 16, FireballBlast = 2.2f, HealRadius = 2f;
+    /// <summary>How far an aimed spell reaches (Manabolt, Heal); a fireball's flight, burst and damage at the heart of it (before spell power); the circle a heal knits.</summary>
+    public const float SpellRange = 15, FireballRange = 16, FireballBlast = 3.5f, FireballDamage = 85, HealRadius = 2f;
 
     public const int FocusCost = 12000;
 
