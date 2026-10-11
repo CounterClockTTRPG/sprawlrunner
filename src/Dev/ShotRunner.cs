@@ -707,6 +707,27 @@ public partial class ShotRunner : Node
                     await Shot("13g_fixtures");
                 }
             }
+            if (Want("run") || Want("mainframe"))
+            {
+                // The mainframe close up, the runner stood at it, before and while jacked in.
+                Root.EnterCity();
+                await Frames(5);
+                var mj = new Job { Id = 951, Type = JobType.Datasteal, Style = SiteStyle.Office, Threat = 2, Seed = 611, Faction = Faction.Halcyon, District = "spire", Target = "x", Item = "paydata", Title = "Mainframe", Lot = -1, Schematics = true };
+                Root.StartRun(mj);
+                await Frames(10);
+                Sprawl.Run mr = Root.RunScreen.R;
+                foreach (Actor a in mr.Actors.Where(a => a.Hostile).ToList()) mr.Actors.Remove(a);
+                mr.Player.MaxHp = mr.Player.Hp = 1e6f;
+                Pt mf = mr.Plan.Mainframe;
+                if (mf.X >= 0)
+                {
+                    Pt stand = Pt.Dirs4.Select(d => new Pt(mf.X + d.X, mf.Y + d.Y)).Where(q => mr.L[q] == Tile.Floor).DefaultIfEmpty(mf).First();
+                    mr.Player.Pos = stand.Centre;
+                    Root.RunView.Cam.Zoom = new Vector2(3.4f, 3.4f);
+                    for (int i = 0; i < 40; i++) { mr.Step(new RunInput { Slot = -1, Aim = mf.Centre }); Root.RunView.Frame(1 / 60f); mr.Events.Clear(); await Frames(1); }
+                    await Shot("13f2_mainframe");
+                }
+            }
             if (Want("run") || Want("loot"))
             {
                 // Every valuable laid out on the floor round the runner: each should read as what it is, and as loot.
