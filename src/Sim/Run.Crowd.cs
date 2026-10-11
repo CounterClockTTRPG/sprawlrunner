@@ -17,7 +17,7 @@ public sealed partial class Run
     {
         foreach (Actor a in Actors)
         {
-            if (!a.IsNpc || a.Dead) continue;
+            if (!a.IsNpc || a.Dead || a.Sedated) continue;
             float d = V2.Distance(a.Pos, from);
             if (d > radius || !L.Los(a.Pos, from) && d > radius * 0.6f) continue;
             bool fresh = a.PanicT <= 0;

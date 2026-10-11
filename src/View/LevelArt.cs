@@ -21,6 +21,10 @@ public static class LevelArt
             Floor.Dance => ((x + y) % 2 == 0) ? new Color(0.06f, 0.04f, 0.1f) : new Color(0.1f, 0.05f, 0.16f),
             Floor.Wood => new Color(0.27f + n, 0.18f + n, 0.11f + n),
             Floor.Ritual => new Color(0.12f + n, 0.1f + n, 0.12f + n),
+            Floor.Sewer => new Color(0.13f + n, 0.14f + n, 0.12f + n),
+            Floor.Earth => new Color(0.12f + n, 0.09f + n, 0.06f + n),
+            Floor.Water => new Color(0.06f + n * 0.5f, 0.12f + n * 0.5f, 0.11f + n * 0.5f),
+            Floor.Shop => ((x + y) % 2 == 0) ? new Color(0.62f + n, 0.63f + n, 0.6f + n) : new Color(0.52f + n, 0.54f + n, 0.52f + n),
             _ => new Color(0.1f, 0.2f, 0.1f),
         };
     }
@@ -337,6 +341,37 @@ public static class LevelArt
                     ci.DrawRect(new Rect2(lp, new Vector2(5, 3)), Art.Hash(x, y, 23) > 0.5f ? new Color(0.7f, 0.68f, 0.6f, 0.5f) : new Color(0.8f, 0.2f, 0.25f, 0.5f));
                 }
                 break;
+            case Floor.Sewer:
+                // Old brick paving, slick; a slime line and the odd puddle.
+                for (int k = 0; k < 4; k++) ci.DrawLine(o + new Vector2(0, k * 8), o + new Vector2(T, k * 8), fc.Darkened(0.25f), 1);
+                ci.DrawLine(o + new Vector2((y % 2) * 16, 0), o + new Vector2((y % 2) * 16, T), fc.Darkened(0.25f), 1);
+                if (Art.Hash(x, y, 60) > 0.8f) Blot(ci, o + new Vector2(Art.Hash(x, y, 61) * T, Art.Hash(x, y, 62) * T), 5 + Art.Hash(x, y, 63) * 6, new Color(0.2f, 0.3f, 0.18f, 0.35f));
+                break;
+            case Floor.Earth:
+                // Packed earth and gravel; a bone now and then.
+                for (int k = 0; k < 3; k++) ci.DrawCircle(o + new Vector2(Art.Hash(x, y, 64 + k) * T, Art.Hash(x, y, 67 + k) * T), 1.5f + Art.Hash(x, y, 70 + k) * 2, fc.Darkened(0.3f));
+                if (Art.Hash(x, y, 73) > 0.94f)
+                {
+                    Vector2 a = o + new Vector2(8, 10 + Art.Hash(x, y, 74) * 12);
+                    ci.DrawLine(a, a + new Vector2(14, 4), new Color(0.75f, 0.72f, 0.62f, 0.8f), 2.5f);
+                    ci.DrawCircle(a, 2.2f, new Color(0.75f, 0.72f, 0.62f, 0.8f));
+                    ci.DrawCircle(a + new Vector2(14, 4), 2.2f, new Color(0.75f, 0.72f, 0.62f, 0.8f));
+                }
+                break;
+            case Floor.Water:
+                // Black water: ripples, and a sheen of something green.
+                for (int k = 0; k < 2; k++)
+                {
+                    float wy = 8 + k * 14 + Art.Hash(x, y, 75 + k) * 4;
+                    ci.DrawLine(o + new Vector2(4 + Art.Hash(x, y, 77 + k) * 6, wy), o + new Vector2(16 + Art.Hash(x, y, 79 + k) * 12, wy), new Color(0.3f, 0.5f, 0.45f, 0.35f), 1);
+                }
+                if (Art.Hash(x, y, 81) > 0.85f) Blot(ci, o + new Vector2(T / 2f, T / 2f), 6, new Color(0.25f, 0.45f, 0.15f, 0.25f));
+                break;
+            case Floor.Shop:
+                // Linoleum squares, scuffed.
+                ci.DrawRect(new Rect2(o, new Vector2(T, T)), fc.Darkened(0.08f), false, 1);
+                if (Art.Hash(x, y, 82) > 0.9f) ci.DrawLine(o + new Vector2(Art.Hash(x, y, 83) * T, 6), o + new Vector2(Art.Hash(x, y, 84) * T, T - 6), fc.Darkened(0.2f), 1.5f);
+                break;
             case Floor.Carpet:
                 // A woven diamond, worn paler where people walk.
                 if ((x + y) % 2 == 0) ci.DrawColoredPolygon(new[] { o + new Vector2(T / 2f, 6), o + new Vector2(T - 6, T / 2f), o + new Vector2(T / 2f, T - 6), o + new Vector2(6, T / 2f) }, fc.Lightened(0.04f));
@@ -361,9 +396,36 @@ public static class LevelArt
         ci.DrawRect(g, fc.Darkened(0.4f), false, 1);
     }
 
+    /// <summary>A wall beside a sewer tunnel (its brick lining), not the rock round a cavern.</summary>
+    private static bool LinesSewer(Level L, int x, int y)
+    {
+        for (int dy = -1; dy <= 1; dy++)
+        for (int dx = -1; dx <= 1; dx++)
+        {
+            int nx = x + dx, ny = y + dy;
+            if (!L.In(nx, ny) || L.Solid(nx, ny, false)) continue;
+            if (L.F[L.Idx(nx, ny)] is Floor.Sewer or Floor.Water) return true;
+        }
+        return false;
+    }
+
     private static void DrawWall(CanvasItem ci, Level L, int x, int y, Tile t, Vector2 o, float hp)
     {
         Color c = WallColour(t).Darkened((1 - hp) * 0.35f);
+        // Underground, brick lines only the sewer tunnels: everywhere else the "wall" is earth and stone.
+        if (t == Tile.Brick && L.Underground && !LinesSewer(L, x, y))
+        {
+            Color rock = new Color(0.3f, 0.27f, 0.23f).Darkened((1 - hp) * 0.35f);
+            ci.DrawRect(new Rect2(o, new Vector2(T, T)), rock);
+            for (int k = 0; k < 4; k++)
+            {
+                Vector2 sp = o + new Vector2(4 + Art.Hash(x, y, 90 + k) * (T - 8), 4 + Art.Hash(x, y, 94 + k) * (T - 8));
+                float sr = 2.5f + Art.Hash(x, y, 98 + k) * 4;
+                ci.DrawCircle(sp + new Vector2(1, 1), sr, rock.Darkened(0.4f));
+                ci.DrawCircle(sp, sr, rock.Lightened(0.08f + 0.06f * k));
+            }
+            return;
+        }
         ci.DrawRect(new Rect2(o, new Vector2(T, T)), c);
         if (t == Tile.Brick)
         {

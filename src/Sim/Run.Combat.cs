@@ -265,7 +265,7 @@ public sealed partial class Run
             Events.Add(new RunEvent(Ev.Objective, p.Centre, Text: $"{Job.Item}: {TargetsLeft} left"));
         if (was == Tile.Vat && Job.Style == SiteStyle.Lab) Gas(p.Centre, GasKind.Toxic, Tables.ToxicRadius, Tables.ToxicLife);
         else if (was == Tile.Vat) Ignite(p.Centre, 1.2f, 4);
-        if (was == Tile.Pipe) Gas(p.Centre, GasKind.Coolant, Tables.CoolantRadius, Tables.CoolantLife);
+        if (was == Tile.Pipe) Gas(p.Centre, Job.Style == SiteStyle.Clinic ? GasKind.Anaesthetic : GasKind.Coolant, Tables.CoolantRadius, Tables.CoolantLife);
         return true;
     }
 

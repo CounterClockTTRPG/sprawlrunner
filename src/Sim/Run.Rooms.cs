@@ -4,8 +4,8 @@ using System.Linq;
 
 namespace Sprawl;
 
-/// <summary>What fills a gas cloud: coolant from a ruptured pipe (freezes), or a lab's toxic vapour (burns).</summary>
-public enum GasKind { Coolant, Toxic }
+/// <summary>What fills a gas cloud: coolant from a ruptured pipe (freezes), a lab's toxic vapour (burns), a clinic's anaesthetic (puts people under).</summary>
+public enum GasKind { Coolant, Toxic, Anaesthetic }
 
 /// <summary>A cloud of gas on the floor: it spreads to its radius, hangs, then thins.</summary>
 public sealed class GasCloud
@@ -59,6 +59,12 @@ public sealed partial class Run
                     a.Hp -= (a.IsPlayer ? Tables.CoolantHurtYou : Tables.CoolantHurt) * dt;
                     if (!a.IsPlayer && !a.IsAlly) a.Stun = MathF.Max(a.Stun, 0.4f);
                 }
+                else if (c.Kind == GasKind.Anaesthetic)
+                {
+                    // Under: a guard who breathes it drops where they stand; you only slow (Run.Player).
+                    if (!a.IsPlayer && !a.IsAlly && !a.IsNpc) a.Stun = MathF.Max(a.Stun, Tables.AnaestheticSleep);
+                    continue;
+                }
                 else a.Hp -= (a.IsPlayer ? Tables.ToxicHurtYou : Tables.ToxicHurt) * dt;
                 if (a.Hp <= 0 && !a.Dead) Kill(a, a.IsPlayer ? null : Player);
             }
@@ -106,7 +112,14 @@ public sealed partial class Run
             if (a.CallT > 0)
             {
                 a.CallT -= Dt;
-                if (a.CallT <= 0) { a.CallT = -1; RaiseSecurity(1); Say("The cleaner got through to security."); }
+                if (a.CallT <= 0)
+                {
+                    a.CallT = -1;
+                    // A store's panic button rings Lone Star, not a guard in the back.
+                    bool store = Job.Style == SiteStyle.Store;
+                    RaiseSecurity(store ? 2 : 1);
+                    Say(store ? "The clerk hit the panic button. Lone Star is on its way." : Job.Style == SiteStyle.Clinic ? "The orderly got through on the intercom." : "The cleaner got through to security.");
+                }
                 continue;
             }
             if (a.CallT < 0) continue;
@@ -114,10 +127,15 @@ public sealed partial class Run
             float d = V2.Distance(a.Pos, Player.Pos);
             if (CurrentGun != null && d < 7 && L.Los(a.Pos, Player.Pos) && MathF.Abs(M.AngleDiff(a.Facing, M.Angle(Player.Pos - a.Pos))) < 1.2f && !Disguised)
             {
-                a.CallT = Tables.CleanerCall;
+                a.CallT = Job.Style == SiteStyle.Store ? Tables.PanicButton : Tables.CleanerCall;
                 a.PanicT = 8;
                 a.PanicFrom = Player.Pos;
-                Say("A night cleaner saw your gun and is running for a phone. Stop them.");
+                Say(Job.Style switch
+                {
+                    SiteStyle.Store => "The clerk saw your gun and is reaching under the counter. Stop them.",
+                    SiteStyle.Clinic => "An orderly saw your gun and is running for the intercom. Stop them.",
+                    _ => "A night cleaner saw your gun and is running for a phone. Stop them.",
+                });
             }
         }
     }
@@ -132,6 +150,9 @@ public sealed partial class Run
         SiteStyle.Warehouse => ("WAREHOUSE", Plan.BackDoor.W > 0 ? "shelving you can push over, a dock exit" : "shelving you can push over"),
         SiteStyle.Den => ("DEN", "dogs smell you, some are drunk"),
         SiteStyle.Club => ("CLUB", "the music hides shots on the floor"),
+        SiteStyle.Tunnels => ("TUNNELS", "dark, the water slows and splashes"),
+        SiteStyle.Store => ("STORE", "shoppers everywhere, the clerk has a panic button"),
+        SiteStyle.Clinic => ("CLINIC", "orderlies call it in, the theatre's gas puts people under"),
         _ => null,
     };
 

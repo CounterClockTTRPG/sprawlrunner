@@ -71,6 +71,8 @@ public sealed class Actor
     public Mood Mood;
     /// <summary>Had a few (a den's ganger); carries the keycard; a night cleaner, and how long until they reach a phone (0: not calling).</summary>
     public bool Drunk, Badge, Cleaner;
+    /// <summary>A clinic's patient: under, so they neither run nor scream.</summary>
+    public bool Sedated;
     /// <summary>One of the rival crew (team 3: fights the guards and you).</summary>
     public bool Rival;
     /// <summary>Something from a bounty's nest (a ghoul, a hellhound), not somebody's guard: drawn as one.</summary>
@@ -275,10 +277,17 @@ public sealed partial class Run
         if (!Peaceful) SetupDrone();
         foreach (var (pos, vendor) in Plan.Npcs)
         {
-            // An office's night cleaner wanders with a cart, and isn't a vendor.
-            bool cleaner = vendor == "cleaner";
-            var n = new Actor { Id = _nextId++, IsNpc = true, Team = 2, Vendor = cleaner ? null : vendor, Cleaner = cleaner, Pos = pos, Home = pos, Radius = 0.3f, MaxHp = 50, Hp = 50, Speed = R.Range(0.8f, 1.5f), Static = vendor != null && !cleaner, Facing = MathF.PI / 2 };
-            n.Name = cleaner ? "night cleaner" : vendor != null ? HubGen.Vendors.First(v => v.id == vendor).name : "passer-by";
+            // An office's night cleaner wanders with a cart, a store's clerk stands at the till, a clinic's orderly does
+            // the rounds: none is a vendor, and any of them who sees a gun calls it in. A clinic's patients lie sedated.
+            bool cleaner = vendor is "cleaner" or "clerk" or "orderly", patient = vendor == "patient";
+            var n = new Actor { Id = _nextId++, IsNpc = true, Team = 2, Vendor = cleaner || patient ? null : vendor, Cleaner = cleaner, Sedated = patient, Pos = pos, Home = pos, Radius = 0.3f, MaxHp = 50, Hp = 50, Speed = R.Range(0.8f, 1.5f),
+                Static = vendor != null && !cleaner || vendor == "clerk" || patient, Facing = MathF.PI / 2 };
+            n.Name = vendor switch
+            {
+                "cleaner" => "night cleaner", "clerk" => "the clerk", "orderly" => "an orderly", "patient" => "a patient",
+                null => Job.Style == SiteStyle.Store ? "shopper" : "passer-by",
+                _ => HubGen.Vendors.First(v => v.id == vendor).name,
+            };
             Actors.Add(n);
         }
         foreach (PickupSpawn p in Plan.Pickups) Pickups.Add(new Pickup { Kind = p.Kind, Pos = p.Pos, Amount = p.Amount, Name = p.Name, Id = p.Id });
@@ -852,6 +861,8 @@ public sealed partial class Run
     {
         if (delta.LengthSquared() < 1e-10f) return;
         if (delta.LengthSquared() > 1e-6f) a.MovedAt = Time;
+        // Wading: the sewer's water (and a flooded cavern's) holds everyone on foot back.
+        if (!a.Flying && L.In(Pt.Of(a.Pos)) && L.F[L.Idx((int)a.Pos.X, (int)a.Pos.Y)] == Floor.Water) delta *= Tables.WadeSlow;
         // Sub-step fast moves so a dash cannot tunnel through a wall.
         int steps = (int)MathF.Ceiling(delta.Length() / 0.25f);
         V2 d = delta / steps;

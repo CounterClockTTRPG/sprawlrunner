@@ -14,7 +14,7 @@ public enum Tile : byte
 }
 
 /// <summary>What the floor under a tile looks like. Purely visual.</summary>
-public enum Floor : byte { Street, Yard, Concrete, Carpet, LabTile, Dance, Wood, Grass, Ritual }
+public enum Floor : byte { Street, Yard, Concrete, Carpet, LabTile, Dance, Wood, Grass, Ritual, Sewer, Earth, Water, Shop }
 
 public readonly struct TileDef
 {
@@ -205,6 +205,8 @@ public sealed class Level
     public readonly HashSet<int> Keycards = new();
     /// <summary>The light everywhere before the lamps: 1 on a hand-drawn site (no lighting at all), the night on a generated one.</summary>
     public float Ambient = 1;
+    /// <summary>Below the street (ghoul tunnels): brick lines the sewers, the rest is earth and stone (how it is drawn).</summary>
+    public bool Underground;
     /// <summary>Lamps shot out (by index into <see cref="Lights"/>).</summary>
     public readonly HashSet<int> LampsOut = new();
     private float[] _light;

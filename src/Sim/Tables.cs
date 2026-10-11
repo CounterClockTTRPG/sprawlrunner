@@ -11,7 +11,7 @@ public enum GrenadeKind { Frag, Flash, Emp, Fire, Breach }
 public enum Ability { None, Overclock, Hack, Cloak, Manabolt, Fireball, Heal, Summon, Astral, Project, Ward }
 public enum JobType { Eliminate, Retrieve, Destroy, Datasteal, Rescue, Clear, Courier, Hub, Investigate, Plant, Defend, Kidnap, Escort, Bounty, Hack, Race }
 public enum Faction { Vipers, Halcyon, Lotus }
-public enum SiteStyle { Warehouse, Office, Den, Lab, Club }
+public enum SiteStyle { Warehouse, Office, Den, Lab, Club, Tunnels, Store, Clinic }
 public enum RunMod { Blackout, ShiftChange, Deadline, Elite, Skeleton }
 
 public enum EnemyKind { Ganger, Hound, Mage, Guard, Blade, Heavy, Sniper, Drone, Turret, Camera, Vip, Shield, Rigger, Boss, Ally, Spirit, Bruiser, Firebug, Spider, Cloaker, Bulwark, Barghest, HiveQueen, HiveWorker, EggSac }
@@ -181,6 +181,13 @@ public static partial class Tables
     /// how far the club's music carries a gunshot on its floor (of the usual); how fast a lab's sprinklers drown a fire;
     /// what pushed-over shelving does to whoever is under it.</summary>
     public const int Cleaners = 2;
+    /// <summary>The new sites: shoppers on a store's floor; sedated patients in a clinic's wards; how long a clinic's anaesthetic
+    /// keeps a guard under; wading slows to this and splashes this much louder; a store's panic button brings Lone Star after this long.</summary>
+    public const int Shoppers = 7, Patients = 2;
+    /// <summary>Where jobs happen (Career.PlaceFor): ghoul nests in the sewers; kidnappings and some wetwork at a store; the
+    /// Lotus' hostages in a body bank, some datasteals and retrievals in a clinic; a gang's stash or prisoner in the tunnels.</summary>
+    public const float NestInTunnels = 0.75f, KidnapAtStore = 0.5f, WetworkAtStore = 0.15f, BodyBank = 0.5f, ClinicBusiness = 0.12f, GangTunnels = 0.15f;
+    public const float AnaestheticSleep = 6f, WadeSlow = 0.62f, WadeNoise = 1.7f, PanicButton = 2.5f;
     public const float CleanerCall = 3f, DrunkShare = 0.35f, DrunkPace = 0.8f, DrunkAim = 1.6f, DrunkNotice = 0.75f, Smell = 4.5f, SmellRate = 0.6f;
     public const float MusicMask = 0.45f, Sprinklers = 3f, ToppleHurt = 45, ToppleStun = 2.5f;
     /// <summary>The rival crew: the share of jobs they can do that they bid on, how many days such a job waits, when in the run they turn up (s), and their kit.</summary>

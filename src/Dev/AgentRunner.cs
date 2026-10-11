@@ -611,7 +611,7 @@ public partial class AgentRunner : Node
         Actor p = r.Player;
         Pt c = Pt.Of(p.Pos);
         var sb = new StringBuilder();
-        sb.AppendLine($"map around you (x {c.X - radius}..{c.X + radius}, y {c.Y - radius}..{c.Y + radius}; @ you, # wall, = reinforced, \" glass, + door, L locked door, x cover, o barrel, r/v racks/vats to destroy, M mainframe, % security console, & safe, l locker, b bunk, p coolant pipe, ^ stairs, ~ fire, $ pickup, E extraction, letters people (see list), space unknown, lower-case dot remembered floor):");
+        sb.AppendLine($"map around you (x {c.X - radius}..{c.X + radius}, y {c.Y - radius}..{c.Y + radius}; @ you, # wall, = reinforced, \" glass, + door, L locked door, x cover, o barrel, r/v racks/vats to destroy, M mainframe, % security console, & safe, l locker, b bunk, p coolant pipe (gas), ^ stairs, ~ fire, w water (slow, loud), $ pickup, E extraction, letters people (see list), space unknown, lower-case dot remembered floor):");
         var people = new Dictionary<Pt, char>();
         foreach (Actor a in r.Actors.Where(a => !a.IsPlayer && !a.Dead && r.Shown(a))) people[Pt.Of(a.Pos)] = Letter(a, r);
         var loot = r.Pickups.Where(k => !k.Taken && r.Seen(k.Pos)).Select(k => Pt.Of(k.Pos)).ToHashSet();
@@ -643,6 +643,7 @@ public partial class AgentRunner : Node
                         Tile.Barrel => 'o', Tile.Rack => 'r', Tile.Vat => 'v', Tile.Mainframe => 'M', Tile.Console => '%', Tile.Safe => '&', Tile.Locker => 'l', Tile.Stairs => '^', Tile.Bunk => 'b', Tile.Pipe => 'p', _ => '?',
                     };
                     if (ch == ' ' && vis) ch = '·';
+                    if (r.L[t] == Tile.Floor && r.L.F[i] == Floor.Water && ch is ' ' or '·' or '.') ch = 'w';
                 }
                 sb.Append(ch);
             }

@@ -123,7 +123,7 @@ public sealed partial class Run
         V2 toAim = inp.Aim - p.Pos;
         if (toAim.LengthSquared() > 0.01f) p.Facing = M.Angle(toAim);
         V2 move = inp.Move.LengthSquared() > 1 ? M.Norm(inp.Move) : inp.Move;
-        float speed = p.Speed * (inp.Sneak ? 0.55f : 1f) * (CarriedBody != null ? 0.6f : 1f) * (Adrenaline ? 1.25f : 1f) * (Clouds.Count > 0 && InGas(p.Pos, GasKind.Coolant) ? Tables.CoolantSlow : 1f);
+        float speed = p.Speed * (inp.Sneak ? 0.55f : 1f) * (CarriedBody != null ? 0.6f : 1f) * (Adrenaline ? 1.25f : 1f) * (Clouds.Count > 0 && (InGas(p.Pos, GasKind.Coolant) || InGas(p.Pos, GasKind.Anaesthetic)) ? Tables.CoolantSlow : 1f);
         // Platelet factories: below half health, the bleeding stops on its own.
         if (C.Has("platelet") && p.Hp < p.MaxHp * 0.5f) p.Hp = MathF.Min(p.MaxHp * 0.5f, p.Hp + dt);
         StepMediDrone(dt);
@@ -158,14 +158,16 @@ public sealed partial class Run
         }
         if (CarriedBody != null) CarriedBody.Pos = p.Pos - M.Dir(p.Facing) * 0.35f;
 
-        // Footsteps: running near someone unaware makes them turn round.
-        if (!inp.Sneak && move.LengthSquared() > 0.1f)
+        // Footsteps: running near someone unaware makes them turn round. Wading splashes, sneaking or not.
+        bool wading = L.In(Pt.Of(p.Pos)) && L.F[L.Idx((int)p.Pos.X, (int)p.Pos.Y)] == Floor.Water;
+        if ((!inp.Sneak || wading) && move.LengthSquared() > 0.1f)
         {
             StepNoiseT -= dt;
             if (StepNoiseT <= 0)
             {
                 StepNoiseT = 0.35f;
-                Noise(p.Pos, 2.4f * (1 - 0.1f * C.S(Skill.Stealth)) * StepNoiseMul * Tables.Armor(C.ArmorId).Steps, true, quiet: true);
+                float splash = wading ? Tables.WadeNoise * (inp.Sneak ? 0.6f : 1f) : 1f;
+                Noise(p.Pos, 2.4f * (1 - 0.1f * C.S(Skill.Stealth)) * StepNoiseMul * Tables.Armor(C.ArmorId).Steps * splash, true, quiet: true);
             }
         }
 

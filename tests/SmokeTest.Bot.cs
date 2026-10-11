@@ -51,6 +51,8 @@ public partial class SmokeTest
         for (int i = 0; i < frames && r.Phase == RunPhase.Playing; i++)
         {
             Actor p = r.Player;
+            // A decision on the run (a hostage begging, a second folder): the first answer, and on.
+            if (r.Pending != null) { r.Step(new RunInput { Slot = 0, Aim = p.Pos }); continue; }
             // Where to go.
             V2 goal;
             if (r.ObjectiveDone || r.ObjectiveLost) goal = new V2(r.Plan.Extraction.X + r.Plan.Extraction.W / 2f, r.Plan.Extraction.Y + r.Plan.Extraction.H / 2f);

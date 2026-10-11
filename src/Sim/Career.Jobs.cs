@@ -347,6 +347,9 @@ public sealed partial class Career
         bool hive = threat == 6 && dist.Id == "industrial" && new Rng(r.State ^ 0x41BEUL).Chance(Tables.HiveChance);
         if (hive) { type = JobType.Bounty; style = SiteStyle.Warehouse; }
         if (type == JobType.Bounty) fac = Faction.Vipers;
+        // Some work happens somewhere of its own (a draw of its own, so boards stay as they were): a ghoul nest
+        // in the old sewers, a kidnapping at the all-night store the target stops at, an organlegger's clinic.
+        style = PlaceFor(type, style, fac, dist.Id, hive, new Rng(r.State ^ 0x517E5UL));
 
         var taken = new HashSet<int>(Board.Select(b => b.Lot).Concat(Board.Select(b => b.Lot2)));
         int lot = city.FreeSite(dist.Id, r, taken);
@@ -456,7 +459,30 @@ public sealed partial class Career
     {
         [SiteStyle.Warehouse] = "warehouse", [SiteStyle.Office] = "office block", [SiteStyle.Den] = "gang den",
         [SiteStyle.Lab] = "research lab", [SiteStyle.Club] = "nightclub",
+        [SiteStyle.Tunnels] = "tangle of old sewer tunnels", [SiteStyle.Store] = "all-night store", [SiteStyle.Clinic] = "back-alley clinic",
     };
+
+    /// <summary>
+    /// Where a job of this kind happens, if not where the district's draw put it: three in four ghoul nests
+    /// are in the sewers; half the kidnappings, and some wetwork, at an all-night store the target stops at;
+    /// half the Red Lotus' hostages in one of their body banks, and a little of everyone's business in a
+    /// clinic; now and then a gang keeps its stash, or its prisoner, in the tunnels under the slums.
+    /// </summary>
+    public static SiteStyle PlaceFor(JobType type, SiteStyle style, Faction fac, string district, bool hive, Rng r)
+    {
+        if (hive) return style;
+        float roll = r.Float();
+        return type switch
+        {
+            JobType.Bounty when roll < Tables.NestInTunnels => SiteStyle.Tunnels,
+            JobType.Kidnap when roll < Tables.KidnapAtStore => SiteStyle.Store,
+            JobType.Eliminate when roll < Tables.WetworkAtStore && district != "industrial" => SiteStyle.Store,
+            JobType.Rescue when fac == Faction.Lotus && roll < Tables.BodyBank => SiteStyle.Clinic,
+            JobType.Datasteal or JobType.Retrieve when district is "strip" or "barrens" or "docks" && roll < Tables.ClinicBusiness => SiteStyle.Clinic,
+            JobType.Retrieve or JobType.Rescue or JobType.Clear when district is "barrens" or "docks" && roll > 1 - Tables.GangTunnels => SiteStyle.Tunnels,
+            _ => style,
+        };
+    }
 
     private void Describe(Job j, City city)
     {
@@ -464,12 +490,14 @@ public sealed partial class Career
         string where = $"{Art(place).ToLower()} {place} in the {Tables.District(j.District).Name}";
         string who = Tables.FactionNames[(int)j.Faction];
         string emp = Tables.Contact(j.Employer).Name;
-        string thing = j.Style == SiteStyle.Lab ? "chemical vats" : "server racks";
+        string thing = j.Style switch { SiteStyle.Lab => "chemical vats", SiteStyle.Clinic => "organ vats", _ => "server racks" };
         switch (j.Type)
         {
             case JobType.Eliminate:
                 j.Title = $"Wetwork: {j.Target}";
-                j.Brief = $"{emp} has a client who wants {j.Target} gone. The target is holed up in {where}, guarded by {who}. They will run when it gets loud.";
+                j.Brief = j.Style == SiteStyle.Store
+                    ? $"{emp} has a client who wants {j.Target} gone. They stop at {where} late every night, {who} bodyguards and all. A shop full of witnesses, a clerk with a panic button, and plate glass onto the street. They will run when it gets loud."
+                    : $"{emp} has a client who wants {j.Target} gone. The target is holed up in {where}, guarded by {who}. They will run when it gets loud.";
                 break;
             case JobType.Retrieve:
                 j.Title = $"Extraction: {j.Item}";
@@ -506,7 +534,9 @@ public sealed partial class Career
                 break;
             case JobType.Kidnap:
                 j.Title = $"Extraction: {j.Target}";
-                j.Brief = $"{emp}'s client wants {j.Target} -- alive, and out of {where}. {who} guard them. Knock them out (baton, taser, gel rounds, a spell to finish), carry them to the extraction. Dead is worth nothing.";
+                j.Brief = j.Style == SiteStyle.Store
+                    ? $"{emp}'s client wants {j.Target} -- alive. Every night on the way home they stop at {where}, {who} muscle in tow. Take them in the aisles, knock them out (baton, taser, gel rounds, a spell to finish) and carry them out. The place is full of shoppers and the clerk has a panic button: be quick, or be quiet. Dead is worth nothing."
+                    : $"{emp}'s client wants {j.Target} -- alive, and out of {where}. {who} guard them. Knock them out (baton, taser, gel rounds, a spell to finish), carry them to the extraction. Dead is worth nothing.";
                 break;
             case JobType.Escort:
                 j.Title = $"Escort: {j.Target}";

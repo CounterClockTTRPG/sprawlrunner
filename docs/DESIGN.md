@@ -1402,3 +1402,49 @@ Each kind has its own figure on the road and its own prompt; the last choice is 
 
 What a closed scene sets going goes through `CitySim.AfterStreet`: the toll's bikes, the
 stop's cruiser, the race, and any damage the scene did to the car.
+
+## Tenth pass: new places to work (`LevelGen.BuildTunnels`, `BuildStore`, `Career.PlaceFor`)
+
+Three new site styles, each with its own plan, rooms, people and rule (on the HUD's style line).
+Which jobs go where is `Career.PlaceFor`, a draw of its own so boards stay as they were:
+three ghoul nests in four (`Tables.NestInTunnels`) are in the tunnels; half the kidnappings
+and 15 % of wetwork (not in Industrial) are at a store; half the Red Lotus' rescues are in a
+body bank and 12 % of datasteals and retrievals on the Strip, the Barrens or the Docks are in a
+clinic; 15 % of retrievals, rescues and clears in the Barrens and the Docks are in gang tunnels.
+Each has its own painted banner (`site-tunnels`, `site-store`, `site-clinic`).
+
+### Ghoul tunnels (`SiteStyle.Tunnels`)
+- No yard: a culvert two tiles wide round the warren, five on the side you came down.
+- The warren is solid earth and stone (`Level.Underground` draws brick only where it lines a sewer) with a
+  cavern dug out of each cell of a rough grid (about 11 x 9 tiles each). A quarter are only junctions;
+  three in ten of the rest are flooded in the middle (`Floor.Water`). They are joined by two-wide sewer
+  tunnels (a random spanning tree and a fifth more for loops), with an open arch (`DoorOpen`) where each
+  tunnel leaves a cavern, so every tunnel is a room of its own. Half the tunnels run a water channel down
+  one side. A way out to the culvert on each side; the outer doors pick which open.
+- **Water** slows everyone on foot (`Tables.WadeSlow`) and splashes even when you sneak
+  (`WadeNoise`, 0.6 of it sneaking).
+- Dark: a worklight in under half the rooms, and every **nest** (`RoomKind.Nest`, bones and rubble) has a
+  fire and sleepers in it. A Bounty in the tunnels gets up to three nests; smugglers' tunnels get bunks,
+  a nest, a stash, sometimes a circle. No windows, no basement, nothing parked in the culvert.
+
+### The all-night store (`SiteStyle.Store`)
+- A store on its car park, set well back from the edges (car wrecks for cover outside).
+- The shop floor at the front: shelving in rows (`Rack`, three apart, a gap halfway) with a cross aisle at
+  the back, the till at one end of the front with the clerk behind it, and a plate-glass front.
+  Behind it, back rooms: the stockroom (double doors onto the shop, a delivery door outside that is a way
+  in), the manager's office and a cupboard; sometimes security.
+- `Tables.Shoppers` shoppers in the aisles (they panic and scream) and the **clerk**, who works like an
+  office cleaner but hits a **panic button** (after `Tables.PanicButton`): security +2, "Lone Star is on
+  its way". A store's guard budget is 0.55 of the usual. A Kidnap or wetwork target is out on the
+  shop floor three times in four, bodyguards with them, and the brief says so.
+
+### The back-alley clinic (`SiteStyle.Clinic`)
+- An office's corridor plan in lab tile and cold light, with **wards** (bunks, `Tables.Patients` sedated
+  patients who neither run nor scream), an **operating theatre** whose pipes burst into **anaesthetic**
+  (`GasKind.Anaesthetic`: a guard who breathes it is under for `Tables.AnaestheticSleep` s, unhurt; you only
+  slow), a **cold room** of organ vats (a Destroy's targets here), an office, sometimes a panic room.
+  Two **orderlies** do the rounds and call it in like cleaners. Guard budget 0.85; a rescue's hostage is
+  in a ward seven times in ten. Sewer hatches from threat 2.
+
+The bot now answers a decision on a run (the first answer), and plays the new places' own jobs in the
+`NewSites` checks.
