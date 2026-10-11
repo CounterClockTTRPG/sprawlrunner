@@ -16,7 +16,7 @@ Godot and `dotnet.exe` driven from WSL. Design and every number:
     ./play.sh --check           headless self-check -- run after every change
     ./play.sh --check --only X  just the sections whose name contains X (Bot plays whole jobs)
     ./play.sh --shots [X]       windowed walkthrough, writes shots/*.png -- look at them
-                                (X: title, city, streets, terminal, place, map, run, rooms, rivals, cleaner, or a job type)
+                                (X: title, city, streets, terminal, place, map, run, rooms, rivals, cleaner, ending, or a job type)
     bash scripts/assets.sh      generate missing portraits/banners/voices via ../assetgen
                                 (and the intro clip in assets/video); --list, --force NAME;
                                 needs its Replicate token
@@ -79,7 +79,7 @@ Sound is off until turned on in Settings. Settings live in `user://sprawlrunner.
 - Story and the living city: `Sim/Story.cs` (the storylet engine: hooks, mail, calls, scenes,
   choices), `Sim/Storylets*.cs` (every storylet, by theme), `Career.World` (turf, faction clocks,
   happenings, rent, fame, the aftermath of a job), `Career.Crew`, `Career.Campaign` (the Spire
-  finale, endings, Toxic Tide, The Cut, The Wyrm's Ledger), `Career.Johnsons` (recurring Johnsons, loot
+  finale, endings, Toxic Tide, The Cut, The Wyrm's Ledger), `Career.Exit` (the ways to retire, the last scenes, crew moods), `Career.Johnsons` (recurring Johnsons, loot
   prices), `Career.Contacts` (contacts hurt and lost), `Career.Legwork`, `Career.Streets` (radio, graffiti),
   `Run.Jobs` (Investigate, Plant, Defend, Escort, Hack, the TraumaLink HTR team, legwork). Storylets draw their own
   seeded randomness, never `Career.Rng`. `UI/StoryUi.cs` shows one; the PDA has the Inbox and City tabs.

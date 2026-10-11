@@ -363,6 +363,49 @@ public partial class ShotRunner : Node
                 await Frames(10);
                 await Shot("22_ambulance");
             }
+            if (Want("ending") || Want("romance"))
+            {
+                Career c = Root.Career;
+                // Wisp asks: at your place, then the answer changes her picture.
+                c.CrewOf("wisp").Trust = 5;
+                Mail ask = c.Send("romance-wisp");
+                var am = new StoryModal(c, ask);
+                Root.CityScreen.AddChild(am);
+                await Frames(10);
+                await Shot("23_romance_ask");
+                ((Button)am.FindChildren("*", "Button", true, false).First(n => ((Button)n).Text == "'Stay'")).EmitSignal(BaseButton.SignalName.Pressed);
+                await Frames(10);
+                await Shot("23b_romance_yes");
+                am.QueueFree();
+                Mail no = c.Send("romance-ox");
+                c.Choose(no, 2);
+                var nm = new StoryModal(c, no);
+                Root.CityScreen.AddChild(nm);
+                await Frames(10);
+                await Shot("23c_romance_no");
+                nm.QueueFree();
+                await Frames(3);
+                // How to walk away, every door shown; then three of the last scenes.
+                c.Set("tide:won", c.Day);
+                c.Property.Add("noodles");
+                Modal ex = Root.ChooseExit(Root.CityScreen, c, () => { });
+                await Frames(10);
+                await Shot("24_ending_choose");
+                ex.QueueFree();
+                foreach (var (way, died) in new[] { ("partner", false), ("fixer", false), ("leave", true) })
+                {
+                    c.Exit = way;
+                    var end = new IntroScreen(c.Finale(died).Take(1), () => { });
+                    Root.Show(end);
+                    await Frames(240);
+                    await Shot($"24_ending_{(died ? "dead" : way)}");
+                    end.QueueFree();
+                }
+                c.Exit = null;
+                c.Retired = false;
+                c.Partner = null;
+                await Frames(3);
+            }
             if (Want("landmark"))
             {
                 foreach (Lot l in Root.City.Lots.Where(x => x.Landmark != null))

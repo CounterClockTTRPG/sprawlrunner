@@ -338,8 +338,14 @@ public partial class Root : Node
             if (d.CareerOver)
             {
                 Career ended = Career;
-                ShowTitle();
-                Screen?.AddChild(CareerReceipt(ended, "THE LAST RECEIPT", ended.Ending(), died: ended.Dead, newBest: _newBest));
+                bool best = _newBest;
+                // The last scene (the stone, who paid for it), then the receipt.
+                Clear();
+                Show(new IntroScreen(ended.Finale(died: ended.Dead), () =>
+                {
+                    ShowTitle();
+                    Screen?.AddChild(CareerReceipt(ended, "THE LAST RECEIPT", ended.Ending(), died: ended.Dead, newBest: best));
+                }));
                 return;
             }
             if (!pickedUp) { EnterCity(site); return; }
@@ -365,23 +371,58 @@ public partial class Root : Node
         Show(screen);
     }
 
-    /// <summary>Walking away a legend: the epilogue, the legacy, and back to the title.</summary>
+    /// <summary>
+    /// Walking away: how (when a call retired you without asking), the last scene full
+    /// screen, then the receipt with the epilogue and the legacy, and back to the title.
+    /// </summary>
     public void Retire()
     {
-        Career.Retired = true;
-        Profile.Current.Earn(Career);
-        Profile.Current.CheckAchievements(Career);
-        bool best = Profile.Current.RecordCareer(Career);
+        if (Career.Exit == null)
+        {
+            // Not retired while you choose: the city would ask again every frame.
+            Career.Retired = false;
+            ChooseExit(CityScreen ?? (Node)Screen, Career, Retire, () => Profile.SaveCareer(Career));
+            return;
+        }
+        Career ended = Career;
+        Profile.Current.Earn(ended);
+        Profile.Current.CheckAchievements(ended);
+        bool best = Profile.Current.RecordCareer(ended);
         Profile.Current.Save();
         Profile.DeleteCareer();
-        bool legend = Career.RetiresALegend;
-        string last = legend
-            ? $"{Career.Name} sells the car, buys a ticket out of Kessler Bay, and is never heard from again. The street remembers the name."
-            : $"{Career.Name} sells the car, pays off the people who need paying, and takes the morning train south with the money. Nobody writes songs about it. Nobody has to.";
-        var epilogue = (Career.Epilogue.Count > 0 ? Career.Epilogue : Career.Ending()).Prepend(last);
-        var m = CareerReceipt(Career, legend ? "A LEGEND RETIRES" : "OUT OF THE GAME", epilogue, died: false, newBest: best);
-        m.Closed = ShowTitle;
-        (CityScreen ?? (Node)Screen).AddChild(m);
+        var epilogue = ended.Epilogue.Count > 0 ? ended.Epilogue : ended.Ending();
+        string title = ended.Exit switch { "partner" => "TOGETHER", "fixer" => "THE NEW FIXER", "legit" => "GONE STRAIGHT", _ => ended.RetiresALegend ? "A LEGEND RETIRES" : "OUT OF THE GAME" };
+        Music.Instance?.Play(MusicTrack.Debrief);
+        // The city goes: it would retire you again every frame behind the last scene.
+        Clear();
+        Show(new IntroScreen(ended.Finale(died: false), () =>
+        {
+            ShowTitle();
+            Screen?.AddChild(CareerReceipt(ended, title, epilogue, died: false, newBest: best));
+        }));
+    }
+
+    /// <summary>
+    /// How to walk away: every way out, the closed ones greyed with what they'd need.
+    /// Choosing one retires the career and calls <paramref name="chosen"/>; "Not yet" keeps it running.
+    /// </summary>
+    public static Modal ChooseExit(Node host, Career c, Action chosen, Action notYet = null)
+    {
+        var m = new Modal("WALK AWAY?", 620);
+        if (c.RetireReason() is string why) m.Add(UITheme.Label(why, 16, UITheme.Dim));
+        m.Add(UITheme.Label("The career ends here, with its last scene, its receipt and whatever legacy it earned. There is no coming back. How do you go?", 17, UITheme.Text));
+        foreach (var (id, name, desc, block) in c.Exits())
+        {
+            string ex = id;
+            var b = UITheme.Button(name, () => { m.QueueFree(); c.Retire(ex); chosen(); }, 0, 44, block ?? desc);
+            b.Disabled = block != null;
+            m.Add(b);
+            m.Add(UITheme.Label("    " + (block ?? desc), 13, block != null ? UITheme.Bad : UITheme.Dim));
+        }
+        m.Add(UITheme.Button("Not yet", () => m.Close(), 0, 38, "Keep running."));
+        m.Closed = notYet;
+        host.AddChild(m);
+        return m;
     }
 
     /// <summary>The whole career on one receipt: the numbers, the people, the city, the last word.</summary>

@@ -2369,9 +2369,28 @@ public partial class SmokeTest : Node
         wanted.AddRange(Enum.GetValues<Faction>().Select(Assets.BossPicture));
         wanted.AddRange(Enum.GetValues<SiteStyle>().Select(Assets.SitePicture));
         wanted.AddRange(new[] { "caller-pryce", "caller-ilse", "caller-kade" });
-        foreach (string w in wanted) Check(pictures.Contains(w), $"art manifest has {w}");
-        foreach (var (name, aspect, _) in art)
+        // Everyone who can ask has a face for each answer; every way a career ends has its last scene.
+        foreach (var h in Tables.Hires.Where(h => global::Sprawl.Storylets.ById($"romance-{h.id}") != null))
         {
+            wanted.AddRange(Assets.CrewMoods.Select(mood => Assets.CrewPicture(h.id, mood)));
+            var q = TestCareer();
+            q.Partner = h.id;
+            q.Exit = "partner";
+            wanted.Add(q.FinalePicture(false));
+        }
+        foreach (string way in new[] { "leave", "fixer", "legit" })
+        {
+            var q = TestCareer();
+            q.Exit = way;
+            wanted.Add(q.FinalePicture(false));
+        }
+        wanted.Add(TestCareer().FinalePicture(true));
+        foreach (string w in wanted) Check(pictures.Contains(w), $"art manifest has {w}");
+        foreach (var (name, field, _) in art)
+        {
+            // `1:1 < hire-ox`: painted over another picture, which must be in the manifest too.
+            string aspect = field.Split('<')[0].Trim();
+            if (field.Contains('<')) Check(pictures.Contains(field.Split('<')[1].Trim()), $"{name} is painted over a picture in the manifest ({field})");
             Texture2D t = Assets.Picture(name);
             Check(t != null, $"{name}.webp is there and decodes (run scripts/assets.sh)");
             if (t == null) continue;

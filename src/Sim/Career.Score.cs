@@ -34,7 +34,13 @@ public sealed partial class Career
 
     /// <summary>How the career ended, as a multiplier on its points.</summary>
     [System.Text.Json.Serialization.JsonIgnore] public (string how, float mul) HowItEnded => Retired
-        ? RetiresALegend ? ("Retired a legend", Tables.ScoreLegend) : ("Walked away", Tables.ScoreRetired)
+        ? (Exit switch
+            {
+                "partner" when Partner != null => $"Settled down with {Tables.Hires.First(h => h.id == Partner).name}",
+                "fixer" => "Took Juno's chair",
+                "legit" => "Went straight",
+                _ => RetiresALegend ? "Retired a legend" : "Walked away",
+            }, RetiresALegend ? Tables.ScoreLegend : Tables.ScoreRetired)
         : ("Died on the job", 1f);
 
     [System.Text.Json.Serialization.JsonIgnore] public int Score => Math.Max(0, (int)MathF.Round(ScoreLines().Sum(l => l.points) * HowItEnded.mul));
