@@ -80,17 +80,17 @@ public partial class StoryModal : Modal
         }
     }
 
-    public override void _UnhandledKeyInput(InputEvent e)
+    public override void _UnhandledInput(InputEvent e)
     {
-        if (_ringing && e is InputEventKey { Pressed: true, Echo: false } k && (k.Keycode is Key.Enter or Key.KpEnter || Controls.Is(e, Act.Interact)))
+        if (_ringing && (e is InputEventKey { Pressed: true, Echo: false, Keycode: Key.Enter or Key.KpEnter } || Controls.Is(e, Act.Interact)))
         {
             PickUp();
             GetViewport().SetInputAsHandled();
             return;
         }
-        // Esc on a call that wants an answer: you'll call back (it keeps as mail).
-        if (_phone && e is InputEventKey { Pressed: true, Keycode: Key.Escape } && _c.Waiting(_m)) _m.Call = false;
-        base._UnhandledKeyInput(e);
+        // Back out of a call that wants an answer: you'll call back (it keeps as mail).
+        if (_phone && Controls.Back(e) && _c.Waiting(_m)) _m.Call = false;
+        base._UnhandledInput(e);
     }
 
     /// <summary>Pick up: the screen connects, they start talking.</summary>

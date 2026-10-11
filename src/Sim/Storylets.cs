@@ -196,10 +196,24 @@ public static partial class Storylets
                     return $"An hour, a scanner, {M.Money(cash)}. Nobody ever knows. Notoriety +1.";
                 }), "+{¥cash}, notoriety +1, maybe trust -1"),
                 Past("corp", "Quote his own non-disclosure terms back at him", (c, m) => { c.Cash += 2000; c.Count("earned", 2000); return "He pays ¥2,000 for your silence and doesn't get to look. Corporates understand corporates."; }),
-                Talk("Corporate", "Ask who he works for", (c, m) => { c.Set("lead:collector"); c.Cash += 500; c.Count("earned", 500); return "'Sorensen-Aoki,' he says after a while, 'though you didn't hear it from me.' He pays ¥500 for your discretion anyway."; }),
+                Talk("Corporate", "Ask who he works for", (c, m) => { c.Set("lead:collector", c.Day); c.Cash += 500; c.Count("earned", 500); return "'Sorensen-Aoki,' he says after a while, 'though you didn't hear it from me.' He pays ¥500 for your discretion anyway."; }),
             },
             Call: true,
             Bind: c => V(("item", c.Last.Job.Item ?? "package"), ("cash", ((int)(c.Last.Pay * 0.6f / 50) * 50).ToString()), ("caught", (c.Last.Job.Seed >> 13) % 4 == 0 ? "1" : "0")));
+
+        yield return new("collector-lead", Hook.Morning, "Sorensen-Aoki", "A card in the door", "A matte black business card, no name, a number. On the back, in fountain pen: 'Our mutual friend says you are discreet. Halcyon keeps something of ours in a lab in the Industrial district. We would like it back, and we pay for discretion.'",
+            c => c.Flag("lead:collector") > 0 && c.Day - c.Flag("lead:collector") >= 3,
+            new[]
+            {
+                Fx(new Choice("Call the number", (c, m) =>
+                {
+                    c.OfferSpecial(JobType.Retrieve, SiteStyle.Lab, Faction.Halcyon, "industrial", Math.Min(4, Math.Max(2, c.MaxThreat)), "Sorensen-Aoki: a sample",
+                        "A polite voice: 'A sealed sample case, Halcyon lab, Industrial district. Bring it unopened. Our collector will know if it was opened.'", payMul: 1.6f, item: "sealed sample case");
+                    return "The voice thanks you and hangs up before you do. It's on your board.";
+                }), "a Retrieve on your board, pay x1.6"),
+                Ok("Burn the card"),
+            },
+            Fire: (c, m) => c.Set("lead:collector", 0));
 
         yield return new("dirt", Hook.Debrief, Null, "Look at what you pulled", "Null, flatly: 'Your paydata has a second folder in it. It's the Johnson's. Payroll for a black site, names, the lot. Your client is dirtier than the people you stole from. What do you want done with it?'",
             c => c.Last?.Picked("dirt:1") == true || Decides(c) && c.Last.Job.Type == JobType.Datasteal && !c.Last.Asked("dirt"),
@@ -298,6 +312,39 @@ public static partial class Storylets
             },
             Bind: c => V(("half", (c.Flag("crossedpay") / 2 / 50 * 50).ToString()), ("who", c.Last?.Job?.JohnsonId is string id && Career.JohnsonById(id) is JohnsonDef jd ? jd.Name : "The Johnson")),
             Fire: (c, m) => c.Set("crossed", 0), Cooldown: 1);
+
+        // The Johnson sold the exit, but sprang no trap and paid up -- "crossed" handles the rest.
+        yield return new("burned-johnson", Hook.Morning, Juno, "Who sold the exit", "Juno: 'That wasn't Lone Star at your exit. {who} sold it -- I heard it from the driver they paid to sit on the corner. You walked out anyway. They'll be wondering how.'",
+            c => c.Flag("burned:johnson") > 0 && c.Flag("crossed") == 0 && c.Day - c.Flag("burned:johnson") <= 4,
+            new[]
+            {
+                Fx(new Choice("Cut them off", (c, m) =>
+                {
+                    if (m.Vars["id"] != "") c.Set($"johnson:{m.Vars["id"]}:burned");
+                    return "Juno: 'Done. No more work from them through me.'";
+                }), "that Johnson never calls again"),
+                Fx(new Choice("Make them pay for the driver", (c, m) =>
+                {
+                    c.Cash += 1500;
+                    c.Count("earned", 1500);
+                    c.Infamy(1);
+                    return "Juno passes on what you know, and what you could do with it. ¥1,500 arrives with no note. Notoriety +1.";
+                }, (c, m) => c.Loyalty.GetValueOrDefault("fixer") < 3 ? "Needs trust 3 with Juno." : null), "+¥1,500, notoriety +1"),
+                Ok("Let it go"),
+            },
+            Bind: c => V(("id", c.Last?.Job?.JohnsonId ?? ""), ("who", c.Last?.Job?.JohnsonId is string id && Career.JohnsonById(id) is JohnsonDef jd ? jd.Name : "Your Johnson")),
+            Fire: (c, m) => c.Set("burned:johnson", 0), Cooldown: 1);
+
+        // TraumaLink pulled you out: the morning after a death you came back from.
+        yield return new("flatlined", Hook.Morning, Doc, "Ninety seconds", "Ichikawa: 'The TraumaLink crew dropped you on my table at four. Your heart stopped for ninety seconds on the way. I wanted you to hear that from someone who isn't billing you for it.'",
+            c => c.Last?.Died == true && !c.Dead && c.Flag("flatlined") != c.Deaths,
+            new[]
+            {
+                Fx(Pay("Let her look you over (¥1,000)", 1000, (c, m) => { c.Injuries = Math.Max(0, c.Injuries - 1); return "She takes an hour and doesn't charge for the lecture. One injury mended."; })
+                    with { Block = (c, m) => c.Injuries == 0 ? "Nothing to mend." : c.Cash < 1000 ? "Needs ¥1,000." : null }, "-¥1,000, one injury mended"),
+                Fx(new Choice("Thank her", (c, m) => { c.Karma += 1; c.KarmaEarned += 1; return "'Don't thank me. Be slower to die.' Karma +1."; }), "karma +1"),
+            },
+            Fire: (c, m) => c.Set("flatlined", c.Deaths));
 
         // The regulars: three clean jobs and a Johnson says thank you, in their own way.
         foreach (JohnsonDef jd in Career.Johnsons)

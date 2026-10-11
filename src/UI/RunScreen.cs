@@ -496,7 +496,6 @@ public partial class RunScreen : Control
             if (r.Boss != null && !r.Boss.Dead && r.Boss.Alert && r.Shown(r.Boss))
             {
                 var bb = new Rect2(size.X / 2 - 260, 104, 520, 16);
-                DrawRect(bb, new Color(0, 0, 0, 0.7f));
                 UITheme.DrawSegBar(this, bb, r.Boss.Hp / r.Boss.MaxHp, UITheme.Yellow, 30);
                 DrawRect(bb, UITheme.Yellow, false, 1);
                 UITheme.Write(this, bb.Position + new Vector2(0, -4), UITheme.Caps(r.Boss.Name), 15, UITheme.Yellow, HorizontalAlignment.Center, bb.Size.X, heading: true);

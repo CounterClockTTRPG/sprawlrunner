@@ -74,9 +74,9 @@ public partial class Pda : Control
         Show(_tab);
     }
 
-    public override void _UnhandledKeyInput(InputEvent e)
+    public override void _UnhandledInput(InputEvent e)
     {
-        if (e is InputEventKey { Pressed: true, Echo: false } k && (k.Keycode == Key.Escape || Controls.Is(e, Act.Pda)) && Modal.Open == 0)
+        if ((Controls.Back(e) || Controls.Is(e, Act.Pda)) && Modal.Open == 0)
         {
             Close();
             GetViewport().SetInputAsHandled();

@@ -212,8 +212,6 @@ public sealed partial class CitySim
         }
     }
 
-    public int LastFine;
-
     private void Bust()
     {
         int fine = Math.Min(C.Cash * 2 / 5, 200 + C.Cash / 20 + (int)(150 * C.Heat));
@@ -224,7 +222,6 @@ public sealed partial class CitySim
         C.Say("Busted by Lone Star.");
         C.Cash -= fine;
         C.Heat = 0;
-        LastFine = fine;
         foreach (Chaser c in Chasers) if (c.Kind == ChaserKind.Police) c.Gone = true;
         Player.Vel = V2.Zero;
         Events.Add(new CityEvent(CityEv.Busted, Player.Pos, fine, $"Busted. Lone Star wrote you a fine of {M.Money(fine)} and let you go."));
