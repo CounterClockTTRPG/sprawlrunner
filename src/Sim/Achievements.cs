@@ -53,6 +53,7 @@ public static class Achievements
         new("planted", "Never there", "Finish a Plant job without raising the alarm.", c => c.Stat("noalarm.Plant") >= 1),
         new("cut", "Studied", "Finish The Cut.", c => c.Flag("cut:won") > 0),
         new("wyrm", "Talking to dragons", "Finish The Wyrm's Ledger.", c => c.Flag("wyrm:won") > 0),
+        new("hive", "Burn it all", "Burn out the Hive: the queen, and every egg she laid.", c => c.Flag("hive:won") > 0),
         new("heist", "Score of the decade", "Pull off the three-night heist.", c => c.Flag("heists") >= 1),
         new("regular", "A regular", "Do three clean jobs for the same Mr. Johnson.", c => Career.Johnsons.Any(j => c.JohnsonJobs(j.Id) >= 3)),
         new("platinum", "Platinum service", "Get carried out by TraumaLink with the job done.", c => c.Stat("done.platinum") >= 1),
