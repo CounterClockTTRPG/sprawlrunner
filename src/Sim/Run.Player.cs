@@ -265,6 +265,8 @@ public sealed partial class Run
         Noise(p.Pos, C.NoiseOf(w), true);
     }
 
+    private readonly HashSet<Pt> _swingCut = new();
+
     private void Swing()
     {
         Actor p = Player;
@@ -277,8 +279,11 @@ public sealed partial class Run
         {
             if (!a.Hostile || a.Is(EnemyKind.Camera) && V2.Distance(a.Pos, p.Pos) > w.Reach + 0.4f) continue;
             V2 d = a.Pos - p.Pos;
-            if (d.Length() > w.Reach + a.Radius) continue;
-            if (MathF.Abs(M.AngleDiff(p.Facing, M.Angle(d))) > w.Arc * MathF.PI / 360f) continue;
+            float dist = d.Length();
+            if (dist > w.Reach + a.Radius) continue;
+            // Anywhere in the swept wedge counts, body and all: up close a body spans a wide angle, so its edge in the arc is enough.
+            float body = dist <= a.Radius ? MathF.PI : MathF.Asin(MathF.Min(1, a.Radius / dist));
+            if (MathF.Abs(M.AngleDiff(p.Facing, M.Angle(d))) > w.Arc * MathF.PI / 360f + body) continue;
             if (!L.ShotClear(p.Pos, a.Pos)) continue;
             // Taking someone who has not noticed you is quick and quiet.
             bool unaware = a.State is AiState.Idle or AiState.Suspicious or AiState.Search && !a.Static;
@@ -286,14 +291,28 @@ public sealed partial class Run
             if (w.Stun > 0 && !a.Dead) a.Stun = MathF.Max(a.Stun, w.Stun);
             hit = true;
         }
-        // The blade also bites into soft cover in front.
-        V2 tip = p.Pos + M.Dir(p.Facing) * MathF.Max(0.85f, w.Reach * 0.9f);
-        Pt tt = Pt.Of(tip);
-        Tile t = L[tt];
-        if (t is Tile.Glass or Tile.Crate or Tile.Desk or Tile.Drywall or Tile.Door or Tile.Fence or Tile.Barrel or Tile.Rack or Tile.Vat)
-            DamageTile(tt, dmg * 0.6f, tip);
+        // The blade also bites into soft cover anywhere in the swing: rays across the arc, each stopping at the first
+        // solid thing it meets (a wall shields what is behind it), and each thing cut once however many rays find it.
+        _swingCut.Clear();
+        float half = w.Arc * MathF.PI / 360f, reach = MathF.Max(0.85f, w.Reach);
+        for (int k = 0; k <= 8; k++)
+        {
+            V2 dir = M.Dir(p.Facing - half + 2 * half * k / 8f);
+            for (float s = 0.3f; s <= reach + 0.01f; s += 0.2f)
+            {
+                V2 at = p.Pos + dir * s;
+                Pt tt = Pt.Of(at);
+                Tile t = L[tt];
+                if (t is Tile.Glass or Tile.Crate or Tile.Desk or Tile.Drywall or Tile.Door or Tile.Fence or Tile.Barrel or Tile.Rack or Tile.Vat)
+                {
+                    if (_swingCut.Add(tt)) DamageTile(tt, dmg * 0.6f, at);
+                    break;
+                }
+                if (L.Solid(tt.X, tt.Y)) break;
+            }
+        }
         CloakT = 0;
-        Events.Add(new RunEvent(Ev.Melee, p.Pos, M.Dir(p.Facing), hit ? 1 : 0));
+        Events.Add(new RunEvent(Ev.Melee, p.Pos, M.Dir(p.Facing), hit ? 1 : 0, p.Id));
         Noise(p.Pos, w.Noise, true, quiet: true);
     }
 

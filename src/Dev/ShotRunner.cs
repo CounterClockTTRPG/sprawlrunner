@@ -1089,6 +1089,19 @@ public partial class ShotRunner : Node
                 await Shot("44_vfx_manabolt");
                 vr.Actors.Remove(mt);
                 await Settle();
+                // A katana's sweep, a third of the way through.
+                if (!vc.Weapons.Contains("katana")) vc.Weapons.Add("katana");
+                vr.MeleeDef = vc.Wield("katana");
+                Actor st = vr.AddEnemy(EnemyKind.Guard, vr.Player.Pos + new V2(1.1f, 0.2f), MathF.PI);
+                st.MaxHp = st.Hp = 1e5f;
+                await Go(1, new RunInput { Slot = 2, Aim = st.Pos });
+                await Go(20, Idle(st.Pos));
+                await Go(1, new RunInput { Slot = -1, Fire = true, Aim = st.Pos });
+                await Go(3, Idle(st.Pos));
+                await Shot("44b_vfx_slash");
+                vr.Actors.Remove(st);
+                await Go(1, new RunInput { Slot = 0, Aim = st.Pos });
+                await Settle();
                 // An EMP grenade goes off as its own event (Detonate), not as a blast.
                 vr.Events.Add(new RunEvent(Ev.Emp, v0 + new V2(4, 0), default, 3));
                 Root.RunView.Frame(1 / 60f);

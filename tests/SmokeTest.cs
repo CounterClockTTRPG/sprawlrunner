@@ -447,6 +447,28 @@ public partial class SmokeTest : Node
         for (int i = 0; i < 20; i++) r3.Step(new RunInput { Slot = -1, Aim = t.Pos });
         r3.Step(new RunInput { Slot = -1, Fire = true, Aim = t.Pos });
         Check(t.Dead || t.Hp < t.MaxHp * 0.3f, "a blade from behind nearly or wholly kills");
+        // The whole swept wedge cuts, not just the point at its tip: a crate off to one side breaks, a guard at your elbow is hit.
+        LevelPlan ms = Site(
+            "#######",
+            "#P....#",
+            "#.x...#",
+            "#.....#",
+            "#######");
+        Career kc = TestCareer();
+        kc.Weapons.Add("katana");
+        kc.Melee = "katana";
+        Run rk = Make(ms, JobType.Datasteal, kc);
+        V2 east = rk.Player.Pos + new V2(3, 0);
+        rk.Step(new RunInput { Slot = 2, Aim = east });
+        for (int i = 0; i < 300 && rk.L[2, 2] == Tile.Crate; i++) rk.Step(new RunInput { Slot = -1, Fire = true, Aim = east });
+        Check(rk.L[2, 2] != Tile.Crate, "swinging east, the katana breaks a crate at 45 degrees, inside its arc");
+        Run re = Make(ms, JobType.Datasteal, TestCareer());
+        Actor elbow = re.AddEnemy(EnemyKind.Guard, re.Player.Pos + 0.6f * new V2(MathF.Cos(0.96f), MathF.Sin(0.96f)), 0);
+        V2 ahead = re.Player.Pos + new V2(3, 0);
+        re.Step(new RunInput { Slot = 2, Aim = ahead });
+        for (int i = 0; i < 20; i++) re.Step(new RunInput { Slot = -1, Aim = ahead });
+        re.Step(new RunInput { Slot = -1, Fire = true, Aim = ahead });
+        Check(elbow.Hp < elbow.MaxHp, "a guard at your elbow, centre just outside the knife's arc but his body in it, is hit");
         // Dash dodges bullets.
         Run r4 = Make(p);
         float hp = r4.Player.Hp;
