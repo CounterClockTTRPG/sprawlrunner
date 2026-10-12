@@ -47,8 +47,8 @@ From the SR5 Matrix rules (Basics, Cyberdecks, Programs, IC):
 and the agent can read it), but nodes are now things:
 
 - **Entry**: where you come in and the only place to jack out.
-- **Datastores**: files. The job's three (◆, 1 Mp each, the objective as
-  before) and two to four **paydata** files (◇, 1-4 Mp, worth
+- **Datastores**: files. The job's three (◆, the objective as before; they
+  take no memory, so a full deck can still do the job) and two to four **paydata** files (◇, 1-4 Mp, worth
   `size x (250 + 150 x threat)` give or take): optional, sold to Null at
   full value or to Wen. Some are **encrypted** (rating 3+): twice as slow to
   pull, unless Decryption is loaded. Pulling a file is *hold E* on its
@@ -153,7 +153,9 @@ Programs are **loaded** into the deck on the safehouse Deck tab, up to its memor
 an unloaded program does nothing. Downloaded files fill the rest, so a deck
 full of programs has no room for paydata. In the Matrix, **G purges** the
 last program loaded (it frees its memory for the rest of the run) when a
-file won't fit. Buying a program loads it if it fits.
+file won't fit (the prompt says so, and names the program G would purge).
+Buying a program loads it if it fits. The job's own datastores and pass keys
+need no memory.
 
 | Program | Mp | Kind | Effect |
 |---|---|---|---|

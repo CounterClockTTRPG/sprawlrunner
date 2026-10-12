@@ -656,8 +656,8 @@ public partial class RunScreen : Control
             string keys = string.Join("   ", actives.Select((p, k) => $"[{"QFR"[k]}] {Tables.Program(p).Name}"));
             string passive = string.Join(", ", m.Programs.Where(p => !Tables.Program(p).Active).Select(p => Tables.Program(p).Name));
             UITheme.Write(this, o + new Vector2(0, 58), (keys.Length > 0 ? keys + "     " : "") + (passive.Length > 0 ? "running: " + passive : "no programs running") + (m.Crashed.Count > 0 ? $"     crashed: {string.Join(", ", m.Crashed.Select(p => Tables.Program(p).Name))}" : ""), 14, UITheme.Violet);
-            string hold = m.Holding != null ? $"Hold E: {m.Holding}" : m.You == m.Entry ? (m.Locked > 0 ? "Link-locked: you can't jack out yet" : "E: jack out") : m.SpikeTarget is Ic st ? $"Space / click: spike the {st.Def.Name}" : "";
-            UITheme.Write(this, o + new Vector2(0, 86), hold, 16, UITheme.Yellow, heading: true);
+            string hold = m.NoRoom ?? (m.Holding != null ? $"Hold E: {m.Holding}" : m.You == m.Entry ? (m.Locked > 0 ? "Link-locked: you can't jack out yet" : "E: jack out") : m.SpikeTarget is Ic st ? $"Space / click: spike the {st.Def.Name}" : "");
+            UITheme.Write(this, o + new Vector2(0, 86), hold, 16, m.NoRoom != null ? UITheme.Bad : UITheme.Yellow, heading: true);
             UITheme.Write(this, o + new Vector2(0, 110), "WASD: move  ·  Space/click: spike IC next to you, or brute-force a gate  ·  push into a gate to crack it quietly  ·  G: purge a program  ·  your body is sitting still out there", 12, UITheme.Dim);
             // The IC legend, on the right.
             var kinds = m.Ice.Select(i => i.Kind).Distinct().OrderBy(k => k).ToList();

@@ -111,6 +111,8 @@ public sealed class MatrixRun
     public string Ended;
     /// <summary>What holding E is doing here, for the HUD (null: nothing).</summary>
     public string Holding;
+    /// <summary>Why holding E on this node does nothing (a file that won't fit), and what fixes it; else null.</summary>
+    public string NoRoom;
     public float HoldNeed;
     private readonly Rng _r;
     private readonly float _moveTime;
@@ -190,7 +192,8 @@ public sealed class MatrixRun
                 Pt p = Spot(W / 2, W);
                 Nodes[Idx(p)] = MxNode.Store;
                 Stores.Add(p);
-                Files.Add(new MxFile { At = p, Objective = true, Mp = S.Goal == MxGoal.Keys ? 0 : 1, Name = S.Goal == MxGoal.Keys ? "pass key" : "the paydata" });
+                // The job's own files take no memory: a deck full of programs can still do the job.
+                Files.Add(new MxFile { At = p, Objective = true, Mp = 0, Name = S.Goal == MxGoal.Keys ? "pass key" : "the paydata" });
             }
         if (S.Goal == MxGoal.Plant)
         {
@@ -430,20 +433,23 @@ public sealed class MatrixRun
 
     private void HoldAction(float dt, bool hold)
     {
-        Holding = null;
+        Holding = NoRoom = null;
         int i = Idx(You);
         MxFile f = Files.FirstOrDefault(x => x.At == You && !x.Taken);
         if (f != null)
         {
             Holding = f.Objective ? (S.Goal == MxGoal.Keys ? "pull the pass key" : "pull the datastore") : $"pull {f.Name} ({f.Mp} Mp{(f.Encrypted ? ", encrypted" : "")})";
             HoldNeed = MathF.Max(0.4f, f.Mp * Tables.MxDownload) * (f.Encrypted && !Has("decrypt") ? 2 : 1) / (1 + 0.15f * Data);
-            if (!hold) return;
             if (f.Mp > Free)
             {
-                if (HoldT == 0) Events.Add(new MxEvent(MatrixEvent.NoRoom, f.Mp, $"No room in the deck: {f.Mp} Mp, {Free} free. G purges a program."));
+                string purge = Programs.LastOrDefault(x => Tables.Program(x).Mp > 0) is string pg ? $"G purges {Tables.Program(pg).Name} ({Tables.Program(pg).Mp} Mp)" : "nothing left to purge";
+                NoRoom = $"No room for {f.Name}: {f.Mp} Mp, {Free} free -- {purge}";
+                if (!hold) { HoldT = 0; return; }
+                if (HoldT == 0) Events.Add(new MxEvent(MatrixEvent.NoRoom, f.Mp, NoRoom + "."));
                 HoldT = 0.001f;
                 return;
             }
+            if (!hold) return;
             HoldT += dt;
             Trace += dt * Tables.MxTraceDownload;
             if (HoldT < HoldNeed) return;
