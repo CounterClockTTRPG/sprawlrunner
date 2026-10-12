@@ -29,11 +29,13 @@ public sealed partial class Career
     {
         public string Primary, Secondary, Melee, ArmorId, DroneSel;
         public Ability SlotQ, SlotF;
+        /// <summary>The spell slots (null in kits saved before there were any: they leave the slots alone).</summary>
+        public string[] Spells;
     }
 
     public Dictionary<string, Kit> Kits = new();
 
-    public void SaveKit(string name) => Kits[name] = new Kit { Primary = Primary, Secondary = Secondary, Melee = Melee, ArmorId = ArmorId, DroneSel = DroneSel, SlotQ = SlotQ, SlotF = SlotF };
+    public void SaveKit(string name) => Kits[name] = new Kit { Primary = Primary, Secondary = Secondary, Melee = Melee, ArmorId = ArmorId, DroneSel = DroneSel, SlotQ = SlotQ, SlotF = SlotF, Spells = SpellSlots.ToArray() };
 
     public string UseKit(string name)
     {
@@ -44,9 +46,12 @@ public sealed partial class Career
         if (Weapons.Contains(k.Melee)) Melee = k.Melee;
         if (ArmorsOwned.Contains(k.ArmorId)) ArmorId = k.ArmorId;
         if (k.DroneSel == null || Drones.Contains(k.DroneSel)) DroneSel = k.DroneSel;
-        var have = Abilities.ToHashSet();
+        var have = ChromeAbilities.ToHashSet();
         if (k.SlotQ == Ability.None || have.Contains(k.SlotQ)) SlotQ = k.SlotQ;
         if (k.SlotF == Ability.None || have.Contains(k.SlotF)) SlotF = k.SlotF;
+        if (k.Spells != null)
+            for (int i = 0; i < Math.Min(3, k.Spells.Length); i++)
+                if (k.Spells[i] == null || Spells.Contains(k.Spells[i])) SetSpellSlot(i, k.Spells[i]);
         return null;
     }
 

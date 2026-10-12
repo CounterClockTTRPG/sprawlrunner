@@ -525,6 +525,37 @@ public partial class SmokeTest : Node
         Eq(p.L[8, 2], Tile.Door, "Hack opens a maglock at range");
     }
 
+    /// <summary>Three spell slots beside the weapons: learned spells fill them, they swap, Z/X/C cast them, kits keep them, old saves move in.</summary>
+    private void SpellSlotRules(Career mage)
+    {
+        Eq(mage.SpellSlots[2], "fireball", "a new spell goes in the empty third slot");
+        Career c = Career.FromJson(mage.ToJson());
+        Check(c.SpellSlots.SequenceEqual(mage.SpellSlots), "the spell slots survive a save");
+        c.SetSpellSlot(0, "fireball");
+        Check(c.SpellSlots.SequenceEqual(new[] { "fireball", "heal", "manabolt" }), "picking a slotted spell swaps the two");
+        c.Cyber.Add("wired");
+        Check(c.ChromeAbilities.Contains(Ability.Overclock) && !c.ChromeAbilities.Contains(Ability.Fireball), "Q/F offer chrome, not spells");
+        // The kit remembers the spells.
+        c.SaveKit("A");
+        c.SetSpellSlot(1, null);
+        Check(c.UseKit("A") == null && c.SpellSlots[1] == "heal", "a kit puts its spells back");
+        // An old save: spells sat in Q/F.
+        c.SpellSlotsSet = false;
+        c.SpellSlots = new string[3];
+        (c.SlotQ, c.SlotF) = (Ability.Overclock, Ability.Heal);
+        c.Migrated();
+        Check(c.SpellSlots.SequenceEqual(new[] { "heal", "manabolt", "fireball" }) && c.SlotQ == Ability.Overclock && c.SlotF == Ability.None,
+            $"an old save's slotted spell moves to the spell slots first, the rest follow, chrome stays on Q ({string.Join(",", c.SpellSlots)}; {c.SlotQ}/{c.SlotF})");
+        // Z/X/C: each casts its own slot.
+        Run r = Make(Site(
+            "##############",
+            "#P...........#",
+            "#............#",
+            "##############"), JobType.Datasteal, mage);
+        r.Step(new RunInput { Slot = -1, Cast = 3, Aim = new V2(9.5f, 1.5f) });
+        Check(r.AbilityCd.GetValueOrDefault(Ability.Fireball) > 0 && r.AbilityCd.GetValueOrDefault(Ability.Manabolt) == 0, "the third spell key casts the third slot");
+    }
+
     private void Magic()
     {
         LevelPlan p = Site(
@@ -534,15 +565,17 @@ public partial class SmokeTest : Node
             "##############");
         Career mage = Career.New("M", "mage", 4);
         Check(mage.Awakened && mage.Abilities.Contains(Ability.Manabolt) && mage.Abilities.Contains(Ability.Heal), "the mage starts with Manabolt and Heal");
+        Check(mage.SpellSlots.SequenceEqual(new[] { "manabolt", "heal", null }) && mage.SlotQ == Ability.None && mage.SlotF == Ability.None,
+            "in spell slots 1 and 2, leaving Q/F to chrome");
         Run r = Make(p, JobType.Datasteal, mage);
         Actor g = r.AddEnemy(EnemyKind.Heavy, new V2(8.5f, 1.5f), 0);
         float before = g.Hp;
-        r.Step(new RunInput { Slot = -1, AbilityQ = true, Aim = g.Pos });
+        r.Step(new RunInput { Slot = -1, Cast = 1, Aim = g.Pos });
         Check(before - g.Hp >= 40, $"Manabolt ignores a heavy's armour ({before - g.Hp:0} damage)");
         Check(r.AbilityCd[Ability.Manabolt] > 0, "and goes on cooldown");
         Actor d = r.AddEnemy(EnemyKind.Drone, new V2(6.5f, 2.5f), 0);
         r.AbilityCd[Ability.Manabolt] = 0;
-        r.Step(new RunInput { Slot = -1, AbilityQ = true, Aim = d.Pos });
+        r.Step(new RunInput { Slot = -1, Cast = 1, Aim = d.Pos });
         Eq(d.Hp, d.MaxHp, "Manabolt does nothing to machines");
         // Heal lands on the cursor: whoever on your side stands in the circle there, you only if you do.
         r.Player.Hp = 20;
@@ -551,12 +584,12 @@ public partial class SmokeTest : Node
         mate.IsAlly = true;
         mate.Hp = 20;
         g.Hp = 20;
-        r.Step(new RunInput { Slot = -1, AbilityF = true, Aim = new V2(10.5f, 1.5f) });
+        r.Step(new RunInput { Slot = -1, Cast = 2, Aim = new V2(10.5f, 1.5f) });
         Check(mate.Hp > 50 && r.Player.Hp < 25, $"Heal at the cursor heals the ally there ({mate.Hp:0}), not you across the room ({r.Player.Hp:0})");
         Check(g.Hp < 25, "and never a hostile in the circle");
         Check(V2.Distance(r.AreaPoint(Ability.Heal, new V2(10.5f, 1.5f)), new V2(10.5f, 1.5f)) < 0.01f, "its preview sits on the cursor");
         r.AbilityCd[Ability.Heal] = 0;
-        r.Step(new RunInput { Slot = -1, AbilityF = true, Aim = r.Player.Pos });
+        r.Step(new RunInput { Slot = -1, Cast = 2, Aim = r.Player.Pos });
         Check(r.Player.Hp > 50, "Heal aimed at yourself heals you");
         V2 far = r.AreaPoint(Ability.Heal, r.Player.Pos + new V2(40, 0));
         Check(far.X < 13 && V2.Distance(far, r.Player.Pos) <= Tables.SpellRange, $"aimed past a wall it stops short of it ({far.X:0.0})");
@@ -570,6 +603,7 @@ public partial class SmokeTest : Node
         Check(mage.Offers("talismonger").First(o => o.Id == "manabolt").Block == "Known.", "known spells are marked");
         mage.Loyalty["talismonger"] = 5;
         Check(mage.Buy(mage.Offers("talismonger").First(o => o.Id == "fireball")) == null && mage.Abilities.Contains(Ability.Fireball), "a mage learns Fireball");
+        SpellSlotRules(mage);
         LevelPlan q = Site(
             "##############",
             "#P...........#",

@@ -130,6 +130,8 @@ public struct RunInput
     /// <summary>-1 none, else the slot pressed (0 primary, 1 secondary, 2 melee).</summary>
     public int Slot;
     public int Cycle;
+    /// <summary>0 none, else the spell slot cast (1..3).</summary>
+    public int Cast;
 }
 
 /// <summary>

@@ -123,7 +123,7 @@ public sealed partial class Run
         V2 next = AstralForm.Pos + move * AstralForm.Speed * dt;
         var (x0, x1) = Plan.Bounds(FloorOf(Player.Pos));
         if (next.X > x0 + 1 && next.X < x1 - 1 && next.Y > 1 && next.Y < L.H - 1) AstralForm.Pos = next;
-        if (inp.AbilityQ && C.SlotQ == Ability.Project || inp.AbilityF && C.SlotF == Ability.Project || _projectT <= 0 || V2.Distance(AstralForm.Pos, Player.Pos) > 24)
+        if (inp.AbilityQ && C.SlotQ == Ability.Project || inp.AbilityF && C.SlotF == Ability.Project || inp.Cast > 0 && C.SpellAbility(inp.Cast - 1) == Ability.Project || _projectT <= 0 || V2.Distance(AstralForm.Pos, Player.Pos) > 24)
             EndProjection(_projectT <= 0 ? "The tether pulls. You're back in your body." : "Back in your body.");
         UpdateFov(true);
     }

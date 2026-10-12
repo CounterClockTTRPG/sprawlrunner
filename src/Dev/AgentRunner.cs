@@ -40,7 +40,7 @@ public partial class AgentRunner : Node
   ui                    list buttons/fields on screen
   press TEXT            click the first enabled button whose text contains TEXT
   type TEXT             type into the focused text field (then 'key Enter')
-  key K [MS]            tap a key (or hold it MS ms). K: W A S D E Q F G R H M V 1 2 3 Space Shift Esc Enter Up Down Left Right (V whistles to lure)
+  key K [MS]            tap a key (or hold it MS ms). K: W A S D E Q F G R H M V 1 2 3 Z X C Space Shift Esc Enter Up Down Left Right (V whistles to lure; Q F chrome, Z X C spells)
   hold K1+K2 MS         hold several keys together for MS ms
   mouse X Y             move the mouse to screen pixel X,Y (1600x900)
   aim X Y               (run) put the mouse on world tile X,Y
@@ -133,6 +133,7 @@ public partial class AgentRunner : Node
         ["r"] = Key.R, ["h"] = Key.H, ["m"] = Key.M, ["1"] = Key.Key1, ["2"] = Key.Key2, ["3"] = Key.Key3, ["space"] = Key.Space,
         ["shift"] = Key.Shift, ["esc"] = Key.Escape, ["escape"] = Key.Escape, ["enter"] = Key.Enter, ["up"] = Key.Up, ["down"] = Key.Down,
         ["left"] = Key.Left, ["right"] = Key.Right, ["v"] = Key.V, ["p"] = Key.P, ["t"] = Key.T, ["tab"] = Key.Tab, ["backspace"] = Key.Backspace,
+        ["z"] = Key.Z, ["x"] = Key.X, ["c"] = Key.C,
     };
 
     private void KeyDown(Key k)
@@ -535,7 +536,7 @@ public partial class AgentRunner : Node
         float lit = r.L.LightAt(p.Pos);
         sb.AppendLine($"you: ({p.Pos.X:0.0},{p.Pos.Y:0.0}) {(lit > 0.55f ? "lit" : lit > 0.15f ? "dim" : "dark")} ({lit:0.00}: seen x{r.LightDetect(p.Pos):0.00}) hp {p.Hp:0}/{p.MaxHp:0} armour {r.C.ArmorValue} | weapon {r.CurrentWeapon?.Name} {(r.CurrentGun != null ? $"{r.CurrentGun.Ammo}/{r.CurrentGun.Mag}{(r.CurrentGun.Reload > 0 ? " reloading" : "")}" : "")} | slots 1:{r.Guns[0]?.Def.Name ?? "-"} 2:{r.Guns[1]?.Def.Name ?? "-"} 3:{r.MeleeDef.Name}");
         sb.AppendLine($"grenades: {(r.Nades.Values.Any(v => v > 0) ? string.Join(", ", r.Nades.Where(n => n.Value > 0).Select(n => $"{n.Key} x{n.Value}")) + $" (selected {r.NadeSel})" : "none")} | medkits {r.Medkits} | dash {(r.DashCd > 0 ? $"{r.DashCd:0.0}s" : "ready")}");
-        sb.AppendLine($"abilities: Q {Career.AbilityName(r.C.SlotQ)} {Cd(r, r.C.SlotQ)}, F {Career.AbilityName(r.C.SlotF)} {Cd(r, r.C.SlotF)}");
+        sb.AppendLine($"abilities: Q {Career.AbilityName(r.C.SlotQ)} {Cd(r, r.C.SlotQ)}, F {Career.AbilityName(r.C.SlotF)} {Cd(r, r.C.SlotF)} | spells: {string.Join(", ", new[] { "Z", "X", "C" }.Select((k, i) => $"{k} {Career.AbilityName(r.C.SpellAbility(i))} {Cd(r, r.C.SpellAbility(i))}"))}");
         if (r.Drone != null) sb.AppendLine(r.Rigging ? $"RIGGING the {r.Drone.Name} at ({r.Drone.Pos.X:0.0},{r.Drone.Pos.Y:0.0}), hull {r.Drone.Hp:0}, signal {r.DroneSignal * 100:0}% -- WASD flies it, aim/fire use it, key T returns (your body stands still)" : r.Drone.Dead ? "your drone is down" : $"drone {r.Drone.Name} with you at ({r.Drone.Pos.X:0.0},{r.Drone.Pos.Y:0.0}) -- key T to jack in");
         if (r.Deadline > 0) sb.AppendLine($"deadline: {r.TimeLeft:0} s left");
         if (r.Job.Mods.Count > 0 || r.C.Weather != Career.Sky.Clear) sb.AppendLine($"conditions: {r.C.Weather}{string.Concat(r.Job.Mods.Select(m => ", " + m))}");

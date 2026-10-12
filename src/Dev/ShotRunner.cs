@@ -194,6 +194,14 @@ public partial class ShotRunner : Node
                 foreach (var (id, _, _) in Career.Archetypes)
                 {
                     Root.Career.Archetype = id;
+                    // The mage carries a full spell bar, with chrome on Q, so the HUD shows both rows of keys.
+                    var (spells, slotted, q) = (Root.Career.Spells.ToList(), Root.Career.SpellSlots.ToArray(), Root.Career.SlotQ);
+                    if (id == "mage")
+                    {
+                        Root.Career.Spells = new[] { "manabolt", "fireball", "heal" }.ToList();
+                        Root.Career.SpellSlots = Root.Career.Spells.ToArray();
+                        Root.Career.SlotQ = Ability.Overclock;
+                    }
                     var hj = new Job { Id = 950, Type = JobType.Hack, Threat = 1, Seed = 5, Title = id, Target = "x", Item = "x", Lot = -1 };
                     Root.StartRun(hj);
                     await Frames(5);
@@ -205,6 +213,7 @@ public partial class ShotRunner : Node
                     Root.RunView.Cam.Zoom = new Vector2(3f, 3f);
                     await Frames(3);
                     await Shot($"23_class_{id}");
+                    (Root.Career.Spells, Root.Career.SpellSlots, Root.Career.SlotQ) = (spells, slotted, q);
                 }
                 Root.Career.Archetype = "samurai";
                 Root.EnterCity();
@@ -576,6 +585,17 @@ public partial class ShotRunner : Node
                     ps.Show("Runner");
                     await Frames(10);
                     await Shot("06b_runner_mage");
+                    // The same mage's loadout: three spells beside the three weapons, chrome on Q/F.
+                    var slotted = rc.SpellSlots.ToArray();
+                    var cyber = rc.Cyber.ToList();
+                    (Ability q, Ability f) = (rc.SlotQ, rc.SlotF);
+                    rc.SpellSlots = new[] { "manabolt", "fireball", "heal" };
+                    rc.Cyber.Add("wired");
+                    rc.SlotQ = Ability.Overclock;
+                    ps.Show("Loadout");
+                    await Frames(10);
+                    await Shot("07_loadout_mage");
+                    (rc.SpellSlots, rc.Cyber, rc.SlotQ, rc.SlotF) = (slotted, cyber, q, f);
                     rc.Archetype = arch;
                     rc.Spells = spells;
                 }

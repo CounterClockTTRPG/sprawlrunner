@@ -122,7 +122,7 @@ public partial class SmokeTest
             mr.Events.Clear();
             Actor g = mr.AddEnemy(EnemyKind.Bruiser, new V2(8.5f, 1.5f), MathF.PI);
             g.MaxHp = g.Hp = 1e4f;
-            for (int i = 0; i < 30 && g.Hp == 1e4f; i++) mr.Step(new RunInput { Slot = -1, AbilityQ = i == 0, Aim = g.Pos });
+            for (int i = 0; i < 30 && g.Hp == 1e4f; i++) mr.Step(new RunInput { Slot = -1, Cast = i == 0 ? 1 : 0, Aim = g.Pos });
             return 1e4f - g.Hp;
         }
         float plain = Bolt(SiteStyle.Office), hallowed = Bolt(SiteStyle.Cemetery);

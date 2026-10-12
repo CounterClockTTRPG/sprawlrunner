@@ -87,7 +87,12 @@ public sealed partial class Career
     /// <summary>Favours waiting on the next run.</summary>
     public bool NextNoAmbush, NextCamerasDown, NextFastSpells;
     public int NextJobId = 1;
+    /// <summary>The two chrome ability slots (Q, F).</summary>
     public Ability SlotQ, SlotF;
+    /// <summary>The three spells carried onto a run (Z, X, C), by spell id; null for an empty slot.</summary>
+    public string[] SpellSlots = new string[3];
+    /// <summary>Old saves kept spells in the Q/F slots; set once they have moved into <see cref="SpellSlots"/>.</summary>
+    public bool SpellSlotsSet;
     public int JobsDone, JobsFailed, Kills, Deaths;
     public bool Dead;
     public List<string> News = new();
@@ -111,7 +116,7 @@ public sealed partial class Career
 
     public static Career New(string name, string archetype, ulong seed)
     {
-        var c = new Career { Name = string.IsNullOrWhiteSpace(name) ? "Runner" : name.Trim(), Archetype = archetype, Seed = seed, Rng = new Rng(seed ^ 0xC0FFEE) };
+        var c = new Career { Name = string.IsNullOrWhiteSpace(name) ? "Runner" : name.Trim(), Archetype = archetype, Seed = seed, Rng = new Rng(seed ^ 0xC0FFEE), SpellSlotsSet = true };
         c.Cash = 2500;
         c.Weapons.AddRange(new[] { "hollow9", "knife" });
         c.Secondary = "hollow9";
@@ -149,8 +154,7 @@ public sealed partial class Career
             case "mage":
                 a = new[] { 3, 2, 1, 2, 4, 2 }; s = new[] { 1, 0, 0, 0, 0, 2, 0, 0 };
                 c.Spells.AddRange(new[] { "manabolt", "heal" });
-                c.SlotQ = Ability.Manabolt;
-                c.SlotF = Ability.Heal;
+                c.SpellSlots = new[] { "manabolt", "heal", null };
                 c.ArmorsOwned.Add("jacket");
                 c.ArmorId = "jacket";
                 break;
@@ -264,8 +268,29 @@ public sealed partial class Career
         return w.Damage * (HasMod(w.Id, "silencer") ? 0.95f : 1f) * Ammo(w) switch { "gel" => 0.7f, "explosive" => 1.2f, _ => 1f };
     }
 
-    public IEnumerable<Ability> Abilities => Cyber.Select(id => Tables.CyberById(id).Grants)
+    public IEnumerable<Ability> Abilities => ChromeAbilities
         .Concat(Spells.Select(id => Tables.Spells.First(x => x.Id == id).Grants)).Where(a => a != Ability.None).Distinct();
+
+    /// <summary>What your chrome can do: the choices for the Q/F slots.</summary>
+    public IEnumerable<Ability> ChromeAbilities => Cyber.Select(id => Tables.CyberById(id).Grants).Where(a => a != Ability.None).Distinct();
+
+    /// <summary>What the spell in slot <paramref name="i"/> (0..2) casts.</summary>
+    public Ability SpellAbility(int i) => i >= 0 && i < SpellSlots.Length && Tables.Spells.FirstOrDefault(x => x.Id == SpellSlots[i]) is SpellDef d ? d.Grants : Ability.None;
+
+    /// <summary>Put a spell in slot <paramref name="i"/>; if it was already in another slot, the two swap.</summary>
+    public void SetSpellSlot(int i, string id)
+    {
+        int was = id == null ? -1 : Array.IndexOf(SpellSlots, id);
+        if (was >= 0 && was != i) SpellSlots[was] = SpellSlots[i];
+        SpellSlots[i] = id;
+    }
+
+    /// <summary>A newly learned spell goes in the first empty slot.</summary>
+    public void SlotSpell(string id)
+    {
+        int free = Array.IndexOf(SpellSlots, null);
+        if (free >= 0 && !SpellSlots.Contains(id)) SpellSlots[free] = id;
+    }
 
     public bool Awakened => Archetype == "mage";
 

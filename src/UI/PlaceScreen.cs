@@ -441,9 +441,19 @@ public partial class PlaceScreen : Control
         Choice("Secondary  [2]", guns.Prepend(null).ToList(), C.Secondary, v => { if (v != null && v == C.Primary) C.Primary = C.Secondary; C.Secondary = v; }, id => id == null ? "--" : Tables.Weapon(id).Name);
         Choice("Melee  [3]", C.Weapons.Where(w => Tables.Weapon(w).Melee).ToList(), C.Melee, v => C.Melee = v, id => Tables.Weapon(id).Name + (id == "knife" && C.Has("spurs") ? " (spurs)" : ""));
         Choice("Armour", C.ArmorsOwned, C.ArmorId, v => C.ArmorId = v, id => $"{Tables.Armor(id).Name} ({Tables.Armor(id).Armor})");
-        var ab = C.Abilities.Distinct().Prepend(Ability.None).ToList();
-        Choice("Ability  [Q]", ab, C.SlotQ, v => { if (v != Ability.None && v == C.SlotF) C.SlotF = C.SlotQ; C.SlotQ = v; }, Career.AbilityName);
-        Choice("Ability  [F]", ab, C.SlotF, v => { if (v != Ability.None && v == C.SlotQ) C.SlotQ = C.SlotF; C.SlotF = v; }, Career.AbilityName);
+        var ab = C.ChromeAbilities.Prepend(Ability.None).ToList();
+        if (ab.Count > 1)
+        {
+            Choice($"Chrome  [{Controls.KeyName(Act.AbilityQ)}]", ab, C.SlotQ, v => { if (v != Ability.None && v == C.SlotF) C.SlotF = C.SlotQ; C.SlotQ = v; }, Career.AbilityName);
+            Choice($"Chrome  [{Controls.KeyName(Act.AbilityF)}]", ab, C.SlotF, v => { if (v != Ability.None && v == C.SlotQ) C.SlotQ = C.SlotF; C.SlotF = v; }, Career.AbilityName);
+        }
+        // Three spells, like the three weapons: picking one already slotted swaps the two.
+        if (C.Spells.Count > 0)
+        {
+            var known = C.Spells.Prepend(null).ToList();
+            foreach (var (i, act) in new[] { (0, Act.Spell1), (1, Act.Spell2), (2, Act.Spell3) })
+                Choice($"Spell {i + 1}  [{Controls.KeyName(act)}]", known, C.SpellSlots[i], v => C.SetSpellSlot(i, v), id => id == null ? "--" : Tables.Spells.First(x => x.Id == id).Name);
+        }
         foreach (string gid in new[] { C.Primary, C.Secondary }.Where(x => x != null).Distinct())
         {
             WeaponDef gw = Tables.Weapon(gid);
@@ -470,7 +480,7 @@ public partial class PlaceScreen : Control
         _content.AddChild(UITheme.Label($"Grenades: {(nades.Length > 0 ? nades : "none")}   ·   Medkits: {C.Medkits}", 16, UITheme.Text));
         if (C.Vehicle == "van") _content.AddChild(UITheme.Label("The van carries one more of each grenade type you own.", 15, UITheme.Good));
         if (C.Mods.Count > 0) _content.AddChild(UITheme.Label("Mods: " + string.Join(", ", C.Mods.Select(m => $"{Tables.Weapon(m.Split(':')[0]).Name} {Tables.Mods.First(x => x.Id == m.Split(':')[1]).Name.ToLower()}")), 15, UITheme.Dim));
-        if (C.Spells.Count > 0) _content.AddChild(UITheme.Label($"Spells: {string.Join(", ", C.Spells.Select(id => Tables.Spells.First(x => x.Id == id).Name))}  (power x{C.SpellPower:0.00})", 15, UITheme.Violet));
+        if (C.Spells.Count > 0) _content.AddChild(UITheme.Label($"Spell power x{C.SpellPower:0.00}. You know {C.Spells.Count} spell{(C.Spells.Count == 1 ? "" : "s")} and carry three.", 15, UITheme.Violet));
     }
 
     // ---- deck and chrome --------------------------------------------------------------
@@ -726,7 +736,7 @@ public partial class PlaceScreen : Control
                 if (on) right.AddChild(UITheme.Label(e.Risk, 14, UITheme.Amber));
             }
         }
-        body.AddChild(UITheme.Label("WASD move · Shift sneak · mouse aim, LMB fire · RMB throw · 1/2/3 weapons · G grenade · R reload · Space dash · Q/F abilities · E use · H medkit", 14, UITheme.Dim, HorizontalAlignment.Center));
+        body.AddChild(UITheme.Label("WASD move · Shift sneak · mouse aim, LMB fire · RMB throw · 1/2/3 weapons · G grenade · R reload · Space dash · Q/F chrome · Z/X/C spells · E use · H medkit", 14, UITheme.Dim, HorizontalAlignment.Center));
         var row = UITheme.HBox(14);
         row.Alignment = BoxContainer.AlignmentMode.Center;
         row.AddChild(UITheme.Button("Go in", () => { QueueFree(); _root.StartRun(j); }, 200, 48));

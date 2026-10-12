@@ -252,14 +252,16 @@ Essence starts at 6.0; each implant costs some, and cannot take you below
 | Ruthenium skin | 1.0 | ability **Cloak**: unseen 5 s | 22,000 |
 | Spur blades | 0.3 | replace the knife (and become your melee): 65 dmg, 1.6/s | 5,000 |
 
-Abilities go in slots Q and F. Everyone also has **Dash**.
+Chrome abilities go in slots Q and F. Everyone also has **Dash**.
 
 ### Magic
 
-Only the Street Mage is Awakened. Spells are abilities on Q/F with
-cooldowns; their power is `(0.4 + 0.6 x Essence/6) x (1 + 0.08 x Logic)`,
+Only the Street Mage is Awakened. A mage carries three spells onto a run, in slots Z, X and C
+beside the three weapons (picked on the Loadout tab, kept in kits), each with its own
+cooldown; their power is `(0.4 + 0.6 x Essence/6) x (1 + 0.08 x Logic)`,
 x1.25 with a power focus -- so every implant dims the magic (the doc says by
-how much). Area spells land on the cursor; a faint ring there shows the area of each one ready on Q/F.
+how much). Area spells land on the cursor. On a gamepad, Y and RB cast spells 1
+and 2 when no chrome sits in Q or F.
 
 | Spell | Cooldown | Effect | Cost |
 |---|---|---|---|
