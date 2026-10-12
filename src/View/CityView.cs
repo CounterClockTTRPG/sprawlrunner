@@ -57,6 +57,9 @@ public partial class CityView : Node2D
         AddChild(_movers);
         Fx = new FxLayer();
         AddChild(Fx);
+        // Muzzle flashes, tracers and fire glow on top of the street, added rather than painted.
+        FxGlow = new FxLayer { Material = Art.Additive, AdditiveLayer = true };
+        AddChild(FxGlow);
         _buildings = new Buildings { V = this };
         AddChild(_buildings);
         _glow = new GlowLayer { V = this, Material = Art.Additive };
@@ -138,22 +141,98 @@ public partial class CityView : Node2D
             Vector2 p = Art.G(e.Pos, T);
             switch (e.Kind)
             {
+                case CityEv.Gunfire when e.To != default:
+                {
+                    // A burst: the flash at the gun, a tracer all the way to where it went, sparks where it lands.
+                    Vector2 to = Art.G(e.To, T);
+                    Vector2 d = (to - p).Normalized();
+                    // Out of the window, not from under the bonnet.
+                    p += d * 16;
+                    FxGlow.Cone(p, d, 0.07f, 40, 0.4f, new Color(1, 0.75f, 0.35f, 1));
+                    FxGlow.Add(FxKind.Flash, p, Vector2.Zero, 0.12f, 64, new Color(1, 0.7f, 0.3f, 0.6f));
+                    FxGlow.Streak(p, to, 0.16f, 3.2f, new Color(1, 0.88f, 0.55f, 1));
+                    FxGlow.Add(FxKind.Flash, to, Vector2.Zero, 0.08f, 20, new Color(1, 0.85f, 0.5f, 0.7f));
+                    FxGlow.Burst(FxKind.Spark, to, 4, 260, 0.18f, 1.4f, new Color(1, 0.85f, 0.5f), -d, 1.1f);
+                    Fx.Add(FxKind.Shell, p, new Vector2(-d.Y, d.X) * Fx.Rand(60, 110), 0.6f, 3, new Color(0.9f, 0.7f, 0.3f)).Spin = Fx.Rand(-14, 14);
+                    break;
+                }
                 case CityEv.Gunfire:
-                    Fx.Add(FxKind.Flash, p, Vector2.Zero, 0.08f, 22, new Color(1, 0.8f, 0.4f, 0.9f));
-                    Vector2 to = Art.G(Sim.Player.Pos, T) + new Vector2(Fx.Rand(-14, 14), Fx.Rand(-14, 14));
-                    var tr = Fx.Add(FxKind.Spark, to, (to - p).Normalized() * 1400, 0.05f, 2, new Color(1, 0.9f, 0.6f));
-                    tr.Drag = 0;
+                    // A round finds your car: sparks off the bodywork, and you feel it.
+                    FxGlow.Burst(FxKind.Spark, p, 7, 300, 0.22f, 1.6f, new Color(1, 0.85f, 0.45f));
+                    FxGlow.Add(FxKind.Flash, p, Vector2.Zero, 0.08f, 22, new Color(1, 0.8f, 0.5f, 0.8f));
+                    Fx.Burst(FxKind.Debris, p, 2, 90, 0.4f, 2.2f, new Color(0.55f, 0.55f, 0.6f));
+                    Shake = MathF.Max(Shake, 2.5f);
                     break;
                 case CityEv.Crash:
                 case CityEv.Bump:
-                    Fx.Burst(FxKind.Spark, p, 10, 240, 0.3f, 1.5f, new Color(1, 0.8f, 0.4f));
-                    Fx.Burst(FxKind.Debris, p, 5, 120, 0.5f, 3, new Color(0.5f, 0.5f, 0.55f));
+                    FxGlow.Burst(FxKind.Spark, p, 12, 260, 0.3f, 1.6f, new Color(1, 0.8f, 0.4f));
+                    Fx.Burst(FxKind.Debris, p, 6, 140, 0.6f, 3, new Color(0.5f, 0.5f, 0.55f));
                     Shake = 4 + e.Strength;
                     break;
+                case CityEv.Wreck:
+                {
+                    Explode(p, 2.2f * T);
+                    // What's left: a burnt-out shell, burning where it stopped.
+                    Vector2 fwd = e.To != default ? Art.G(e.To, T) - p : Vector2.Right;
+                    var shell = Fx.Add(FxKind.Debris, p, Vector2.Zero, 8, e.Strength * T, new Color(0.09f, 0.08f, 0.08f));
+                    shell.Rot = fwd.Angle();
+                    shell.Drag = 0;
+                    _burning.Add((p, 7f));
+                    break;
+                }
             }
         }
+        // A chaser you put down burns for a while where it stopped.
+        for (int i = _burning.Count - 1; i >= 0; i--)
+        {
+            var (at, left) = _burning[i];
+            left -= dt;
+            if (left <= 0) { _burning.RemoveAt(i); continue; }
+            _burning[i] = (at, left);
+            float k = MathF.Min(1, left / 2);
+            if (Fx.Rand(0, 1) < dt * 50 * k) FxGlow.Fire(at + new Vector2(Fx.Rand(-20, 20), Fx.Rand(-10, 10)), new Vector2(Fx.Rand(-12, 12), Fx.Rand(-50, -20)), Fx.Rand(0.5f, 0.8f), Fx.Rand(14, 24), 18, new Color(1, 0.8f, 0.35f, 0.9f), new Color(0.7f, 0.12f, 0.03f, 0.3f));
+            if (Fx.Rand(0, 1) < dt * 6 * k) FxGlow.Add(FxKind.Flash, at, Vector2.Zero, 0.4f, Fx.Rand(60, 90), new Color(1, 0.5f, 0.15f, 0.3f));
+            if (Fx.Rand(0, 1) < dt * 14) Fx.Add(FxKind.Smoke, at + new Vector2(Fx.Rand(-12, 12), -8), new Vector2(Fx.Rand(-8, 8), Fx.Rand(-40, -15)), 2.6f, 12, new Color(0.14f, 0.14f, 0.15f, 0.55f));
+        }
+        // Cars that are badly hurt smoke from the engine: yours, and whoever is chasing you.
+        DamageSmoke(car, dt);
+        foreach (Chaser ch in Sim.Chasers) if (!ch.Gone) DamageSmoke(ch.Car, dt);
         Fx.Step(dt);
+        FxGlow.Step(dt);
         _dirty = true;
+    }
+
+    public FxLayer FxGlow;
+    private readonly List<(Vector2 at, float left)> _burning = new();
+
+    /// <summary>A car going up: a white flash, a ball of fire, a ring of dust, burning bits and black smoke.</summary>
+    private void Explode(Vector2 p, float rad)
+    {
+        FxGlow.Add(FxKind.Flash, p, Vector2.Zero, 0.5f, rad * 3.2f, new Color(1, 0.65f, 0.3f, 0.6f));
+        FxGlow.Add(FxKind.Flash, p, Vector2.Zero, 0.14f, rad * 1.2f, new Color(1, 1, 0.9f, 1));
+        for (int k = 0; k < 12; k++)
+        {
+            Vector2 off = Vector2.FromAngle(Fx.Rand(0, MathF.Tau)) * Fx.Rand(0, rad * 0.5f);
+            FxGlow.Fire(p + off, off * Fx.Rand(1.5f, 3f), Fx.Rand(0.45f, 0.8f), rad * Fx.Rand(0.3f, 0.5f), rad * 0.6f, new Color(1, 0.92f, 0.65f, 1), new Color(0.65f, 0.12f, 0.03f, 0.5f));
+        }
+        var ring = FxGlow.Add(FxKind.Ring, p, new Vector2(rad * 4, 0), 0.28f, rad * 0.3f, new Color(1, 0.85f, 0.6f, 0.7f));
+        ring.Drag = 0;
+        ring.Width = 6;
+        FxGlow.Burst(FxKind.Spark, p, 24, 600, 0.4f, 2, new Color(1, 0.75f, 0.3f));
+        FxGlow.Burst(FxKind.Ember, p, 10, 180, 1.4f, 2, new Color(1, 0.6f, 0.2f));
+        Fx.Burst(FxKind.Debris, p, 12, 280, 0.9f, 4, new Color(0.25f, 0.25f, 0.27f));
+        for (int k = 0; k < 8; k++) Fx.Add(FxKind.Smoke, p + new Vector2(Fx.Rand(-rad, rad), Fx.Rand(-rad, rad)) * 0.4f, new Vector2(Fx.Rand(-30, 30), Fx.Rand(-40, 0)), Fx.Rand(1.6f, 3f), Fx.Rand(10, 20), new Color(0.08f, 0.08f, 0.09f, 0.6f));
+        Shake = MathF.Max(Shake, 9);
+    }
+
+    private void DamageSmoke(Car c, float dt)
+    {
+        float hurt = 1 - c.Hp / MathF.Max(1, c.Def.Hp);
+        if (hurt < 0.5f) return;
+        Vector2 at = Art.G(c.Front, T);
+        if (Fx.Rand(0, 1) < dt * 18 * hurt) Fx.Add(FxKind.Smoke, at + new Vector2(Fx.Rand(-4, 4), Fx.Rand(-4, 4)), new Vector2(Fx.Rand(-10, 10), Fx.Rand(-25, -8)), 1.2f, 5, hurt > 0.8f ? new Color(0.06f, 0.06f, 0.07f, 0.55f) : new Color(0.55f, 0.55f, 0.58f, 0.3f));
+        // Past four-fifths gone, the engine is on fire.
+        if (hurt > 0.8f && Fx.Rand(0, 1) < dt * 14) FxGlow.Fire(at, new Vector2(Fx.Rand(-8, 8), Fx.Rand(-30, -10)), 0.35f, 7, 10, new Color(1, 0.8f, 0.35f, 0.8f), new Color(0.7f, 0.15f, 0.03f, 0.2f));
     }
 
     private bool _dirty;

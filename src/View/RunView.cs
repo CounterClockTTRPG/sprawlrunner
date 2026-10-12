@@ -52,6 +52,8 @@ public partial class RunView : Node2D
     public void Bind(Run run)
     {
         R = run;
+        _flying.Clear();
+        _barrels.Clear();
         foreach (Node n in GetChildren()) n.QueueFree();
         Level L = run.L;
         AddChild(new CanvasModulate { Color = new Color(0.78f, 0.78f, 0.9f) });
@@ -154,6 +156,7 @@ public partial class RunView : Node2D
     {
         if (R == null) return;
         using (Perf.Time("run.events")) HandleEvents();
+        TrackShots(dt);
         Fx.Step(dt);
         Glow.Step(dt);
         AmbientFire(dt);
@@ -177,6 +180,55 @@ public partial class RunView : Node2D
         Cam.Position = _camPos + new Vector2(Fx.Rand(-1, 1), Fx.Rand(-1, 1)) * sh;
     }
 
+    /// <summary>The projectiles in the air last frame (and where they were), to know when one lands.</summary>
+    private readonly Dictionary<Projectile, Vector2> _flying = new();
+    private readonly List<Projectile> _landed = new();
+
+    /// <summary>
+    /// Trails while a projectile flies (rocket smoke, a fireball's flame), and the wake a bullet leaves once it lands:
+    /// a fading line back along its path, brighter and longer for heavy rounds.
+    /// </summary>
+    private void TrackShots(float dt)
+    {
+        foreach (Projectile s in R.Shots)
+        {
+            Vector2 p = Art.G(s.Pos, T);
+            if (R.Seen(s.Pos))
+            {
+                Vector2 back = -Art.G(M.Norm(s.Vel));
+                if (s.Kind == ShotKind.Rocket)
+                {
+                    if (Fx.Rand(0, 1) < dt * 45) Fx.Add(FxKind.Smoke, p + back * 10, back * 20 + new Vector2(Fx.Rand(-8, 8), Fx.Rand(-8, 8)), Fx.Rand(0.8f, 1.3f), 4, new Color(0.62f, 0.62f, 0.65f, 0.45f));
+                    if (Fx.Rand(0, 1) < dt * 40) Glow.Fire(p + back * 9, back * 60, 0.15f, 7, 10, new Color(1, 0.85f, 0.45f, 0.9f), new Color(0.9f, 0.3f, 0.05f, 0.3f));
+                }
+                else if (s.Kind == ShotKind.Fireball)
+                {
+                    // A comet: fire peeling off behind it, embers spitting out to the sides.
+                    if (Fx.Rand(0, 1) < dt * 70) Glow.Fire(p + new Vector2(Fx.Rand(-4, 4), Fx.Rand(-4, 4)), back * Fx.Rand(30, 80), Fx.Rand(0.25f, 0.45f), Fx.Rand(8, 13), 10, new Color(1, 0.8f, 0.4f, 0.9f), new Color(0.75f, 0.12f, 0.03f, 0.25f));
+                    if (Fx.Rand(0, 1) < dt * 25) Glow.Add(FxKind.Ember, p, back * 40 + new Vector2(Fx.Rand(-50, 50), Fx.Rand(-50, 50)), 0.5f, 1.8f, new Color(1, 0.6f, 0.2f));
+                }
+            }
+            _flying[s] = p;
+        }
+        foreach (var (s, last) in _flying)
+        {
+            if (R.Shots.Contains(s)) continue;
+            _landed.Add(s);
+            if (s.Kind is ShotKind.Rocket or ShotKind.Fireball || !(R.Seen(s.Pos) || R.Seen(s.Origin))) continue;
+            Vector2 end = Art.G(s.Pos, T), from = Art.G(s.Origin, T);
+            Vector2 d = end - from;
+            float most = (s.Damage >= 60 ? 14 : 6) * T;
+            if (d.Length() > most) from = end - d.Normalized() * most;
+            bool heavy = s.Damage >= 60;
+            Color tc = s.Crit ? new Color(1, 0.95f, 0.45f, 1) : s.Team == 0 ? new Color(1, 0.92f, 0.6f, 0.85f) : new Color(1, 0.55f, 0.35f, 0.85f);
+            Glow.Streak(from, end, heavy ? 0.45f : s.Kind == ShotKind.Pellet ? 0.1f : 0.18f, heavy ? 2.6f : s.Kind == ShotKind.Pellet ? 1f : 1.6f, tc);
+            // A sniper's round leaves a thread of smoke hanging in the air.
+            if (heavy) for (int k = 1; k < 6; k++) Fx.Add(FxKind.Smoke, from.Lerp(end, k / 6f), Vector2.Zero, 0.9f, 2.5f, new Color(0.7f, 0.7f, 0.72f, 0.18f));
+        }
+        foreach (Projectile s in _landed) _flying.Remove(s);
+        _landed.Clear();
+    }
+
     private float _fireT;
 
     private void AmbientFire(float dt)
@@ -189,7 +241,9 @@ public partial class RunView : Node2D
             var p = new Pt(kv.Key % R.L.W, kv.Key / R.L.W);
             if (!R.SeenTile(p)) continue;
             Vector2 at = Art.G(p.Centre, T) + new Vector2(Fx.Rand(-12, 12), Fx.Rand(-12, 12));
-            Glow.Add(FxKind.Flash, at, Vector2.Zero, 0.35f, Fx.Rand(14, 26), new Color(1f, 0.45f, 0.1f, 0.5f));
+            // Light thrown about by the fire, and tongues of flame licking up from it, hot at the root.
+            Glow.Add(FxKind.Flash, at, Vector2.Zero, 0.35f, Fx.Rand(18, 30), new Color(1f, 0.45f, 0.1f, 0.35f));
+            if (Fx.Rand(0, 1) < 0.7f) Glow.Fire(at, new Vector2(Fx.Rand(-10, 10), Fx.Rand(-55, -30)), Fx.Rand(0.3f, 0.5f), Fx.Rand(6, 10), 6, new Color(1, 0.85f, 0.45f, 0.85f), new Color(0.8f, 0.15f, 0.03f, 0.15f));
             if (Fx.Rand(0, 1) < 0.3f) Glow.Add(FxKind.Ember, at, new Vector2(Fx.Rand(-20, 20), Fx.Rand(-60, -20)), 0.5f, 1.5f, new Color(1, 0.7f, 0.2f));
             if (Fx.Rand(0, 1) < 0.15f) Fx.Add(FxKind.Smoke, at, new Vector2(Fx.Rand(-10, 10), Fx.Rand(-30, -10)), 1.6f, 8, new Color(0.1f, 0.1f, 0.1f, 0.4f));
         }
@@ -209,8 +263,70 @@ public partial class RunView : Node2D
         if (v > 0.02f) Sfx.Instance?.Play(s, pitch * (R.OverclockT > 0 ? 0.6f : 1), v);
     }
 
+    private enum Blast { Frag, Barrel, Spell }
+
+    /// <summary>Barrels broken just now: the blast that follows is their fuel going up.</summary>
+    private readonly List<(V2 at, float t)> _barrels = new();
+
+    /// <summary>Did a projectile of this kind just end here (it was flying last frame and is gone now)?</summary>
+    private bool FlewInto(V2 at, ShotKind kind)
+    {
+        foreach (var (s, _) in _flying)
+            if (s.Kind == kind && !R.Shots.Contains(s) && V2.Distance(s.Pos, at) < 1.5f) return true;
+        return false;
+    }
+
+    /// <summary>
+    /// An explosion: light thrown round the room, a white core, a ball of fire that swells and cools, a shockwave,
+    /// shrapnel and tumbling debris, embers that linger, a column of smoke and a scorch. Barrels throw burning fuel;
+    /// a spell's fireball is all flame and no shrapnel.
+    /// </summary>
+    private void Explosion(Vector2 p, float rad, Blast kind)
+    {
+        bool spell = kind == Blast.Spell, barrel = kind == Blast.Barrel;
+        Color hot = spell ? new Color(1, 0.85f, 0.5f, 1) : new Color(1, 0.94f, 0.7f, 1);
+        Color cool = barrel ? new Color(0.45f, 0.08f, 0.02f, 0.55f) : new Color(0.65f, 0.12f, 0.03f, 0.5f);
+        Glow.Add(FxKind.Flash, p, Vector2.Zero, 0.55f, rad * 3.4f, new Color(1, 0.6f, 0.25f, 0.55f));
+        Glow.Add(FxKind.Flash, p, Vector2.Zero, 0.14f, rad * 1.3f, new Color(1, 1, 0.92f, 1));
+        // Many small puffs packed towards the middle, so they read as one ball of fire rather than a cluster of balls.
+        int puffs = spell ? 30 : barrel ? 24 : 20;
+        for (int k = 0; k < puffs; k++)
+        {
+            float t = Fx.Rand(0, 1);
+            Vector2 off = Vector2.FromAngle(Fx.Rand(0, MathF.Tau)) * rad * 0.6f * t * t;
+            Glow.Fire(p + off, off * Fx.Rand(1.2f, 2.6f) + Vector2.FromAngle(Fx.Rand(0, MathF.Tau)) * rad * 0.3f, Fx.Rand(0.35f, 0.8f), rad * Fx.Rand(0.16f, 0.34f), rad * Fx.Rand(0.4f, 0.9f), hot, cool);
+        }
+        var wave = Glow.Add(FxKind.Ring, p, new Vector2(rad * 4.2f, 0), 0.26f, rad * 0.25f, new Color(1, 0.88f, 0.65f, 0.75f));
+        wave.Drag = 0;
+        wave.Width = 7;
+        // A ring of dust kicked up off the floor, slower than the shockwave.
+        var dust = Fx.Add(FxKind.Ring, p, new Vector2(rad * 1.8f, 0), 0.6f, rad * 0.4f, new Color(0.45f, 0.42f, 0.38f, 0.18f));
+        dust.Drag = 0;
+        dust.Width = 10;
+        Glow.Burst(FxKind.Spark, p, spell ? 16 : 30, 700, 0.4f, 2, new Color(1, 0.75f, 0.3f));
+        // Embers that drift on after the flash is gone.
+        for (int k = 0; k < (spell ? 18 : 10); k++)
+            Glow.Add(FxKind.Ember, p, Vector2.FromAngle(Fx.Rand(0, MathF.Tau)) * Fx.Rand(60, 200), Fx.Rand(1f, 1.9f), 2, new Color(1, 0.6f, 0.2f)).Drag = 1.6f;
+        if (!spell) Fx.Burst(FxKind.Debris, p, 16, 300, 0.9f, 4, new Color(0.28f, 0.28f, 0.3f));
+        if (barrel)
+        {
+            // Burning fuel flung out in blobs, each one still alight where it lands.
+            for (int k = 0; k < 9; k++)
+            {
+                Vector2 v = Vector2.FromAngle(Fx.Rand(0, MathF.Tau)) * Fx.Rand(120, 320);
+                Glow.Fire(p, v, Fx.Rand(0.8f, 1.4f), Fx.Rand(8, 13), 3, new Color(1, 0.75f, 0.3f, 1), new Color(0.8f, 0.2f, 0.04f, 0.6f)).Drag = 3.2f;
+            }
+        }
+        for (int k = 0; k < (barrel ? 14 : 10); k++)
+            Fx.Add(FxKind.Smoke, p + new Vector2(Fx.Rand(-rad, rad), Fx.Rand(-rad, rad)) * 0.4f, new Vector2(Fx.Rand(-35, 35), Fx.Rand(-45, 15)), Fx.Rand(1.6f, 3.2f), Fx.Rand(10, 22),
+                barrel ? new Color(0.05f, 0.05f, 0.05f, 0.7f) : new Color(0.12f, 0.12f, 0.13f, 0.6f));
+        _decals.Add(p, rad * 0.55f, new Color(0.02f, 0.02f, 0.02f, 0.6f), soft: true);
+        for (int k = 0; k < 4; k++) _decals.Add(p + Vector2.FromAngle(Fx.Rand(0, MathF.Tau)) * rad * Fx.Rand(0.4f, 0.8f), rad * Fx.Rand(0.15f, 0.25f), new Color(0.03f, 0.03f, 0.03f, 0.35f), soft: true);
+    }
+
     private void HandleEvents()
     {
+        _barrels.RemoveAll(b => R.Time - b.t > 0.5f);
         foreach (RunEvent e in R.Events)
         {
             Vector2 p = Art.G(e.Pos, T);
@@ -235,9 +351,31 @@ public partial class RunView : Node2D
                     if (seen || mine)
                     {
                         Vector2 d = Art.G(e.Dir);
-                        Glow.Add(FxKind.Flash, p, Vector2.Zero, 0.06f, wc == WeaponClass.Shotgun ? 34 : 24, new Color(1, 0.8f, 0.4f, 0.9f));
-                        Glow.Burst(FxKind.Spark, p, 3, 300, 0.08f, 1.5f, new Color(1, 0.85f, 0.4f), d, 0.4f);
-                        if (wc is not (WeaponClass.Launcher or WeaponClass.Melee)) Fx.Add(FxKind.Shell, p, new Vector2(-d.Y, d.X) * Fx.Rand(60, 120), 0.5f, 3, new Color(0.9f, 0.7f, 0.3f));
+                        if (d.LengthSquared() > 0) d = d.Normalized();
+                        bool quiet = s == Sound.Silenced;
+                        bool magic = s == Sound.Fireball;
+                        // Each gun has its own bark: a cone of flame the length and width of the barrel's, light thrown round the room.
+                        var (len, half, life) = quiet ? (9f, 0.25f, 0.04f) : wc switch
+                        {
+                            WeaponClass.Shotgun => (30f, 0.6f, 0.07f), WeaponClass.Sniper => (40f, 0.2f, 0.08f), WeaponClass.Rifle or WeaponClass.Lmg => (26f, 0.3f, 0.05f),
+                            WeaponClass.Smg => (17f, 0.32f, 0.04f), WeaponClass.Launcher => (22f, 0.5f, 0.08f), _ => (19f, 0.35f, 0.05f),
+                        };
+                        Color flame = magic ? new Color(0.75f, 0.45f, 1f, 0.95f) : new Color(1, 0.78f, 0.38f, 0.95f);
+                        if (!magic) Glow.Cone(p, d, life, len, half, flame);
+                        Glow.Add(FxKind.Flash, p + d * len * 0.3f, Vector2.Zero, life * 1.6f, quiet ? 14 : len * 1.9f, flame with { A = quiet ? 0.25f : 0.45f });
+                        Glow.Burst(FxKind.Spark, p, wc == WeaponClass.Shotgun ? 7 : 3, 320, 0.09f, 1.5f, flame, d, wc == WeaponClass.Shotgun ? 0.55f : 0.35f);
+                        // Heavy guns leave a breath of smoke at the muzzle; a launcher blows its back-blast out behind.
+                        if (wc is WeaponClass.Sniper or WeaponClass.Shotgun) Fx.Add(FxKind.Smoke, p + d * 8, d * 30, 0.7f, 5, new Color(0.7f, 0.7f, 0.72f, 0.3f));
+                        if (wc == WeaponClass.Launcher)
+                            for (int k = 0; k < 5; k++) Fx.Add(FxKind.Smoke, p - d * 10, -d * Fx.Rand(60, 140) + new Vector2(Fx.Rand(-30, 30), Fx.Rand(-30, 30)), Fx.Rand(0.8f, 1.4f), 7, new Color(0.65f, 0.65f, 0.68f, 0.4f));
+                        if (wc is not (WeaponClass.Launcher or WeaponClass.Melee) && !magic)
+                        {
+                            // The case kicks out sideways, tumbling, and skitters to a stop.
+                            var sh = Fx.Add(FxKind.Shell, p - d * 4, new Vector2(-d.Y, d.X) * Fx.Rand(70, 130) - d * Fx.Rand(0, 30), 1.1f, wc == WeaponClass.Shotgun ? 3.6f : 2.6f,
+                                wc == WeaponClass.Shotgun ? new Color(0.8f, 0.15f, 0.12f) : new Color(0.92f, 0.72f, 0.3f));
+                            sh.Spin = Fx.Rand(-20, 20);
+                            sh.Drag = 5;
+                        }
                         if (mine) Shake = wc switch { WeaponClass.Shotgun => 5, WeaponClass.Sniper => 6, WeaponClass.Launcher => 7, WeaponClass.Lmg => 2.5f, _ => 1.5f };
                     }
                     break;
@@ -245,10 +383,18 @@ public partial class RunView : Node2D
                 case Ev.Impact:
                     if (!seen) break;
                     var tile = (Tile)e.A;
-                    if (tile == Tile.Glass) break;
-                    Glow.Burst(FxKind.Spark, p, 4, 200, 0.15f, 1.2f, new Color(1, 0.8f, 0.5f), -Art.G(e.Dir), 0.9f);
-                    Fx.Burst(FxKind.Debris, p, 2, 60, 0.4f, 3, LevelArt.WallColour(tile));
-                    Fx.Add(FxKind.Smoke, p, Vector2.Zero, 0.6f, 4, new Color(0.6f, 0.6f, 0.6f, 0.25f));
+                    if (tile == Tile.Glass)
+                    {
+                        Fx.Burst(FxKind.Debris, p, 3, 70, 0.4f, 1.6f, new Color(0.75f, 0.95f, 1f, 0.8f));
+                        break;
+                    }
+                    // A ricochet: sparks thrown back, chips of the wall, a puff of its dust, and a hole left in it.
+                    Glow.Burst(FxKind.Spark, p, 5, 240, 0.16f, 1.3f, new Color(1, 0.82f, 0.5f), -Art.G(e.Dir), 0.9f);
+                    Glow.Add(FxKind.Flash, p, Vector2.Zero, 0.06f, 12, new Color(1, 0.85f, 0.6f, 0.6f));
+                    Color wall = LevelArt.WallColour(tile);
+                    Fx.Burst(FxKind.Debris, p, 3, 80, 0.45f, 2.6f, wall);
+                    Fx.Add(FxKind.Smoke, p, -Art.G(e.Dir) * 25, 0.8f, 4, wall.Lightened(0.3f) with { A = 0.35f });
+                    _decals.Add(p + new Vector2(Fx.Rand(-2, 2), Fx.Rand(-2, 2)), Fx.Rand(1.2f, 1.9f), new Color(0.04f, 0.04f, 0.04f, 0.75f));
                     Play(Sound.Debris, e.Pos, 0.25f, 1.6f);
                     break;
                 case Ev.Hit:
@@ -289,19 +435,22 @@ public partial class RunView : Node2D
                     if (kind == GrenadeKind.Fire)
                     {
                         Play(Sound.Ignite, e.Pos, 1, 1, 30);
-                        Glow.Add(FxKind.Flash, p, Vector2.Zero, 0.5f, rad * 1.4f, new Color(1, 0.5f, 0.1f, 0.8f));
+                        Glow.Add(FxKind.Flash, p, Vector2.Zero, 0.6f, rad * 2f, new Color(1, 0.5f, 0.1f, 0.7f));
+                        // The bottle bursts into a sheet of flame across the floor.
+                        for (int k = 0; k < 14; k++)
+                        {
+                            Vector2 off = Vector2.FromAngle(Fx.Rand(0, MathF.Tau)) * Fx.Rand(0, rad * 0.9f);
+                            Glow.Fire(p + off * 0.3f, off * 2.2f, Fx.Rand(0.5f, 0.9f), Fx.Rand(10, 18), 22, new Color(1, 0.75f, 0.3f, 0.9f), new Color(0.7f, 0.12f, 0.03f, 0.3f));
+                        }
                         break;
                     }
                     Play(Sound.Explosion, e.Pos, 1, Fx.Rand(0.9f, 1.1f), 45);
-                    Glow.Add(FxKind.Flash, p, Vector2.Zero, 0.35f, rad * 2.2f, new Color(1, 0.7f, 0.35f, 1));
-                    Glow.Add(FxKind.Flash, p, Vector2.Zero, 0.15f, rad * 1.2f, new Color(1, 1, 0.9f, 1));
-                    Glow.Burst(FxKind.Spark, p, 24, 600, 0.35f, 2, new Color(1, 0.75f, 0.3f));
-                    Fx.Burst(FxKind.Debris, p, 14, 260, 0.8f, 4, new Color(0.3f, 0.3f, 0.3f));
-                    for (int k = 0; k < 8; k++) Fx.Add(FxKind.Smoke, p + new Vector2(Fx.Rand(-rad, rad), Fx.Rand(-rad, rad)) * 0.4f, new Vector2(Fx.Rand(-30, 30), Fx.Rand(-30, 30)), Fx.Rand(1.2f, 2.4f), Fx.Rand(10, 22), new Color(0.12f, 0.12f, 0.13f, 0.65f));
-                    var ring = Fx.Add(FxKind.Ring, p, new Vector2(rad * 3, 0), 0.3f, rad * 0.3f, new Color(1, 0.9f, 0.7f, 0.6f));
-                    ring.Drag = 0;
-                    _decals.Add(p, rad * 0.55f, new Color(0.02f, 0.02f, 0.02f, 0.55f));
+                    // What went off: a spell's fireball (all fire, no shrapnel), a barrel (burning fuel thrown about), or a grenade or rocket.
+                    bool spell = FlewInto(e.Pos, ShotKind.Fireball), barrel = !spell && _barrels.Exists(b => V2.Distance(b.at, e.Pos) < 0.8f);
+                    Explosion(p, rad, spell ? Blast.Spell : barrel ? Blast.Barrel : Blast.Frag);
                     Shake = 10 + 14 * Vol(e.Pos, 20);
+                    float near = Vol(e.Pos, 14);
+                    if (near > 0) ScreenFx.Instance?.Jolt(0.18f * near);
                     break;
                 }
                 case Ev.Gas:
@@ -328,6 +477,7 @@ public partial class RunView : Node2D
                     else
                     {
                         Play(Sound.Debris, e.Pos, 0.8f);
+                        if (was == Tile.Barrel) _barrels.Add((e.Pos, R.Time));
                         Color c = was switch { Tile.Crate or Tile.Door or Tile.Desk => new Color(0.45f, 0.33f, 0.18f), Tile.Barrel => new Color(0.6f, 0.1f, 0.1f), _ => LevelArt.WallColour(was) };
                         Fx.Burst(FxKind.Debris, p, 12, 160, 0.7f, 4, c);
                         for (int k = 0; k < 3; k++) Fx.Add(FxKind.Smoke, p, new Vector2(Fx.Rand(-20, 20), Fx.Rand(-20, 20)), 1.4f, 10, new Color(0.5f, 0.5f, 0.5f, 0.35f));
@@ -386,12 +536,41 @@ public partial class RunView : Node2D
                     var ab = (Ability)(int)e.Value;
                     // An area spell marks where it lands (Ev.Spell), not the caster: a pulse here would read as the spell going off on you.
                     if (Run.AreaRadius(ab) > 0) break;
-                    var rr = Glow.Add(FxKind.Ring, p, new Vector2(400, 0), 0.4f, 10, ab == Ability.Cloak ? new Color(0.6f, 0.8f, 1f, 0.8f) : UITheme.Cyan);
+                    bool cast = ab is Ability.Manabolt or Ability.Summon or Ability.Ward or Ability.Astral or Ability.Project;
+                    var rr = Glow.Add(FxKind.Ring, p, new Vector2(cast ? 240 : 400, 0), cast ? 0.3f : 0.4f, 10, ab == Ability.Cloak ? new Color(0.6f, 0.8f, 1f, 0.8f) : cast ? new Color(0.7f, 0.45f, 1f, 0.7f) : UITheme.Cyan);
                     rr.Drag = 0;
+                    switch (ab)
+                    {
+                        // The wires fire: a second, tighter pulse and a crackle of cyan off your body.
+                        case Ability.Overclock:
+                            var r2 = Glow.Add(FxKind.Ring, p, new Vector2(220, 0), 0.3f, 6, UITheme.Cyan);
+                            r2.Drag = 0;
+                            Glow.Burst(FxKind.Spark, p, 14, 220, 0.3f, 1.3f, UITheme.Cyan);
+                            break;
+                        // The skin bends the light: a shimmer that swallows you.
+                        case Ability.Cloak:
+                            for (int k = 0; k < 16; k++)
+                            {
+                                Vector2 off = Vector2.FromAngle(Fx.Rand(0, MathF.Tau)) * Fx.Rand(14, 26);
+                                Glow.Add(FxKind.Ember, p + off, -off * 2.5f, 0.35f, 1.5f, new Color(0.7f, 0.85f, 1f)).Drag = 0;
+                            }
+                            break;
+                        // Astral sight and projection open the other side: a slow violet swell.
+                        case Ability.Astral:
+                        case Ability.Project:
+                            Glow.Add(FxKind.Flash, p, Vector2.Zero, 0.7f, 70, new Color(0.65f, 0.45f, 1f, 0.5f));
+                            Glow.Burst(FxKind.Ember, p, 14, 50, 1f, 1.8f, new Color(0.75f, 0.55f, 1f));
+                            break;
+                    }
                     break;
                 case Ev.Flash:
                     Play(Sound.Flash, e.Pos, 1, 1, 30);
                     Glow.Add(FxKind.Flash, p, Vector2.Zero, 0.5f, e.Value * T * 2.5f, new Color(1, 1, 1, 1));
+                    Glow.Add(FxKind.Flash, p, Vector2.Zero, 0.12f, e.Value * T * 0.8f, new Color(1, 1, 1, 1));
+                    var fr = Glow.Add(FxKind.Ring, p, new Vector2(e.Value * T * 5, 0), 0.22f, 8, new Color(1, 1, 1, 0.8f));
+                    fr.Drag = 0;
+                    fr.Width = 5;
+                    Glow.Burst(FxKind.Spark, p, 18, 500, 0.25f, 1.5f, new Color(1, 1, 0.95f));
                     break;
                 case Ev.Emp:
                 {
@@ -399,6 +578,10 @@ public partial class RunView : Node2D
                     var ring = Glow.Add(FxKind.Ring, p, new Vector2(e.Value * T * 4, 0), 0.4f, 6, new Color(0.4f, 0.7f, 1f, 1));
                     ring.Drag = 0;
                     Glow.Burst(FxKind.Spark, p, 30, 300, 0.4f, 1.2f, new Color(0.5f, 0.8f, 1f));
+                    // Arcs of current crawling out to the edge of the pulse.
+                    for (int k = 0; k < 6; k++)
+                        Glow.Bolt(p, p + Vector2.FromAngle(Fx.Rand(0, MathF.Tau)) * e.Value * T * Fx.Rand(0.5f, 1f), Fx.Rand(0.15f, 0.3f), 1.6f, new Color(0.5f, 0.8f, 1f, 0.9f), 7, 1);
+                    Glow.Add(FxKind.Flash, p, Vector2.Zero, 0.3f, e.Value * T * 1.6f, new Color(0.4f, 0.65f, 1f, 0.5f));
                     break;
                 }
                 case Ev.Ignite: Play(Sound.Ignite, e.Pos, 0.5f); break;
@@ -428,22 +611,59 @@ public partial class RunView : Node2D
                     var spell = (Ability)(int)e.Value;
                     Vector2 to = Art.G(e.Dir, T);
                     Sfx.Instance?.Play(spell == Ability.Fireball ? Sound.Fireball : Sound.Ability, spell == Ability.Manabolt ? 1.6f : 1f);
-                    Glow.Add(FxKind.Flash, p, Vector2.Zero, 0.3f, 40, new Color(0.7f, 0.4f, 1f, 0.9f));
-                    if (spell == Ability.Manabolt)
+                    Color mana = new(0.72f, 0.45f, 1f, 0.95f);
+                    // The caster's hands: violet for most spells, a flare of orange as a fireball leaves them.
+                    Glow.Add(FxKind.Flash, p, Vector2.Zero, 0.3f, 44, spell == Ability.Fireball ? new Color(1, 0.55f, 0.15f, 0.9f) : mana);
+                    Glow.Burst(FxKind.Ember, p, 8, 90, 0.5f, 1.6f, spell == Ability.Fireball ? new Color(1, 0.6f, 0.2f) : mana);
+                    switch (spell)
                     {
-                        for (int k = 0; k <= 10; k++)
+                        case Ability.Manabolt:
+                            // Raw mana, forking: two strands of jagged light, a flash where it bites.
+                            Glow.Bolt(p, to, 0.26f, 4.5f, mana, 12, 3);
+                            Glow.Bolt(p, to, 0.18f, 2.2f, new Color(0.92f, 0.8f, 1f, 1), 7, 1);
+                            Glow.Add(FxKind.Flash, p.Lerp(to, 0.5f), Vector2.Zero, 0.2f, p.DistanceTo(to) * 0.6f, mana with { A = 0.25f });
+                            Glow.Add(FxKind.Flash, to, Vector2.Zero, 0.25f, 34, mana);
+                            Glow.Burst(FxKind.Spark, to, 16, 240, 0.3f, 1.5f, new Color(0.85f, 0.6f, 1f));
+                            break;
+                        case Ability.Fireball:
+                            Glow.Cone(p, (to - p).Normalized(), 0.12f, 30, 0.45f, new Color(1, 0.6f, 0.2f, 0.9f));
+                            break;
+                        case Ability.Heal:
                         {
-                            Vector2 q = p.Lerp(to, k / 10f) + new Vector2(Fx.Rand(-5, 5), Fx.Rand(-5, 5));
-                            Glow.Add(FxKind.Flash, q, Vector2.Zero, 0.25f, 14, new Color(0.75f, 0.45f, 1f, 0.9f));
+                            // The circle it knit, where it was cast: a pulse out to its true edge, a soft green light, motes rising.
+                            float hrad = Run.AreaRadius(spell) * T;
+                            var hr = Glow.Add(FxKind.Ring, to, new Vector2((hrad - 10) / 0.4f, 0), 0.4f, 10, UITheme.Good with { A = 0.9f });
+                            hr.Drag = 0;
+                            hr.Width = 4;
+                            Glow.Add(FxKind.Flash, to, Vector2.Zero, 0.6f, hrad * 1.4f, UITheme.Good with { A = 0.35f });
+                            for (int k = 0; k < 22; k++)
+                                Glow.Add(FxKind.Ember, to + Vector2.FromAngle(Fx.Rand(0, MathF.Tau)) * Fx.Rand(0, hrad), new Vector2(Fx.Rand(-8, 8), Fx.Rand(-70, -30)), Fx.Rand(0.7f, 1.2f), 2, UITheme.Good).Drag = 0.8f;
+                            break;
                         }
-                        Glow.Burst(FxKind.Spark, to, 14, 200, 0.3f, 1.5f, new Color(0.85f, 0.6f, 1f));
-                    }
-                    else if (spell == Ability.Heal)
-                    {
-                        // The circle it knit, where it was cast: a pulse out to its true edge.
-                        var hr = Glow.Add(FxKind.Ring, to, new Vector2((Run.AreaRadius(spell) * T - 10) / 0.4f, 0), 0.4f, 10, UITheme.Good with { A = 0.9f });
-                        hr.Drag = 0;
-                        Glow.Burst(FxKind.Ember, to, 18, 70, 0.8f, 2, UITheme.Good);
+                        case Ability.Summon:
+                        {
+                            // The spirit is called in: a ring closing on the spot, sparks drawn inward, then it bursts into being.
+                            var close = Glow.Add(FxKind.Ring, to, new Vector2(-150, 0), 0.35f, 60, new Color(1, 0.55f, 0.2f, 0.8f));
+                            close.Drag = 0;
+                            close.Width = 4;
+                            for (int k = 0; k < 18; k++)
+                            {
+                                Vector2 off = Vector2.FromAngle(Fx.Rand(0, MathF.Tau)) * Fx.Rand(40, 60);
+                                Glow.Add(FxKind.Ember, to + off, -off * 3.2f, 0.3f, 2, new Color(1, 0.6f, 0.25f)).Drag = 0;
+                            }
+                            for (int k = 0; k < 8; k++) Glow.Fire(to, Vector2.FromAngle(Fx.Rand(0, MathF.Tau)) * Fx.Rand(30, 90), 0.55f, 12, 20, new Color(1, 0.8f, 0.4f, 0.9f), new Color(0.7f, 0.15f, 0.05f, 0.2f));
+                            break;
+                        }
+                        case Ability.Ward:
+                        {
+                            // A barrier raised across the corridor: a blue shimmer, sparks running along it.
+                            Glow.Add(FxKind.Flash, to, Vector2.Zero, 0.5f, 54, new Color(0.45f, 0.7f, 1f, 0.6f));
+                            var wr = Glow.Add(FxKind.Ring, to, new Vector2(160, 0), 0.4f, 8, new Color(0.55f, 0.8f, 1f, 0.9f));
+                            wr.Drag = 0;
+                            wr.Width = 5;
+                            Glow.Burst(FxKind.Spark, to, 18, 160, 0.5f, 1.4f, new Color(0.6f, 0.85f, 1f));
+                            break;
+                        }
                     }
                     break;
                 }
@@ -714,14 +934,15 @@ public partial class RunView : Node2D
     {
         /// <summary>The newest spots, oldest first from <see cref="_spotHead"/>: a ring, so the 602nd drops the first without shifting the rest.</summary>
         private const int MaxSpots = 601;
-        private readonly (Vector2 p, float r, Color c)[] _spots = new (Vector2, float, Color)[MaxSpots];
+        private readonly (Vector2 p, float r, Color c, bool soft)[] _spots = new (Vector2, float, Color, bool)[MaxSpots];
         private int _spotHead, _spotCount;
         private readonly List<(Actor a, Faction f, float facing)> _bodies = new();
 
-        public void Add(Vector2 p, float r, Color c)
+        /// <summary>A spot on the floor: hard-edged (blood, a bullet hole), or <paramref name="soft"/> (scorch, feathering out).</summary>
+        public void Add(Vector2 p, float r, Color c, bool soft = false)
         {
-            if (_spotCount < MaxSpots) _spots[(_spotHead + _spotCount++) % MaxSpots] = (p, r, c);
-            else { _spots[_spotHead] = (p, r, c); _spotHead = (_spotHead + 1) % MaxSpots; }
+            if (_spotCount < MaxSpots) _spots[(_spotHead + _spotCount++) % MaxSpots] = (p, r, c, soft);
+            else { _spots[_spotHead] = (p, r, c, soft); _spotHead = (_spotHead + 1) % MaxSpots; }
             _dirty = true;
         }
 
@@ -746,8 +967,11 @@ public partial class RunView : Node2D
             using var _perf = Perf.Time("run.draw.decals");
             for (int k = 0; k < _spotCount; k++)
             {
-                var (p, r, c) = _spots[(_spotHead + k) % MaxSpots];
-                DrawCircle(p, r, c);
+                var (p, r, c, soft) = _spots[(_spotHead + k) % MaxSpots];
+                if (!soft) { DrawCircle(p, r, c); continue; }
+                // Scorch: a burnt heart feathering out into soot.
+                DrawTextureRect(Art.Soft, new Rect2(p - new Vector2(r, r) * 1.6f, new Vector2(r, r) * 3.2f), false, c with { A = MathF.Min(1, c.A * 1.5f) });
+                DrawTextureRect(Art.Soft, new Rect2(p - new Vector2(r, r) * 0.7f, new Vector2(r, r) * 1.4f), false, c with { A = c.A * 0.8f });
             }
             foreach (var (a, f, facing) in _bodies)
             {
@@ -1086,13 +1310,16 @@ public partial class RunView : Node2D
                     case ShotKind.Rocket:
                         DrawLine(p, p - Art.G(M.Norm(s.Vel)) * 10, new Color(0.7f, 0.7f, 0.7f), 4);
                         Art.DrawGlow(this, p - Art.G(M.Norm(s.Vel)) * 10, 14, new Color(1, 0.6f, 0.2f, 0.9f));
-                        if (V.Fx.Rand(0, 1) < 0.6f) V.Fx.Add(FxKind.Smoke, p, Vector2.Zero, 0.8f, 5, new Color(0.6f, 0.6f, 0.6f, 0.4f));
                         break;
                     case ShotKind.Fireball:
-                        Art.DrawGlow(this, p, 22, new Color(1, 0.45f, 0.1f, 0.9f));
-                        DrawCircle(p, 5, new Color(1, 0.9f, 0.6f));
-                        if (V.Fx.Rand(0, 1) < 0.5f) V.Glow.Add(FxKind.Ember, p, new Vector2(V.Fx.Rand(-30, 30), V.Fx.Rand(-30, 30)), 0.4f, 2, new Color(1, 0.6f, 0.2f));
+                    {
+                        // A churning ball: a wide halo, a flickering body, a white-hot heart (the trail is TrackShots').
+                        float fl = 0.85f + 0.15f * MathF.Sin(r.Time * 37 + s.Pos.X);
+                        Art.DrawGlow(this, p, 34 * fl, new Color(1, 0.4f, 0.08f, 0.6f));
+                        Art.DrawGlow(this, p, 16 * fl, new Color(1, 0.75f, 0.3f, 0.95f));
+                        DrawCircle(p, 4.5f, new Color(1, 0.97f, 0.8f));
                         break;
+                    }
                     default:
                         Color tc = s.Team == 0 ? new Color(1, 0.95f, 0.6f) : new Color(1, 0.55f, 0.35f);
                         DrawLine(tail, p, tc with { A = 0.35f }, s.Kind == ShotKind.Pellet ? 1.5f : 2.5f);

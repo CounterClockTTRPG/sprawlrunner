@@ -129,7 +129,7 @@ public sealed partial class CitySim
         if (ch.LostT > 6 || police && Stars == 0 || car.Hp <= 0)
         {
             ch.Gone = true;
-            if (car.Hp <= 0) Events.Add(new CityEvent(CityEv.Crash, car.Pos, 5));
+            if (car.Hp <= 0) { Events.Add(new CityEvent(CityEv.Crash, car.Pos, 5)); Events.Add(new CityEvent(CityEv.Wreck, car.Pos, car.Def.Length, null, car.Pos + car.Forward)); }
             else if (!police) Events.Add(new CityEvent(CityEv.Lost, car.Pos, 0, "You lost them."));
             return;
         }
@@ -211,7 +211,8 @@ public sealed partial class CitySim
             if (ch.ShootT <= 0)
             {
                 ch.ShootT = R.Range(0.25f, 0.5f);
-                Events.Add(new CityEvent(CityEv.Gunfire, car.Pos, 0, null));
+                // Where the burst goes, for the tracer: at you, a little off either side (from the roll already made, so the dice stay as they were).
+                Events.Add(new CityEvent(CityEv.Gunfire, car.Pos, 0, null, Player.Pos + M.Perp(M.Norm(Player.Pos - car.Pos)) * ((ch.ShootT - 0.375f) * 6)));
                 Gunfire(car.Pos);
                 if (R.Chance(0.55f)) Hurt(2.5f, CityEv.Gunfire, Player.Pos + new V2(R.Range(-0.4f, 0.4f), R.Range(-0.4f, 0.4f)));
             }
@@ -292,7 +293,7 @@ public sealed partial class CitySim
             {
                 _gunT = 0.2f;
                 target.Car.Hp -= 3.5f;
-                Events.Add(new CityEvent(CityEv.Gunfire, Player.Pos, 0));
+                Events.Add(new CityEvent(CityEv.Gunfire, Player.Front, 0, null, target.Car.Pos));
                 Gunfire(Player.Pos);
                 // Shooting at Lone Star is a crime of its own.
                 if (target.Kind == ChaserKind.Police) AddHeat(0.05f);

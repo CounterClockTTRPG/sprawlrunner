@@ -1018,6 +1018,116 @@ public partial class ShotRunner : Node
                 }
                 Root.EnterCity();
             }
+            if (Want("vfx"))
+            {
+                // The effects, each caught at its height: guns and their tracers, a grenade, a barrel, a fireball in flight
+                // and landing, a manabolt, an EMP -- then a fight on the road and a chaser going up.
+                Root.EnterCity();
+                await Frames(5);
+                Career vc = Root.Career;
+                foreach (string w in new[] { "breacher", "longshot" }) if (!vc.Weapons.Contains(w)) vc.Weapons.Add(w);
+                (vc.Primary, vc.Secondary) = ("breacher", "longshot");
+                foreach (string sp in new[] { "fireball", "manabolt" }) if (!vc.Spells.Contains(sp)) vc.Spells.Add(sp);
+                vc.SpellSlots = new[] { "fireball", "manabolt", null };
+                var vj = new Job { Id = 952, Type = JobType.Clear, Style = SiteStyle.Warehouse, Threat = 3, Seed = 99, Faction = Faction.Vipers, District = "docks", Target = "x", Item = "case", Title = "Effects", Lot = -1 };
+                Root.StartRun(vj);
+                await Frames(10);
+                Sprawl.Run vr = Root.RunScreen.R;
+                foreach (Actor a in vr.Actors.Where(a => a.Hostile).ToList()) vr.Actors.Remove(a);
+                vr.Player.MaxHp = vr.Player.Hp = 1e6f;
+                V2 v0 = vr.Player.Pos;
+                for (int k = 0; k < 40; k++) { V2 t = vr.Player.Pos + new V2(0, 4 + k * 0.25f); if (Enumerable.Range(-7, 15).All(dx => vr.L[Pt.Of(t + new V2(dx, -3))] == Tile.Floor && vr.L[Pt.Of(t + new V2(dx, 3))] == Tile.Floor)) { v0 = t; break; } }
+                vr.Player.Pos = v0;
+                Root.RunView.Cam.Zoom = new Vector2(2f, 2f);
+                async Task Go(int frames, RunInput inp)
+                {
+                    for (int i = 0; i < frames; i++) { vr.Step(inp); Root.RunView.Frame(1 / 60f); vr.Events.Clear(); await Frames(1); }
+                }
+                RunInput Idle(V2 aim) => new() { Slot = -1, Aim = aim };
+                async Task Settle() { await Go(150, Idle(v0 + new V2(5, 0))); vr.AbilityCd.Clear(); }
+                await Settle();
+                // The shotgun, then the sniper, at a guard who shoots back.
+                Actor tgt = vr.AddEnemy(EnemyKind.Guard, v0 + new V2(6, -1.5f), MathF.PI);
+                tgt.MaxHp = tgt.Hp = 1e5f;
+                vr.BecomeAlert(tgt, vr.Player.Pos);
+                await Go(1, new RunInput { Slot = 0, Aim = tgt.Pos });
+                for (int i = 0; i < 40; i++) { vr.Step(new RunInput { Slot = -1, Fire = i % 20 == 0, Aim = tgt.Pos }); Root.RunView.Frame(1 / 60f); vr.Events.Clear(); await Frames(1); }
+                await Go(1, new RunInput { Slot = 1, Aim = tgt.Pos });
+                await Go(30, Idle(tgt.Pos));
+                await Go(1, new RunInput { Slot = -1, Fire = true, Aim = tgt.Pos });
+                await Go(3, Idle(tgt.Pos));
+                await Shot("40_vfx_guns");
+                vr.Actors.Remove(tgt);
+                await Settle();
+                // A frag grenade, a twelfth of a second in.
+                vr.Explode(v0 + new V2(4, 0), 3, 0, GrenadeKind.Frag, vr.Player.Id, 0);
+                await Go(5, Idle(v0 + new V2(4, 0)));
+                await Shot("41_vfx_frag");
+                await Settle();
+                // A barrel going up.
+                Pt bp = Pt.Of(v0 + new V2(4, 0));
+                vr.L.Set(bp.X, bp.Y, Tile.Barrel);
+                vr.DamageTile(bp, 1e4f, bp.Centre);
+                await Go(6, Idle(bp.Centre));
+                await Shot("42_vfx_barrel");
+                await Go(40, Idle(bp.Centre));
+                await Shot("42b_vfx_barrel_after");
+                await Settle();
+                // A fireball: in flight, then where it lands.
+                await Go(1, new RunInput { Slot = -1, Cast = 1, Aim = v0 + new V2(7, 0) });
+                await Go(14, Idle(v0 + new V2(7, 0)));
+                await Shot("43_vfx_fireball");
+                for (int i = 0; i < 90 && vr.Shots.Count > 0; i++) await Go(1, Idle(v0 + new V2(7, 0)));
+                await Go(5, Idle(v0 + new V2(7, 0)));
+                await Shot("43b_vfx_fireball_hit");
+                await Settle();
+                // A manabolt into a guard.
+                Actor mt = vr.AddEnemy(EnemyKind.Guard, v0 + new V2(6, 1), MathF.PI);
+                mt.MaxHp = mt.Hp = 1e5f;
+                await Go(1, new RunInput { Slot = -1, Cast = 2, Aim = mt.Pos });
+                await Go(3, Idle(mt.Pos));
+                await Shot("44_vfx_manabolt");
+                vr.Actors.Remove(mt);
+                await Settle();
+                // An EMP grenade goes off as its own event (Detonate), not as a blast.
+                vr.Events.Add(new RunEvent(Ev.Emp, v0 + new V2(4, 0), default, 3));
+                Root.RunView.Frame(1 / 60f);
+                vr.Events.Clear();
+                await Go(4, Idle(v0 + new V2(4, 0)));
+                await Shot("45_vfx_emp");
+                // The road: gangers shooting at you, your guns shooting back, and one of them wrecked.
+                Root.EnterCity();
+                await Frames(10);
+                if (!vc.CarMods.TryGetValue(vc.Vehicle, out var mods)) vc.CarMods[vc.Vehicle] = mods = new System.Collections.Generic.List<string>();
+                bool hadGuns = mods.Contains("guns");
+                if (!hadGuns) mods.Add("guns");
+                CitySim vs = Root.CitySim;
+                vs.Ambush(2);
+                Root.CityView.Cam.Zoom = new Vector2(1.6f, 1.6f);
+                bool wrecked = false;
+                // Sit still and let them come: the shot is taken the moment one of them opens up within sight.
+                bool shotRoad = false;
+                for (int i = 0; i < 900 && !wrecked; i++)
+                {
+                    vs.Step(1 / 60f, new DriveInput());
+                    bool firing = vs.Events.Any(ev => ev.Kind == CityEv.Gunfire && ev.To != default && V2.Distance(ev.Pos, vs.Player.Pos) < 9);
+                    Root.CityView.Frame(1 / 60f);
+                    if (firing && !shotRoad) { await Frames(1); await Shot("46_vfx_road"); shotRoad = true; }
+                    if (shotRoad && vs.Chasers.Where(ch => !ch.Gone && V2.Distance(ch.Car.Pos, vs.Player.Pos) < 7).OrderBy(ch => V2.Distance(ch.Car.Pos, vs.Player.Pos)).FirstOrDefault() is Chaser vch)
+                    {
+                        vch.Car.Hp = 0;
+                        wrecked = true;
+                        for (int k = 0; k < 8; k++) { vs.Step(1 / 60f, new DriveInput()); Root.CityView.Frame(1 / 60f); }
+                        await Frames(1);
+                        await Shot("47_vfx_wreck");
+                        for (int k = 0; k < 90; k++) { vs.Step(1 / 60f, new DriveInput()); Root.CityView.Frame(1 / 60f); }
+                        await Frames(1);
+                        await Shot("47b_vfx_wreck_burning");
+                    }
+                }
+                if (!hadGuns) mods.Remove("guns");
+                vs.Chasers.Clear();
+            }
             if (Want("run") || Want("highend"))
             {
                 // The high end, lined up in one warehouse: spider, ghost operative (revealed), bulwark, barghest howling, and a hive.
