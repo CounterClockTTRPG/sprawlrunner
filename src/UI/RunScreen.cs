@@ -50,7 +50,7 @@ public partial class RunScreen : Control
     private float _endT;
     // Edge-triggered input collected between physics steps.
     private bool _dash, _reload, _medkit, _q, _f, _g, _throwRelease, _ePressed, _whistle, _rig;
-    private int _slot = -1, _cycle;
+    private int _slot = -1, _cycle, _cast;
     private readonly List<(string text, float t, Color c)> _log = new();
     private float _chipsBottom = 64;
     public IEnumerable<string> Log => _log.Select(l => l.text);
@@ -90,8 +90,12 @@ public partial class RunScreen : Control
         if (Controls.Is(e, Act.Dash)) _dash = true;
         else if (Controls.Is(e, Act.Reload)) _reload = true;
         else if (Controls.Is(e, Act.Medkit)) _medkit = true;
-        else if (Controls.Is(e, Act.AbilityQ)) _q = true;
-        else if (Controls.Is(e, Act.AbilityF)) _f = true;
+        // A pad has no buttons spare: Y and RB cast spells 1 and 2 when there's no chrome in that slot.
+        else if (Controls.Is(e, Act.AbilityQ)) { if (e is InputEventJoypadButton && R?.C.SlotQ == Ability.None) _cast = 1; else _q = true; }
+        else if (Controls.Is(e, Act.AbilityF)) { if (e is InputEventJoypadButton && R?.C.SlotF == Ability.None) _cast = 2; else _f = true; }
+        else if (Controls.Is(e, Act.Spell1)) _cast = 1;
+        else if (Controls.Is(e, Act.Spell2)) _cast = 2;
+        else if (Controls.Is(e, Act.Spell3)) _cast = 3;
         else if (Controls.Is(e, Act.Grenade)) _g = true;
         else if (Controls.Is(e, Act.Interact)) _ePressed = true;
         else if (Controls.Is(e, Act.Whistle)) _whistle = true;
@@ -144,7 +148,7 @@ public partial class RunScreen : Control
         float dt = (float)delta;
         if (!_ended)
         {
-            var inp = new RunInput { Slot = _slot, Cycle = _cycle };
+            var inp = new RunInput { Slot = _slot, Cycle = _cycle, Cast = _cast };
             if (Controls.Down(Act.Up)) inp.Move.Y -= 1;
             if (Controls.Down(Act.Down)) inp.Move.Y += 1;
             if (Controls.Down(Act.Left)) inp.Move.X -= 1;
@@ -168,7 +172,7 @@ public partial class RunScreen : Control
             View.ShowArc = inp.ThrowHeld;
             _dash = _reload = _medkit = _q = _f = _g = _throwRelease = _ePressed = _whistle = _rig = false;
             _slot = -1;
-            _cycle = 0;
+            _cycle = _cast = 0;
             using (Perf.Time("run.step")) R.Step(inp);
         }
         foreach (RunEvent e in R.Events)
@@ -369,20 +373,25 @@ public partial class RunScreen : Control
             string nade = n > 0 || r.Nades.Values.Any(v => v > 0) ? $"[RMB] {Tables.Grenade(r.NadeSel).Name} x{n}   [{Controls.KeyName(Act.Grenade)}] next" : "No grenades";
             UITheme.Write(this, new Vector2(size.X - 424, size.Y - 24), nade, 15, n > 0 ? UITheme.Good : UITheme.Faint);
 
-            // Abilities.
-            float ax = size.X / 2 - 150;
-            foreach (var (key, ab) in new[] { (Controls.KeyName(Act.AbilityQ), r.C.SlotQ), (Controls.KeyName(Act.AbilityF), r.C.SlotF) })
+            // Abilities: the chrome on Q/F, then the three spells (violet), whichever slots are filled, centred.
+            var bar = new[]
             {
-                if (ab == Ability.None) { ax += 150; continue; }
-                var box = new Rect2(ax, size.Y - 74, 140, 56);
+                (Controls.KeyName(Act.AbilityQ), r.C.SlotQ, false), (Controls.KeyName(Act.AbilityF), r.C.SlotF, false),
+                (Controls.KeyName(Act.Spell1), r.C.SpellAbility(0), true), (Controls.KeyName(Act.Spell2), r.C.SpellAbility(1), true), (Controls.KeyName(Act.Spell3), r.C.SpellAbility(2), true),
+            }.Where(s => s.Item2 != Ability.None).ToList();
+            float ax = size.X / 2 - (bar.Count * 136 - 8) / 2f;
+            foreach (var (key, ab, spell) in bar)
+            {
+                var box = new Rect2(ax, size.Y - 74, 128, 56);
                 Panel(box);
                 float cd = r.AbilityCd.GetValueOrDefault(ab);
                 float max = r.C.Cooldown(ab);
                 bool active = ab == Ability.Overclock && r.OverclockT > 0 || ab == Ability.Cloak && r.CloakT > 0;
-                if (cd > 0) DrawRect(new Rect2(box.Position, new Vector2(box.Size.X * (1 - cd / max), box.Size.Y)), UITheme.Cyan with { A = 0.12f });
-                UITheme.Write(this, box.Position + new Vector2(10, 24), $"[{key}] {Career.AbilityName(ab)}", 16, active ? UITheme.Magenta : cd > 0 ? UITheme.Faint : UITheme.Cyan, heading: true);
+                Color ink = spell ? UITheme.Violet : UITheme.Cyan;
+                if (cd > 0) DrawRect(new Rect2(box.Position, new Vector2(box.Size.X * (1 - cd / max), box.Size.Y)), ink with { A = 0.12f });
+                UITheme.Write(this, box.Position + new Vector2(10, 24), $"[{key}] {Career.AbilityName(ab)}", 16, active ? UITheme.Magenta : cd > 0 ? UITheme.Faint : ink, heading: true);
                 UITheme.Write(this, box.Position + new Vector2(10, 46), active ? "ACTIVE" : cd > 0 ? $"{cd:0.0}s" : "ready", 14, UITheme.Dim);
-                ax += 150;
+                ax += 136;
             }
 
             // Objective and alarm.

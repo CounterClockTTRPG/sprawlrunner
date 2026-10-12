@@ -121,7 +121,24 @@ public sealed partial class Career
                 if (Programs.Contains(p) && Tables.Program(p).Mp <= MemoryFree) Loaded.Add(p);
         }
         FitLoaded();
+        MigrateSpellSlots();
         return this;
+    }
+
+    /// <summary>Old saves: the spells in the Q/F slots move to the spell slots (then the rest you know fill them),
+    /// and Q/F keep only what your chrome does.</summary>
+    private void MigrateSpellSlots()
+    {
+        if (SpellSlots == null || SpellSlots.Length != 3) SpellSlots = (SpellSlots ?? Array.Empty<string>()).Concat(new string[3]).Take(3).ToArray();
+        if (SpellSlotsSet) return;
+        SpellSlotsSet = true;
+        var chrome = ChromeAbilities.ToHashSet();
+        string SpellFor(Ability a) => chrome.Contains(a) ? null : Spells.FirstOrDefault(id => Tables.Spells.First(x => x.Id == id).Grants == a);
+        foreach (string id in new[] { SpellFor(SlotQ), SpellFor(SlotF) }.Concat(Spells))
+            if (id != null) SlotSpell(id);
+        if (!chrome.Contains(SlotQ)) SlotQ = Ability.None;
+        if (!chrome.Contains(SlotF)) SlotF = Ability.None;
+        if (SlotQ == Ability.None && SlotF != Ability.None) (SlotQ, SlotF) = (SlotF, Ability.None);
     }
 
     /// <summary>The active programs loaded, in key order (Q, F, R).</summary>

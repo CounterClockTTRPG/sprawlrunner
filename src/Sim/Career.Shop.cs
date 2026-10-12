@@ -438,9 +438,7 @@ public sealed partial class Career
                 break;
             case ShopKind.Spell:
                 Spells.Add(o.Id);
-                Ability g = Tables.Spells.First(x => x.Id == o.Id).Grants;
-                if (SlotQ == Ability.None) SlotQ = g;
-                else if (SlotF == Ability.None) SlotF = g;
+                SlotSpell(o.Id);
                 break;
             case ShopKind.Focus:
                 if (o.Id == "focus") PowerFocus = true;

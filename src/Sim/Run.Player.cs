@@ -102,7 +102,7 @@ public sealed partial class Run
         Actor p = Player;
         if (p.Dead) return;
         // Frozen by a howl: you can look, nothing else.
-        if (DazedT > 0) { inp.Move = V2.Zero; inp.Fire = inp.Dash = inp.ThrowRelease = inp.AbilityQ = inp.AbilityF = inp.Medkit = false; }
+        if (DazedT > 0) { inp.Move = V2.Zero; inp.Fire = inp.Dash = inp.ThrowRelease = inp.AbilityQ = inp.AbilityF = inp.Medkit = false; inp.Cast = 0; }
         if (OverclockT > 0) OverclockT -= dt;
         if (CloakT > 0) CloakT -= dt;
         if (OverwatchT > 0) OverwatchT -= dt;
@@ -223,6 +223,7 @@ public sealed partial class Run
         if (inp.Medkit) UseMedkit();
         if (inp.AbilityQ) UseAbility(C.SlotQ, inp.Aim);
         if (inp.AbilityF) UseAbility(C.SlotF, inp.Aim);
+        if (inp.Cast > 0) UseAbility(C.SpellAbility(inp.Cast - 1), inp.Aim);
 
         Interact(inp.Interact, inp.InteractPressed, dt);
         TakePickups();

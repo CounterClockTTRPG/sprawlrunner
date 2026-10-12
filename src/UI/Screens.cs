@@ -106,7 +106,7 @@ public static partial class Settings
             grid.AddChild(b);
         }
         m.Add(UITheme.Scroll(grid, 520));
-        m.Add(UITheme.Label("Gamepad: left stick moves/steers, right stick aims, RT fires/throttles, LT throws/brakes, A dash/handbrake, X use, B medkit, Y and RB abilities, LB grenade, d-pad weapons, L3 sneak, R3 whistle, Back map, Start pause.", 13, UITheme.Dim));
+        m.Add(UITheme.Label("Gamepad: left stick moves/steers, right stick aims, RT fires/throttles, LT throws/brakes, A dash/handbrake, X use, B medkit, Y and RB chrome (or spells 1 and 2 when that slot is empty), LB grenade, d-pad weapons, L3 sneak, R3 whistle, Back map, Start pause.", 13, UITheme.Dim));
         var row = UITheme.HBox();
         row.Alignment = BoxContainer.AlignmentMode.Center;
         row.AddChild(UITheme.Button("Reset to defaults", () => { Profile.Current.Bindings.Clear(); Profile.Current.Save(); m.Close(); Keys(host); }, 200, 40));

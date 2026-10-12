@@ -9,7 +9,7 @@ namespace Sprawl;
 public enum Act
 {
     Up, Down, Left, Right, Sneak, Interact, Reload, Dash, Medkit, AbilityQ, AbilityF, Grenade, Whistle, Map,
-    Weapon1, Weapon2, Weapon3, Handbrake, Pause, Pda, Rig, Horn,
+    Weapon1, Weapon2, Weapon3, Handbrake, Pause, Pda, Rig, Horn, Spell1, Spell2, Spell3,
 }
 
 /// <summary>
@@ -32,15 +32,16 @@ public static class Controls
         [Act.Interact] = Key.E, [Act.Reload] = Key.R, [Act.Dash] = Key.Space, [Act.Medkit] = Key.H,
         [Act.AbilityQ] = Key.Q, [Act.AbilityF] = Key.F, [Act.Grenade] = Key.G, [Act.Whistle] = Key.V, [Act.Map] = Key.M,
         [Act.Weapon1] = Key.Key1, [Act.Weapon2] = Key.Key2, [Act.Weapon3] = Key.Key3, [Act.Handbrake] = Key.Space, [Act.Pause] = Key.Escape, [Act.Pda] = Key.P, [Act.Rig] = Key.T,
-        [Act.Horn] = Key.H,
+        [Act.Horn] = Key.H, [Act.Spell1] = Key.Z, [Act.Spell2] = Key.X, [Act.Spell3] = Key.C,
     };
 
     public static readonly Dictionary<Act, string> Names = new()
     {
         [Act.Up] = "Move up / throttle", [Act.Down] = "Move down / brake", [Act.Left] = "Move left / steer left", [Act.Right] = "Move right / steer right",
         [Act.Sneak] = "Sneak (hold)", [Act.Interact] = "Use / enter", [Act.Reload] = "Reload", [Act.Dash] = "Dash", [Act.Medkit] = "Medkit",
-        [Act.AbilityQ] = "Ability 1", [Act.AbilityF] = "Ability 2", [Act.Grenade] = "Next grenade", [Act.Whistle] = "Whistle (lure)", [Act.Map] = "Map",
+        [Act.AbilityQ] = "Chrome ability 1", [Act.AbilityF] = "Chrome ability 2", [Act.Grenade] = "Next grenade", [Act.Whistle] = "Whistle (lure)", [Act.Map] = "Map",
         [Act.Weapon1] = "Primary", [Act.Weapon2] = "Secondary", [Act.Weapon3] = "Melee", [Act.Handbrake] = "Handbrake", [Act.Pause] = "Pause / back", [Act.Pda] = "PDA (city, safehouse)", [Act.Rig] = "Jack into your drone", [Act.Horn] = "Horn (in the car)",
+        [Act.Spell1] = "Spell 1", [Act.Spell2] = "Spell 2", [Act.Spell3] = "Spell 3",
     };
 
     private static readonly Dictionary<Act, JoyButton> Pad = new()
