@@ -265,6 +265,9 @@ public partial class RunView : Node2D
 
     private enum Blast { Frag, Barrel, Spell }
 
+    /// <summary>Which way the next blade sweep runs: swings alternate, forehand and back.</summary>
+    private float _swingSide = 1;
+
     /// <summary>Barrels broken just now: the blast that follows is their fuel going up.</summary>
     private readonly List<(V2 at, float t)> _barrels = new();
 
@@ -496,8 +499,29 @@ public partial class RunView : Node2D
                     for (int k = 0; k < 5; k++) Fx.Add(FxKind.Smoke, p, -Art.G(e.Dir) * 60 + new Vector2(Fx.Rand(-20, 20), Fx.Rand(-20, 20)), 0.5f, 5, new Color(0.6f, 0.9f, 1f, 0.3f));
                     break;
                 case Ev.Melee:
+                {
                     Play(e.Value > 0 ? Sound.Slash : Sound.Swing, e.Pos, 0.8f);
+                    if (!seen) break;
+                    float facing = Art.G(e.Dir).Angle();
+                    if (e.A == R.Player.Id)
+                    {
+                        // Your blade: the sweep across its true arc and reach, alternating forehand and backhand.
+                        WeaponDef w = R.MeleeDef;
+                        _swingSide = -_swingSide;
+                        Color blade = w.NonLethal ? new Color(0.55f, 0.8f, 1f, 0.9f) : new Color(0.85f, 0.97f, 1f, 0.85f);
+                        Glow.Slash(p, facing, w.Arc * MathF.PI / 360f, w.Reach * T, 0.22f, blade, _swingSide);
+                        if (w.NonLethal) Glow.Burst(FxKind.Spark, p + Art.G(e.Dir) * w.Reach * T * 0.8f, 6, 140, 0.15f, 1.2f, blade);
+                    }
+                    else
+                    {
+                        // Claws, fists and blades coming the other way: a shorter, redder sweep.
+                        Actor a = R.ActorById(e.A);
+                        float reach = ((a?.Radius ?? 0.35f) + 0.7f) * T;
+                        _swingSide = -_swingSide;
+                        Glow.Slash(p, facing, 0.9f, reach, 0.2f, new Color(1f, 0.6f, 0.5f, 0.75f), _swingSide);
+                    }
                     break;
+                }
                 case Ev.Pickup:
                 {
                     Play(e.Value == (int)PickupKind.Cash ? Sound.Coin : Sound.Pickup, e.Pos);
@@ -1353,11 +1377,6 @@ public partial class RunView : Node2D
                     }
                     float rad = Tables.Grenade(r.NadeSel).Radius * T;
                     DrawArc(b, rad, 0, MathF.Tau, 32, UITheme.Yellow with { A = 0.5f }, 1.5f);
-                }
-                if (r.MeleeSwing > 0)
-                {
-                    float arc = r.MeleeDef.Arc * MathF.PI / 360f;
-                    DrawArc(pp, r.MeleeDef.Reach * T, pl.Facing - arc, pl.Facing + arc, 16, new Color(0.8f, 1f, 1f, r.MeleeSwing * 4), 3);
                 }
             }
         }

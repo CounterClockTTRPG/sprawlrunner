@@ -4,7 +4,7 @@ using Godot;
 
 namespace Sprawl;
 
-public enum FxKind { Spark, Debris, Smoke, Flash, Blood, Ember, Shell, Ring, Text, Streak, Bolt, Fire, Cone }
+public enum FxKind { Spark, Debris, Smoke, Flash, Blood, Ember, Shell, Ring, Text, Streak, Bolt, Fire, Cone, Slash }
 
 public sealed class Particle
 {
@@ -114,6 +114,21 @@ public partial class FxLayer : Node2D
         return p;
     }
 
+    /// <summary>
+    /// A blade's sweep: a crescent that runs across the arc (<paramref name="sign"/> picks which way) in the first part
+    /// of its life and then fades, thick and bright at the leading edge, thinning to nothing behind.
+    /// </summary>
+    public Particle Slash(Vector2 pos, float facing, float halfArc, float reach, float life, Color c, float sign)
+    {
+        Particle p = Add(FxKind.Slash, pos, Vector2.Zero, life, reach, c);
+        p.Rot = facing;
+        p.Width = halfArc;
+        p.Spin = 0;
+        p.Grow = sign >= 0 ? 1 : -1;
+        p.Drag = 0;
+        return p;
+    }
+
     public void Step(float dt)
     {
         for (int i = Items.Count - 1; i >= 0; i--)
@@ -199,6 +214,38 @@ public partial class FxLayer : Node2D
                     Vector2 tip = p.Pos + d * len, l = p.Pos + d.Rotated(p.Width) * len * 0.55f, r = p.Pos + d.Rotated(-p.Width) * len * 0.55f;
                     DrawColoredPolygon(new[] { p.Pos, l, tip, r }, p.Colour with { A = p.Colour.A * u * 0.8f });
                     DrawColoredPolygon(new[] { p.Pos, p.Pos.Lerp(l, 0.5f), p.Pos.Lerp(tip, 0.7f), p.Pos.Lerp(r, 0.5f) }, new Color(1, 1, 0.9f, u));
+                    break;
+                }
+                case FxKind.Slash:
+                {
+                    // p.Grow holds the sweep's direction here (+1 or -1).
+                    float t = 1 - u, pr = MathF.Min(1, t / 0.4f), fade = pr < 1 ? 1 : MathF.Max(0, u / 0.6f);
+                    float sweep = 2 * p.Width, start = p.Rot - p.Grow * p.Width, head = start + p.Grow * sweep * pr;
+                    float tail = start + p.Grow * sweep * MathF.Max(0, pr - 0.85f) + p.Grow * sweep * (1 - fade) * pr * 0.6f;
+                    const int n = 14;
+                    var pts = new Vector2[n * 2];
+                    var cols = new Color[n * 2];
+                    for (int i = 0; i < n; i++)
+                    {
+                        float f = i / (float)(n - 1), a = tail + (head - tail) * f;
+                        Vector2 dir = Vector2.FromAngle(a);
+                        float inner = p.Size * (0.92f - 0.4f * f);
+                        pts[i] = p.Pos + dir * p.Size;
+                        pts[n * 2 - 1 - i] = p.Pos + dir * inner;
+                        Color c = p.Colour with { A = MathF.Min(1, p.Colour.A * 1.3f) * fade * f };
+                        cols[i] = c;
+                        cols[n * 2 - 1 - i] = c with { A = c.A * 0.5f };
+                    }
+                    if (MathF.Abs(head - tail) > 0.02f)
+                    {
+                        DrawPolygon(pts, cols);
+                        // The edge itself, a hard bright line near the head.
+                        var edge = new Vector2[6];
+                        for (int i = 0; i < 6; i++) edge[i] = p.Pos + Vector2.FromAngle(head - (head - tail) * 0.45f * (1 - i / 5f)) * p.Size;
+                        DrawPolyline(edge, p.Colour with { A = 0.5f * fade }, 5f);
+                        DrawPolyline(edge, new Color(1, 1, 1, fade), 2f);
+                        Art.DrawGlow(this, p.Pos + Vector2.FromAngle(head) * p.Size * 0.85f, p.Size * 0.45f, p.Colour with { A = 0.5f * fade });
+                    }
                     break;
                 }
                 case FxKind.Text:
