@@ -150,6 +150,20 @@ public partial class SmokeTest
             if (m != null && m.Hive) found = m;
         }
         Check(found != null && found.Threat == 6 && found.District == "industrial" && found.Type == JobType.Bounty && found.Title.Contains("Hive"), "prestige careers get the Hive on the board");
+        // One hive a career: never two at once, and none after it burns.
+        pro.Board.Add(found);
+        bool twice = false;
+        for (int k = 0; k < 400; k++) twice |= pro.MakeJob(city)?.Hive == true;
+        Check(!twice, "never two hives on the board");
+        var stale = new Job { Id = 99, Type = JobType.Bounty, Hive = true, Style = SiteStyle.Warehouse, Faction = Faction.Vipers, District = "industrial", Threat = 6, Seed = 22, Target = "x", Item = "x", Title = "Bounty: the Hive", Lot = -1, Expires = pro.Day + 5 };
+        pro.Board.Add(stale);
+        pro.Board.Remove(found);
+        pro.Finish(found, Won(pro, kills: 20));
+        Check(pro.Flag("hive:won") > 0 && Achievements.All.Single(a => a.Id == "hive").Done(pro), "burning the hive earns 'Burn it all'");
+        Check(!pro.Board.Any(b => b.Hive), "and takes any other hive off the board");
+        twice = false;
+        for (int k = 0; k < 400; k++) twice |= pro.MakeJob(city)?.Hive == true;
+        Check(!twice, "and no hive comes back");
     }
 
     private void SecurityLadder()

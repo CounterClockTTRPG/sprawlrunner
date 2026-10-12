@@ -592,6 +592,16 @@ public partial class ShotRunner : Node
                 lps.Show("Upgrades");
                 await Frames(10);
                 await Shot("07d_luxury");
+                // The garage wall, once there's a cat and someone to come home to.
+                string wasPartner = Root.Career.Partner;
+                int wasCat = Root.Career.Flag("cat");
+                Root.Career.Set("cat", Root.Career.Day);
+                Root.Career.Partner = "wisp";
+                lps.Show("Garage");
+                await Frames(10);
+                await Shot("07e_garage_wall");
+                Root.Career.Partner = wasPartner;
+                Root.Career.Set("cat", wasCat);
                 lps.Leave();
                 Root.Career.Lifestyle = was;
                 await Frames(5);

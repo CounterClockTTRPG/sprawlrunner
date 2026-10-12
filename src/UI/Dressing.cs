@@ -113,6 +113,52 @@ public partial class Photo : Control
     }
 }
 
+/// <summary>The cat's felt mouse, chewed, glued where it can't be batted under the car again.</summary>
+public partial class CatToy : Control
+{
+    public CatToy()
+    {
+        MouseFilter = MouseFilterEnum.Ignore;
+        CustomMinimumSize = new Vector2(130, 84);
+    }
+
+    public override void _Draw()
+    {
+        Vector2 c = Size / 2 + new Vector2(6, 4);
+        DrawSetTransform(c, -0.18f, new Vector2(1.45f, 1.45f));
+        // A dried smear of glue under it.
+        DrawCircle(new Vector2(-2, 6), 22, new Color(0.9f, 0.88f, 0.75f, 0.18f));
+        // The tail: a string, frayed at the end.
+        var tail = new[] { new Vector2(-20, 2), new Vector2(-30, -4), new Vector2(-36, 4), new Vector2(-44, -2) };
+        DrawPolyline(tail, new Color(0.7f, 0.15f, 0.12f), 1.5f, true);
+        DrawLine(tail[^1], tail[^1] + new Vector2(-4, -3), new Color(0.7f, 0.15f, 0.12f), 1);
+        DrawLine(tail[^1], tail[^1] + new Vector2(-4, 2), new Color(0.7f, 0.15f, 0.12f), 1);
+        // The body: a grey felt teardrop, the nose end chewed thin.
+        var felt = new Color(0.68f, 0.65f, 0.6f);
+        var body = new Vector2[18];
+        for (int i = 0; i < body.Length; i++)
+        {
+            float a = i / (float)body.Length * MathF.Tau;
+            float rx = MathF.Cos(a) > 0 ? 24 : 20;
+            float ry = 12 - 4 * MathF.Max(0, MathF.Cos(a));
+            float bite = i == 4 ? 0.82f : 1;
+            body[i] = new Vector2(MathF.Cos(a) * rx, MathF.Sin(a) * ry) * bite;
+        }
+        DrawColoredPolygon(body, felt);
+        DrawPolyline(body, felt.Darkened(0.35f), 1, true);
+        DrawLine(body[^1], body[0], felt.Darkened(0.35f), 1);
+        // Stitches along the seam, one ear, a bead eye, a pink nose.
+        for (int i = -2; i <= 2; i++) DrawLine(new Vector2(i * 6 - 1, -2), new Vector2(i * 6 + 1, 2), felt.Darkened(0.5f), 1);
+        DrawCircle(new Vector2(8, -10), 6, felt.Lightened(0.08f));
+        DrawCircle(new Vector2(8, -10), 3.5f, new Color(0.85f, 0.6f, 0.62f));
+        DrawCircle(new Vector2(14, -3), 1.8f, Dressing.Ink);
+        DrawCircle(new Vector2(23, 0), 2.2f, new Color(0.9f, 0.55f, 0.6f));
+        DrawSetTransform(Vector2.Zero, 0);
+        // Glued down by the tail, where it can still be batted at.
+        Dressing.Tape(this, c + new Vector2(-50, -2), 1.2f, 26, 9);
+    }
+}
+
 /// <summary>A paper price tag on a string hole, slightly askew.</summary>
 public partial class PriceTag : Control
 {

@@ -344,7 +344,9 @@ public sealed partial class Career
         if (employer == "rigger") { types.Add(JobType.Race); types.Add(JobType.Race); }
         JobType type = r.Pick(types);
         // Prestige: something has nested under the Industrial district (its own draw, so boards stay as they were).
-        bool hive = threat == 6 && dist.Id == "industrial" && new Rng(r.State ^ 0x41BEUL).Chance(Tables.HiveChance);
+        // One hive a career: never two on the board, and none once it's burned out.
+        bool hive = threat == 6 && dist.Id == "industrial" && Flag("hive:won") == 0 && !Board.Any(b => b.Hive)
+            && new Rng(r.State ^ 0x41BEUL).Chance(Tables.HiveChance);
         if (hive) { type = JobType.Bounty; style = SiteStyle.Warehouse; }
         if (type == JobType.Bounty) fac = Faction.Vipers;
         // Some work happens somewhere of its own (a draw of its own, so boards stay as they were): a ghoul nest
@@ -860,6 +862,7 @@ public sealed partial class Career
             if (r.Kills == 0 && !j.Driving) Count("nokill");
             if (r.Twist != null) Count("twist");
             if (j.Hired != null) Count("hire");
+            if (j.Hive) { Set("hive:won", Day); Board.RemoveAll(b => b.Hive); }
             if (r.Twist != null) d.Lines.Add(("Change of plan", r.PayMul > 1 ? $"+{(r.PayMul - 1) * 100:0} %" : r.PayMul < 1 ? $"-{(1 - r.PayMul) * 100:0} %" : "--"));
             Cash += pay;
             d.Lines.Insert(0, ("Payment", j.Stiff ? "never arrived" : M.Money(pay)));
