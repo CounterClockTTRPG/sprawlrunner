@@ -340,9 +340,9 @@ public static partial class Storylets
             c => c.Last?.Died == true && !c.Dead && c.Flag("flatlined") != c.Deaths,
             new[]
             {
-                Fx(Pay("Let her look you over (¥1,000)", 1000, (c, m) => { c.Injuries = Math.Max(0, c.Injuries - 1); return "She takes an hour and doesn't charge for the lecture. One injury mended."; })
+                Fx(Pay("Let him look you over (¥1,000)", 1000, (c, m) => { c.Injuries = Math.Max(0, c.Injuries - 1); return "He takes an hour and doesn't charge for the lecture. One injury mended."; })
                     with { Block = (c, m) => c.Injuries == 0 ? "Nothing to mend." : c.Cash < 1000 ? "Needs ¥1,000." : null }, "-¥1,000, one injury mended"),
-                Fx(new Choice("Thank her", (c, m) => { c.Karma += 1; c.KarmaEarned += 1; return "'Don't thank me. Be slower to die.' Karma +1."; }), "karma +1"),
+                Fx(new Choice("Thank him", (c, m) => { c.Karma += 1; c.KarmaEarned += 1; return "'Don't thank me. Be slower to die.' Karma +1."; }), "karma +1"),
             },
             Fire: (c, m) => c.Set("flatlined", c.Deaths));
 
@@ -408,7 +408,7 @@ public static partial class Storylets
             Bind: c => V(("thing", c.WantSomething(new Rng(c.Seed ^ (ulong)c.Day * 31UL)))), Cooldown: 8);
 
         yield return new("doc-after", Hook.Place, Doc, "A framed photo", "There's a framed photo on Ichikawa's desk now: Ade and the old crew, younger, laughing. Ichikawa catches you looking. 'Sit. You're bleeding on my floor again, and this one's on the house.'",
-            c => c.ArcDone("doc"), new[] { new Choice("Let her", (c, m) => { c.Injuries = 0; return "Stitches, nanites and, for once, no lecture. Injuries healed."; }) }, Place: "doc");
+            c => c.ArcDone("doc"), new[] { new Choice("Let him", (c, m) => { c.Injuries = 0; return "Stitches, nanites and, for once, no lecture. Injuries healed."; }) }, Place: "doc");
         yield return new("arms-after", Hook.Place, Sal, "Grandpa's rifle", "Sal has the old rifle on the wall behind the counter, lit like a shrine. 'Nobody touches it. Except to clean it. You want to clean it?' He doesn't wait. He hands you a crate of frags while you do.",
             c => c.ArcDone("arms"), new[] { new Choice("Clean the rifle", (c, m) => { c.Grenades["frag"] = Math.Min(c.GrenadeCap, c.Grenades.GetValueOrDefault("frag") + 2); return "Two frags, 'for the polish'."; }) }, Place: "arms");
         yield return new("rigger-after", Hook.Place, Torque, "Under the hood", "Torque is under your car before you've stopped. 'You drive like a lunatic and I love you for it. Don't move. Five minutes.'",

@@ -103,7 +103,7 @@ public static partial class Storylets
             ("ox", "Ox is on your doorstep, filling it. 'That one went sideways. I don't want to go back to my place and stare at the wall. Your couch. One night.'"),
             ("wisp", "Wisp is sitting on your stairs with her rifle case across her knees. 'I keep seeing the angles. The ones I missed.' She doesn't look up. 'Can I stay? I'll be quiet.'"),
             ("patch", "Patch is at your door, still in the bloody scrubs. 'I can't go home like this. My neighbours think I work in a hospital. Can I use your shower? And your couch?'"),
-            ("ade", "Ade is waiting outside, hugging herself. 'Ichikawa will ask how it went. I can't lie to her face tonight. Can I sleep here?'"),
+            ("ade", "Ade is waiting outside, hugging herself. 'Ichikawa will ask how it went. I can't lie to his face tonight. Can I sleep here?'"),
             ("byte", "Byte is at your door with a backpack and a very straight face. 'My place has windows. Lots of windows. Can I sleep on your floor? Just tonight. Just until my hands stop.'"),
         };
         foreach (var (id, text) in couch)

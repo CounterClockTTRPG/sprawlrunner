@@ -132,8 +132,6 @@ endings are 20-30 lines; voicing them through the existing assetgen pipeline
 is cheap and lifts exactly the moments that matter.
 
 ### 2.6 Loose ends in the text
-- **Doc Ichikawa's gender**: the portrait and voice are a man; the original
-  arc text says "her". Pick one and fix the other.
 - The Iron Spire's epilogue lists contacts and districts; extend it to the
   later campaigns and to the **career receipt** at death or retirement (days,
   jobs, people saved, people lost, who runs each district, what the radio

@@ -135,7 +135,7 @@ public static partial class Storylets
         string effect = $"a job for expenses only; done, notoriety -{Tables.AtoneCut} and {{who}} trusts you a little again";
 
         yield return new("atone-doc", Hook.Morning, Juno, "Ichikawa's other clinic",
-            "Juno: 'Ichikawa won't have your name said in her surgery. But she keeps a free clinic going in the Barrens out of her own pocket, and the {fac} lean on it for protection money. Tonight they're coming to collect. Hold the door -- for nothing -- and I'll make sure she hears who did.'",
+            "Juno: 'Ichikawa won't have your name said in his surgery. But he keeps a free clinic going in the Barrens out of his own pocket, and the {fac} lean on it for protection money. Tonight they're coming to collect. Hold the door -- for nothing -- and I'll make sure he hears who did.'",
             c => Open(c, "doc"),
             new[]
             {
