@@ -228,6 +228,7 @@ public partial class CityScreen : Control
             switch (e.Kind)
             {
                 case CityEv.Crash: Sfx.Instance?.Play(Sound.Crash, 1, 0.9f); break;
+                case CityEv.Wreck: Sfx.Instance?.Play(Sound.Explosion, 0.9f, 0.3f + 0.6f * v); break;
                 case CityEv.Bump: Sfx.Instance?.Play(Sound.Bump, 1, 0.8f); break;
                 case CityEv.Scrape: Sfx.Instance?.Play(Sound.Scrape, 1, 0.4f); break;
                 case CityEv.Honk: Sfx.Instance?.Play(Sound.Honk, e.Strength > 1 ? 0.85f : 1, v * 0.5f * e.Strength); break;

@@ -373,6 +373,6 @@ public sealed partial class CitySim
     {
         DriveInput inp = ch.Route.Step(this, ch.Car, dt, Tables.StreetRacerCruise);
         Drive(ch.Car, dt, inp, false);
-        if (ch.Car.Hp <= 0) { ch.Gone = true; Events.Add(new CityEvent(CityEv.Crash, ch.Car.Pos, 5)); }
+        if (ch.Car.Hp <= 0) { ch.Gone = true; Events.Add(new CityEvent(CityEv.Crash, ch.Car.Pos, 5)); Events.Add(new CityEvent(CityEv.Wreck, ch.Car.Pos, ch.Car.Def.Length, null, ch.Car.Pos + ch.Car.Forward)); }
     }
 }

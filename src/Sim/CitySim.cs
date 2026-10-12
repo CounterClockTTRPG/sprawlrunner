@@ -74,9 +74,10 @@ public sealed class Ped
     public bool Fan, Festival, Leaving;
 }
 
-public enum CityEv { Jingle, Crash, Bump, Honk, Knock, Scrape, Siren, Gunfire, Busted, Lost, Message, Pickup, Delivered, Wail, Scream, Pothole }
+public enum CityEv { Jingle, Crash, Bump, Honk, Knock, Scrape, Siren, Gunfire, Busted, Lost, Message, Pickup, Delivered, Wail, Scream, Pothole, Wreck }
 
-public readonly record struct CityEvent(CityEv Kind, V2 Pos, float Strength, string Text = null);
+/// <summary>Something that happened on the street. For gunfire, <paramref name="To"/> is where the shot went (the view draws the tracer).</summary>
+public readonly record struct CityEvent(CityEv Kind, V2 Pos, float Strength, string Text = null, V2 To = default);
 
 /// <summary>The city in motion: your car, the traffic and the people on the pavements.</summary>
 public sealed partial class CitySim
