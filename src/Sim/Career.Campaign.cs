@@ -167,6 +167,18 @@ public sealed partial class Career
 
     public static CampaignDef CampaignOf(Job j) => Campaigns.FirstOrDefault(d => j.Story > d.Base && j.Story <= d.Base + 4);
 
+    /// <summary>Which story a job moves on, and which chapter of how many (null for an ordinary job).</summary>
+    public static (string name, int chapter, int of)? StoryPart(Job j) => j.Story switch
+    {
+        <= 0 => null,
+        <= 4 => ("The Iron Spire", j.Story, Chapters.Length),
+        <= 8 => ("Toxic Tide", j.Story - 4, TideChapters.Length),
+        _ => CampaignOf(j) is CampaignDef d ? (d.Name, j.Story - d.Base, d.Chapters.Length) : null,
+    };
+
+    /// <summary>"The Wyrm's Ledger, chapter 4 of 4", or null.</summary>
+    public static string StoryLabel(Job j) => StoryPart(j) is var (name, k, of) ? $"{name}, chapter {k} of {of}" : null;
+
     /// <summary>The Lamplighter's last two chapters follow what you decided about it.</summary>
     private static void ShapeLamp(Career c, Job j, int k)
     {

@@ -646,6 +646,8 @@ public partial class PlaceScreen : Control
         // The fixer's file on the job: a file number, a stamp, the site photo taped in.
         var file = UITheme.HBox(10);
         file.AddChild(UITheme.Grow(UITheme.Label($"FILE {j.Id:0000}  ·  {Tables.District(j.District).Name.ToUpperInvariant()}  ·  FOR {C.Name.ToUpperInvariant()} ONLY", 14, UITheme.Dim, wrap: false, mono: true)));
+        // A story chapter gets its own stamp, so the file says this one matters.
+        if (Career.StoryPart(j) is var (_, chapter, of)) file.AddChild(new Stamp { Text = $"STORY {chapter}/{of}", FontSize = 22, Ink = Dressing.InkBlue, CustomMinimumSize = new Vector2(150, 34), Angle = 0.05f });
         file.AddChild(new Stamp { Text = "EYES ONLY", FontSize = 22, CustomMinimumSize = new Vector2(170, 34), Angle = -0.06f });
         body.AddChild(file);
         if (site && Assets.Picture(Assets.SitePicture(j.Style)) is Texture2D banner)
