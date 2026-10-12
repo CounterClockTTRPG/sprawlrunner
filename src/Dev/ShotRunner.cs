@@ -1102,6 +1102,18 @@ public partial class ShotRunner : Node
                 vr.Actors.Remove(st);
                 await Go(1, new RunInput { Slot = 0, Aim = st.Pos });
                 await Settle();
+                // Overclock: running through slowed time while a guard shoots -- afterimages, hanging bullets, the cold screen.
+                if (!vc.Cyber.Contains("wired")) vc.Cyber.Add("wired");
+                vc.SlotQ = Ability.Overclock;
+                Actor og = vr.AddEnemy(EnemyKind.Guard, v0 + new V2(7, -1), MathF.PI);
+                og.MaxHp = og.Hp = 1e5f;
+                vr.BecomeAlert(og, vr.Player.Pos);
+                await Go(30, Idle(og.Pos));
+                await Go(1, new RunInput { Slot = -1, AbilityQ = true, Aim = og.Pos });
+                await Go(40, new RunInput { Slot = -1, Move = new V2(0.3f, 1), Aim = og.Pos });
+                await Shot("48_vfx_overclock");
+                vr.Actors.Remove(og);
+                await Settle();
                 // An EMP grenade goes off as its own event (Detonate), not as a blast.
                 vr.Events.Add(new RunEvent(Ev.Emp, v0 + new V2(4, 0), default, 3));
                 Root.RunView.Frame(1 / 60f);

@@ -29,6 +29,14 @@ public partial class ScreenFx : CanvasLayer
     public void Interfere(float amount) { _held = MathF.Max(_held, amount); _heldAt = Time.GetTicksMsec(); }
     private float _held;
     private ulong _heldAt;
+
+    /// <summary>
+    /// Slowed time, 0..1 (Overclock): call it every frame it applies; it eases in, and eases out once the calls stop.
+    /// Shown whatever the grime setting, since it says something about the game, not the monitor.
+    /// </summary>
+    public void Slow(float amount) { _slowWant = MathF.Max(_slowWant, M.Clamp(amount, 0, 1)); _slowAt = Time.GetTicksMsec(); }
+    private float _slowWant, _slow;
+    private ulong _slowAt;
     /// <summary>Random flicker on or off (off in the walkthrough).</summary>
     public static bool Flicker = true;
 
@@ -97,6 +105,45 @@ void fragment() {
     COLOR = vec4(col, 1.0);
 }";
 
+
+    /// <summary>
+    /// Slowed time, drawn on its own layer between the world and the interface, so only the world slows and blurs
+    /// and the HUD stays sharp: the edges drag inward in a zoom blur, the colour bleeds out to a cold cyan, the
+    /// picture splits a little at the rim, and the corners close in with a slow heartbeat.
+    /// </summary>
+    private const string SlowCode = @"
+shader_type canvas_item;
+uniform sampler2D screen : hint_screen_texture, filter_linear;
+uniform float slow = 0.0;
+
+void fragment() {
+    vec2 uv = SCREEN_UV;
+    vec2 c = uv - 0.5;
+    float d = dot(c, c);
+    float t = TIME;
+    vec3 col = texture(screen, uv).rgb;
+    vec3 acc = col;
+    for (int i = 1; i <= 6; i++) {
+        float k = float(i) * 0.012 * slow * smoothstep(0.02, 0.3, d);
+        acc += texture(screen, uv - c * k).rgb;
+    }
+    vec3 blurred = acc / 7.0;
+    float lum = dot(blurred, vec3(0.3, 0.59, 0.11));
+    vec3 cold = mix(blurred, vec3(lum) * vec3(0.7, 1.05, 1.25), 0.55);
+    float split = 0.006 * slow * (0.3 + d * 3.0);
+    cold.r = mix(cold.r, texture(screen, uv + c * split).r * 0.8, 0.5 * slow);
+    cold.b = mix(cold.b, texture(screen, uv - c * split).b * 1.1, 0.5 * slow);
+    col = mix(col, cold, slow);
+    float beat = 0.5 + 0.5 * sin(t * 4.2);
+    float rim = smoothstep(0.08, 0.5, d * 1.5);
+    col = mix(col, col * vec3(0.35, 0.6, 0.75), rim * slow * (0.55 + 0.15 * beat));
+    col += vec3(0.0, 0.08, 0.12) * slow * rim * beat;
+    COLOR = vec4(col, 1.0);
+}";
+    private CanvasLayer _slowLayer;
+    private ColorRect _slowRect;
+    private ShaderMaterial _slowMat;
+
     public override void _EnterTree() => Instance = this;
     public override void _ExitTree() { if (Instance == this) Instance = null; }
 
@@ -108,11 +155,18 @@ void fragment() {
         _rect = new ColorRect { Material = _mat, MouseFilter = Control.MouseFilterEnum.Ignore };
         UITheme.Fill(_rect);
         AddChild(_rect);
+        // The world sits on layer 0 and the interface on 10 (Root): this goes between.
+        _slowMat = new ShaderMaterial { Shader = new Shader { Code = SlowCode } };
+        _slowRect = new ColorRect { Material = _slowMat, MouseFilter = Control.MouseFilterEnum.Ignore };
+        UITheme.Fill(_slowRect);
+        _slowLayer = new CanvasLayer { Layer = 5, Visible = false };
+        _slowLayer.AddChild(_slowRect);
+        AddChild(_slowLayer);
         Apply();
     }
 
     /// <summary>Read the setting.</summary>
-    private static readonly StringName PAmount = "amount", PJolt = "jolt", PInterference = "interference", PFlicker = "flicker";
+    private static readonly StringName PAmount = "amount", PJolt = "jolt", PInterference = "interference", PFlicker = "flicker", PSlow = "slow";
 
     public void Apply()
     {
@@ -129,9 +183,15 @@ void fragment() {
     public override void _Process(double delta)
     {
         if (_mat == null) return;
+        float dt = (float)delta;
+        if (Time.GetTicksMsec() - _slowAt > 100) _slowWant = 0;
+        // In quickly, out a little slower: time snapping back.
+        _slow += (_slowWant - _slow) * MathF.Min(1, dt * (_slowWant > _slow ? 7 : 4));
+        if (_slow < 0.002f) _slow = 0;
+        _slowLayer.Visible = _slow > 0;
+        if (_slow > 0) _slowMat.SetShaderParameter(PSlow, _slow);
         _rect.Visible = Profile.Current.Grime > 0.01f && Force != 0;
         if (!_rect.Visible) return;
-        float dt = (float)delta;
         _jolt = MathF.Max(0, _jolt - dt * 3.5f);
         if (Time.GetTicksMsec() - _heldAt > 100) _held = 0;
         _interference += (_held - _interference) * MathF.Min(1, dt * 6);
