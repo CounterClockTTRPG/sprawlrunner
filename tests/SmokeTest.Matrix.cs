@@ -41,17 +41,24 @@ public partial class SmokeTest
         MxSteps(p, 2, Idle);
         Check(p.Taken.Count == 0, "standing on a datastore doesn't pull it");
         MxSteps(p, 3, new MxInput { Hold = true, Program = -1 });
-        Check(p.Taken.Count == 1 && p.UsedMp == 1, "holding E pulls it into memory");
+        Check(p.Taken.Count == 1 && p.UsedMp == 0, "holding E pulls it (the job's own files need no memory)");
         MatrixRun full = Host(1, tweak: s => { s.Memory = 4; s.Programs = new List<string> { "hammer", "armor" }; });
         full.Ice.Clear();
         full.You = full.Stores[0];
         Eq(full.Free, 0, "two programs fill a 4 Mp deck");
         MxSteps(full, 3, new MxInput { Hold = true, Program = -1 });
-        Check(full.Taken.Count == 0, "no room in memory, no file");
+        Check(full.Taken.Count == 1 && full.NoRoom == null, "a full deck still pulls the job's datastore");
+        // Paydata does need room.
+        MxFile pay = full.Files.First(f => !f.Objective);
+        pay.Mp = 2;
+        pay.Encrypted = false;
+        full.You = pay.At;
+        MxSteps(full, 3, new MxInput { Hold = true, Program = -1 });
+        Check(!pay.Taken && full.NoRoom != null && full.NoRoom.Contains("Armor") && full.HoldT < 0.01f, "no room in memory, no file -- and the prompt names what G would purge");
         full.Step(1 / 60f, new MxInput { Purge = true, Program = -1 });
         Check(full.Free == 2 && !full.Has("armor"), "G purges the last program loaded");
         MxSteps(full, 3, new MxInput { Hold = true, Program = -1 });
-        Check(full.Taken.Count == 1, "and then the file fits");
+        Check(pay.Taken && full.NoRoom == null, "and then the file fits");
 
         // ---- spikes ----
         MatrixRun k = Host(2);

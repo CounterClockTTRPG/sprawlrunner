@@ -540,7 +540,8 @@ public partial class AgentRunner : Node
             sb.AppendLine($"JACKED INTO THE MATRIX: host rating {mx.Rating}, {(mx.Alert ? "ALERT" : "calm")}, TRACE {mx.Trace * 100:0} % (+{mx.TraceRate * 100:0.0} %/s){(mx.Locked > 0 ? $", LINK-LOCKED {mx.Locked:0.0} s" : "")}{(mx.CoreDown ? ", core crashed" : "")}{(mx.SpoofLeft ? ", spoof ready" : "")}.");
             sb.AppendLine($"deck: A{mx.Attack} S{mx.Sleaze} D{mx.Data} F{mx.Firewall}, condition {mx.Boxes - mx.Damage}/{mx.Boxes}, memory {mx.Free}/{mx.S.Memory} Mp free; datastores {mx.Taken.Count}/{mx.Stores.Count}; programs: {(mx.Programs.Count > 0 ? string.Join(", ", mx.Programs.Select(x => Tables.Program(x).Name + (Tables.Program(x).Active ? " (key)" : ""))) : "none")}");
             sb.AppendLine("keys: WASD one node at a time (key D 150 etc.; push into a gate to crack it); key Space spikes the IC on/next to you (or brute-forces a gate); hold E (key E 2000) pulls a file / takes a node; E at the entry jacks out; Q/F/R run active programs; G purges a program.");
-            if (mx.Holding != null) sb.AppendLine($"here: hold E to {mx.Holding}{(mx.HoldT > 0 ? $" ({mx.HoldT / mx.HoldNeed * 100:0} %)" : "")}");
+            if (mx.NoRoom != null) sb.AppendLine($"here: {mx.NoRoom}");
+            else if (mx.Holding != null) sb.AppendLine($"here: hold E to {mx.Holding}{(mx.HoldT > 0 ? $" ({mx.HoldT / mx.HoldNeed * 100:0} %)" : "")}");
             sb.AppendLine("grid (Y you, E entry, $ datastore, + taken, f paydata file, c control node, K core, a archive, IC by letter P K T B A C X # S; - | lines, = and ! locked gates):");
             for (int y = 0; y < MatrixRun.H; y++)
             {
