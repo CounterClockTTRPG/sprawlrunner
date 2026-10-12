@@ -220,7 +220,7 @@ public partial class PlaceScreen : Control
             case "Vehicles": Offers("rigger", "Wheels. The one you buy is the one you drive away in."); break;
             case "Programs": Offers("decker", $"Programs run loaded in your deck's memory ({C.ActiveDeck.Name}: {C.MemoryFree}/{C.Memory} Mp free; load them on the safehouse Deck tab). Paydata you pull shares the same memory.", o => o.Kind is not (ShopKind.Deck or ShopKind.Sell)); break;
             case "Decks": Offers("decker", $"Null's hardware. You carry the {C.ActiveDeck.Name} (rating {C.ActiveDeck.Rating}, {C.Memory} Mp). Arrays are Attack, Sleaze, Data processing, Firewall -- deal them out as you like on the safehouse Deck tab.", o => o.Kind == ShopKind.Deck); break;
-            case "Paydata": Offers("decker", "Null buys paydata at what it's worth. Wen pays her cut, like for anything else.", o => o.Kind == ShopKind.Sell); break;
+            case "Paydata": Offers("decker", "Null buys paydata at what it's worth. Wen pays his cut, like for anything else.", o => o.Kind == ShopKind.Sell); break;
             case "Precinct": Offers("cop", "Dace sells what his badge is worth. Cash, and he never met you."); break;
             case "Newsroom": Offers("press", "Quill buys true stories, kills false ones, and prints the ones that hurt the right people."); break;
             case "Spells": Offers("talismonger", C.Awakened ? $"Spell power x{C.SpellPower:0.00} (essence {C.Essence:0.00})." : "Sabine only teaches the Awakened. You are not."); break;
