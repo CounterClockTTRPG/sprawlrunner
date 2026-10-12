@@ -597,9 +597,13 @@ public partial class ShotRunner : Node
                 int wasCat = Root.Career.Flag("cat");
                 Root.Career.Set("cat", Root.Career.Day);
                 Root.Career.Partner = "wisp";
+                // A full garage, so the repair list is long enough to crowd the tab.
+                var wasCars = Root.Career.Vehicles.ToList();
+                foreach (string car in new[] { "interceptor", "raptor" }) if (!Root.Career.Vehicles.Contains(car)) Root.Career.Vehicles.Add(car);
                 lps.Show("Garage");
                 await Frames(10);
                 await Shot("07e_garage_wall");
+                Root.Career.Vehicles = wasCars;
                 Root.Career.Partner = wasPartner;
                 Root.Career.Set("cat", wasCat);
                 lps.Leave();

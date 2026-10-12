@@ -564,7 +564,11 @@ public partial class PlaceScreen : Control
 
     private void GarageTab()
     {
-        _content.AddChild(UITheme.Label($"Vehicles: {C.Vehicles.Count} / {C.VehicleCap}. The one you pick waits at the kerb.", 16, UITheme.Dim));
+        // The header carries the garage wall, top right, where the repair list below can't push it out of sight.
+        var head = UITheme.HBox(18);
+        head.AddChild(UITheme.Grow(UITheme.Label($"Vehicles: {C.Vehicles.Count} / {C.VehicleCap}. The one you pick waits at the kerb.", 16, UITheme.Dim)));
+        GarageWall(head);
+        _content.AddChild(head);
         foreach (string id in C.Vehicles)
         {
             VehicleDef v = Tables.Vehicle(id);
@@ -584,22 +588,16 @@ public partial class PlaceScreen : Control
         _content.AddChild(UITheme.Rule());
         _content.AddChild(UITheme.Label(C.HasUpgrade("garage") ? "Your garage repairs for free." : "No garage: patch the car up yourself when it is badly hurt, or have Torque fix it properly.", 14, UITheme.Dim));
         Offers("home", "", o => o.Kind == ShopKind.Repair);
-        GarageWall();
     }
 
     /// <summary>What's stuck to the garage wall: the cat's mouse, and a photo of the two of you.</summary>
-    private void GarageWall()
+    private void GarageWall(HBoxContainer wall)
     {
         string partner = C.LivingPartner, pic = null;
         if (partner != null)
             pic = new[] { Assets.CrewPicture(partner, "partner"), Assets.HirePicture(partner) }.FirstOrDefault(p => Assets.Picture(p) != null);
-        if (C.Flag("cat") == 0 && pic == null) return;
-        var wall = UITheme.HBox(18);
-        wall.AddChild(UITheme.Grow(new Control()));
         if (C.Flag("cat") > 0) wall.AddChild(new CatToy());
         if (pic != null) wall.AddChild(new Photo { Texture = Assets.Picture(pic), Seed = partner.Length * 7 + 3, CustomMinimumSize = new Vector2(96, 96) });
-        _content.AddChild(wall);
-        _content.AddChild(new Control { CustomMinimumSize = new Vector2(0, 10) });
     }
 
     private void Sleep()
