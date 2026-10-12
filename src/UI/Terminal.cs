@@ -250,8 +250,10 @@ public partial class Terminal : PanelContainer
             int idx = i + 1;
             bool active = j.Id == C.ActiveJob;
             string line = $"{(active ? "*" : j.Tutorial ? "T" : j.Story > 0 ? "S" : j.Arc != null ? "C" : j.Tag != null ? "!" : j.Contested ? "R" : j.Johnson ? "J" : " ")}{idx,-3} {Tables.JobNames[(int)j.Type],-11} {Tables.Contact(j.Employer).Name,-14} {Tables.District(j.District).Name,-12} {SiteOf(j),-11} {Threat(j.Threat),-9} {M.Money(j.Pay),-9} +{j.Karma,-5} {j.Expires - C.Day + 1}";
-            // The tutorial stands out: a new runner's first job is the one to take.
-            Line(line, active ? UITheme.Magenta : j.Tutorial ? UITheme.Yellow : G, () => Info(idx));
+            // The tutorial stands out: a new runner's first job is the one to take. So does the next chapter of a story.
+            string story = Career.StoryLabel(j);
+            Line(line, active ? UITheme.Magenta : j.Tutorial ? UITheme.Yellow : story != null ? UITheme.Violet : G, () => Info(idx));
+            if (story != null) Line($"     >> {story.ToUpperInvariant()} -- moves the story on", active ? UITheme.Magenta : UITheme.Violet, () => Info(idx));
         }
         Line("click a job, or 'info N'.  (* active  T tutorial  S story  C a contact's own story", GDim);
         Line("                            ! someone's personal business  J mr. johnson  R a rival crew wants it too)", GDim);
@@ -278,6 +280,7 @@ public partial class Terminal : PanelContainer
         if (j == null) { Line("no such job.", Warn); return; }
         Line("", G);
         Line($"[{n}] {j.Title.ToUpperInvariant()}{(j.Johnson ? "   -- MR. JOHNSON (negotiated on accept)" : "")}", UITheme.Cyan);
+        if (Career.StoryLabel(j) is string story) Line($"    >> {story.ToLower()}: this job moves the story on.", UITheme.Violet);
         Line($"    employer: {Tables.Contact(j.Employer).Name} ({Tables.Contact(j.Employer).Role.ToLower()})", GDim);
         Line($"    site:     {(j.Type is JobType.Courier or JobType.Race or JobType.Hack ? "" : Career.PlaceName(j.Style) + ", ")}{Tables.District(j.District).Name}, held by {Tables.FactionNames[(int)j.Faction]}", GDim);
         Line($"    threat:   {Threat(j.Threat)}    pay {M.Money(j.Pay)}{(!Career.GhostPays(j) ? "" : Career.NoKillPays(j) ? $" (+25% if no alarm, +{(j.JohnsonId == "vale" ? 30 : 15)}% if no kills)" : " (+25% if no alarm)")}    karma +{j.Karma}", GDim);

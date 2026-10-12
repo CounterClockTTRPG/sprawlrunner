@@ -533,7 +533,36 @@ public partial class ShotRunner : Node
                 Root.CityScreen.Enter(Root.CitySim.HomeLot);
                 await Frames(90);
                 await Shot("05_terminal");
-                var ps = Root.CityScreen.GetChildren().OfType<PlaceScreen>().First();
+                // The same board with a campaign's next chapter on it, marked out from the ordinary work.
+                {
+                    foreach (var p in Root.CityScreen.GetChildren().OfType<PlaceScreen>()) p.Leave();
+                    var wyrm = Career.Campaigns.First(d => d.Id == "wyrm");
+                    var chapter = new Job
+                    {
+                        Id = 900, Story = wyrm.Base + 4, Type = JobType.Plant, Style = SiteStyle.Office, Faction = Faction.Halcyon, District = "spire", Threat = 5,
+                        Expires = Root.Career.Day + 30, Lot = Root.Career.Board[0].Lot, Employer = "decker", Title = "WYRM'S LEDGER 4/4: Leverage",
+                        Brief = wyrm.Chapters[3].brief, Target = "x", Item = "copy of the ledger", Count = 4, Pay = 25200, Karma = 19,
+                    };
+                    Root.Career.Board.Add(chapter);
+                    Root.CityScreen.Enter(Root.CitySim.HomeLot);
+                    await Frames(60);
+                    await Shot("05b_terminal_story");
+                    foreach (var p in Root.CityScreen.GetChildren().OfType<PlaceScreen>()) p.Leave();
+                    // Its briefing carries a STORY stamp beside EYES ONLY.
+                    int wasActive = Root.Career.ActiveJob;
+                    Root.Career.ActiveJob = chapter.Id;
+                    Lot at = Root.City.Lots[chapter.Lot];
+                    Root.CitySim.ParkAt(at);
+                    Root.CityScreen.Enter(at);
+                    await Frames(30);
+                    await Shot("05c_briefing_story");
+                    foreach (var p in Root.CityScreen.GetChildren().OfType<PlaceScreen>()) p.Leave();
+                    Root.Career.ActiveJob = wasActive;
+                    Root.Career.Board.Remove(chapter);
+                    Root.CityScreen.Enter(Root.CitySim.HomeLot);
+                    await Frames(30);
+                }
+                var ps = Root.CityScreen.GetChildren().OfType<PlaceScreen>().First(p => !p.IsQueuedForDeletion());
                 ps.Show("Runner");
                 await Frames(10);
                 await Shot("06_runner");
