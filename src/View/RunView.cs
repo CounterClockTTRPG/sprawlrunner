@@ -54,6 +54,8 @@ public partial class RunView : Node2D
         R = run;
         _flying.Clear();
         _barrels.Clear();
+        _lastAt.Clear();
+        _wasOverclocked = false;
         foreach (Node n in GetChildren()) n.QueueFree();
         Level L = run.L;
         AddChild(new CanvasModulate { Color = new Color(0.78f, 0.78f, 0.9f) });
@@ -157,6 +159,7 @@ public partial class RunView : Node2D
         if (R == null) return;
         using (Perf.Time("run.events")) HandleEvents();
         TrackShots(dt);
+        Overclocked(dt);
         Fx.Step(dt);
         Glow.Step(dt);
         AmbientFire(dt);
@@ -208,6 +211,9 @@ public partial class RunView : Node2D
                     if (Fx.Rand(0, 1) < dt * 25) Glow.Add(FxKind.Ember, p, back * 40 + new Vector2(Fx.Rand(-50, 50), Fx.Rand(-50, 50)), 0.5f, 1.8f, new Color(1, 0.6f, 0.2f));
                 }
             }
+            // Slowed time: a bullet's path hangs in the air behind it.
+            if (R.OverclockT > 0 && s.Kind is ShotKind.Bullet or ShotKind.Pellet && R.Seen(s.Pos) && _flying.TryGetValue(s, out Vector2 was))
+                Glow.Streak(was, p, 0.35f, s.Kind == ShotKind.Pellet ? 1f : 1.5f, s.Team == 0 ? new Color(0.75f, 1f, 1f, 0.55f) : new Color(1f, 0.6f, 0.45f, 0.55f));
             _flying[s] = p;
         }
         foreach (var (s, last) in _flying)
@@ -228,6 +234,57 @@ public partial class RunView : Node2D
         foreach (Projectile s in _landed) _flying.Remove(s);
         _landed.Clear();
     }
+
+    private bool _wasOverclocked;
+    private float _ghostT;
+
+    /// <summary>
+    /// Overclock, seen: the screen slows (ScreenFx), you and everyone moving leave afterimages, and the moment it
+    /// kicks in and the moment time snaps back each get a pulse.
+    /// </summary>
+    private void Overclocked(float dt)
+    {
+        bool on = R.OverclockT > 0;
+        Vector2 me = Art.G(R.Player.Pos, T);
+        if (on != _wasOverclocked)
+        {
+            if (on)
+            {
+                // The wires fire: a heartbeat of cyan rushing out, the world going quiet.
+                var r1 = Glow.Add(FxKind.Ring, me, new Vector2(900, 0), 0.5f, 12, new Color(0.5f, 1f, 1f, 0.8f));
+                r1.Drag = 0;
+                r1.Width = 6;
+                Glow.Add(FxKind.Flash, me, Vector2.Zero, 0.4f, 80, new Color(0.4f, 0.9f, 1f, 0.5f));
+            }
+            else
+            {
+                // Time snaps back: a ring pulling in on you and a jolt of speed.
+                var r2 = Glow.Add(FxKind.Ring, me, new Vector2(-700, 0), 0.25f, 190, new Color(0.8f, 1f, 1f, 0.6f));
+                r2.Drag = 0;
+                r2.Width = 4;
+                Shake = 3;
+            }
+            _wasOverclocked = on;
+        }
+        if (!on) return;
+        ScreenFx.Instance?.Slow(1);
+        _ghostT -= dt;
+        if (_ghostT > 0) return;
+        _ghostT = 0.045f;
+        foreach (Actor a in R.Actors)
+        {
+            if (a.Dead || a.Def != null && a.Static || !(a.IsPlayer || R.Seen(a.Pos))) continue;
+            Vector2 at = Art.G(a.Pos, T);
+            // Only what is moving leaves a ghost.
+            if (_lastAt.TryGetValue(a, out Vector2 last) && last.DistanceSquaredTo(at) < 1.5f) { _lastAt[a] = at; continue; }
+            _lastAt[a] = at;
+            Color ghost = a.IsPlayer ? new Color(0.35f, 1f, 1f, 0.45f) : a.Hostile ? new Color(1f, 0.45f, 0.4f, 0.3f) : new Color(0.7f, 0.9f, 1f, 0.3f);
+            Glow.Add(FxKind.Flash, at, Vector2.Zero, a.IsPlayer ? 0.4f : 0.3f, a.Radius * T * 2.4f, ghost);
+            if (a.IsPlayer) Glow.Add(FxKind.Ring, at, Vector2.Zero, 0.3f, a.Radius * T * 1.1f, ghost with { A = 0.35f }).Width = 1.5f;
+        }
+    }
+
+    private readonly Dictionary<Actor, Vector2> _lastAt = new();
 
     private float _fireT;
 

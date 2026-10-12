@@ -277,7 +277,7 @@ public partial class RunScreen : Control
             Actor p = r.Player;
 
             // Screen tints: overclock, cloak, low health, flashbang.
-            if (r.OverclockT > 0) DrawRect(new Rect2(Vector2.Zero, size), new Color(0.1f, 0.4f, 0.6f, 0.12f));
+            // Overclock's slowed time is drawn by ScreenFx.Slow (and the afterimages in RunView), not a flat tint.
             if (r.CloakT > 0) DrawRect(new Rect2(Vector2.Zero, size), new Color(0.5f, 0.6f, 0.8f, 0.08f));
             float hurt = 1 - p.Hp / p.MaxHp;
             if (hurt > 0.5f || p.HitFlash > 0)
