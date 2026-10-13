@@ -28,7 +28,7 @@ public static class Assets
     public static readonly string Root = FileAccess.FileExists("res://assets/art/manifest.txt") || OS.HasFeature("editor")
         ? "res://assets"
         : OS.GetExecutablePath().GetBaseDir() + "/assets";
-    public static readonly string ArtDir = Root + "/art", VoiceDir = Root + "/voice", VideoDir = Root + "/video", FontDir = Root + "/fonts";
+    public static readonly string ArtDir = Root + "/art", VoiceDir = Root + "/voice", VideoDir = Root + "/video", FontDir = Root + "/fonts", HelpDir = Root + "/help";
 
     private static readonly Dictionary<string, FontFile> _fonts = new();
 
@@ -52,11 +52,15 @@ public static class Assets
     private static readonly Dictionary<string, AudioStream> _voices = new();
 
     /// <summary>A picture by manifest name, or null when it has not been generated.</summary>
-    public static Texture2D Picture(string name)
+    public static Texture2D Picture(string name) => Load(name, $"{ArtDir}/{name}.webp");
+
+    /// <summary>A Help page's screenshot (<c>assets/help</c>, made by <c>--shots help</c>), or null when it is missing.</summary>
+    public static Texture2D HelpPicture(string topic) => Load("help:" + topic, $"{HelpDir}/{topic}.webp");
+
+    private static Texture2D Load(string name, string path)
     {
         if (_pictures.TryGetValue(name, out Texture2D t)) return t;
         t = null;
-        string path = $"{ArtDir}/{name}.webp";
         if (FileAccess.FileExists(path))
         {
             var image = new Image();

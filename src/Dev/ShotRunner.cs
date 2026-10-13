@@ -54,6 +54,8 @@ public partial class ShotRunner : Node
         try
         {
             ScreenFx.Flicker = false;
+            // Shots (and the Help pictures made from them) print the default keys, whatever this keyboard's layout.
+            Controls.LayoutKeyNames = false;
             PlaceScreen.Scenes = false;
             DebriefScreen.Roll = false;
             if (Want("title"))
@@ -1205,6 +1207,28 @@ public partial class ShotRunner : Node
                 }
                 for (int i = 0; i < 20; i++) { Root.RunView.Frame(1 / 60f); hr.Events.Clear(); await Frames(1); }
                 await Shot("13e_high_end");
+            }
+            if (Want("help"))
+            {
+                // The Help pages' pictures: walkthrough shots (from this run or an earlier one) shrunk into assets/help.
+                string shots = ProjectSettings.GlobalizePath("res://shots"), into = ProjectSettings.GlobalizePath("res://assets/help");
+                System.IO.Directory.CreateDirectory(into);
+                foreach (HelpTopic t in Help.Topics.Where(t => t.Picture != null))
+                {
+                    string from = System.IO.Path.Combine(shots, t.Picture + ".png");
+                    if (!System.IO.File.Exists(from)) { GD.PrintErr($"help: no shot {t.Picture} for '{t.Id}' -- run its walkthrough first"); continue; }
+                    Image img = Image.LoadFromFile(from);
+                    img.Resize(960, 540, Image.Interpolation.Lanczos);
+                    img.SaveWebp(System.IO.Path.Combine(into, t.Id + ".webp"), true, 0.82f);
+                    GD.Print($"help: {t.Id} <- {t.Picture}");
+                }
+                // And the Help screen itself, open on a page with its picture.
+                Root.EnterCity();
+                await Frames(5);
+                Modal hm = Help.Open(Root.CityScreen, "jobs");
+                await Frames(10);
+                await Shot("50_help");
+                hm.Close();
             }
         }
         catch (Exception ex)

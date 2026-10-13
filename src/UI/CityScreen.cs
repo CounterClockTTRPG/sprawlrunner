@@ -158,6 +158,7 @@ public partial class CityScreen : Control
         var m = _pauseMenu = new Modal("PAUSED", 420);
         m.Add(UITheme.Button("Resume", () => m.Close(), 0, 44));
         m.Add(UITheme.Button("PDA  [P]", () => { m.QueueFree(); AddChild(new Pda(C, Sim)); }, 0, 44));
+        m.Add(UITheme.Button("Help", () => Help.Open(m), 0, 44));
         m.Add(UITheme.Button("Settings", () => Settings.Open(m), 0, 44));
         m.Add(UITheme.Button("Save and quit to title", () => { m.QueueFree(); Root.SaveAndQuit(); }, 0, 44));
         AddChild(m);

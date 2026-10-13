@@ -16,7 +16,7 @@ Godot and `dotnet.exe` driven from WSL. Design and every number:
     ./play.sh --check           headless self-check -- run after every change
     ./play.sh --check --only X  just the sections whose name contains X (Bot plays whole jobs)
     ./play.sh --shots [X]       windowed walkthrough, writes shots/*.png -- look at them
-                                (X: title, city, streets, terminal, place, map, run, rooms, rivals, cleaner, ending, vfx, or a job type)
+                                (X: title, city, streets, terminal, place, map, run, rooms, rivals, cleaner, ending, vfx, help, or a job type)
     bash scripts/assets.sh      generate missing portraits/banners/voices via ../assetgen
                                 (and the intro clip in assets/video); --list, --force NAME;
                                 needs its Replicate token
@@ -65,7 +65,9 @@ Sound is off until turned on in Settings. Settings live in `user://sprawlrunner.
 - `assets/` -- `art/*.webp` (portraits, briefing banners, intro backdrops), `voice/*.ogg`
   (contact greetings, story beats, the intro's narration) and `video/*.ogv` (the intro's
   opening shot, Theora), each with the `manifest.txt` that `scripts/assets.sh` generates
-  them from.
+  them from. `help/*.webp` are the Help pages' screenshots (`UI/Help.cs`, words in
+  `UI/HelpTopics.cs`): walkthrough shots shrunk by `./play.sh --shots help` (it uses the
+  shots already in `shots/`, so run the walkthrough first); the `HelpPages` check wants one per page.
   `.gdignore` keeps Godot's importer out.
 - `tests/SmokeTest*.cs` -- the self-check, including a bot that plays generated jobs and
   a balance report (`SmokeTest.Balance.cs`, printed every run).

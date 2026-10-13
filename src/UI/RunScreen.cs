@@ -130,6 +130,7 @@ public partial class RunScreen : Control
         var m = new Modal("PAUSED", 440);
         m.Add(UITheme.Label(R.ObjectiveText(), 17, UITheme.Text));
         m.Add(UITheme.Button("Resume", () => m.Close(), 0, 44));
+        m.Add(UITheme.Button("Help", () => Help.Open(m), 0, 44));
         m.Add(UITheme.Button("Settings", () => Settings.Open(m), 0, 44));
         m.Add(UITheme.Button("Bail out (job fails)", () =>
         {

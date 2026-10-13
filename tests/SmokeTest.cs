@@ -31,7 +31,7 @@ public partial class SmokeTest : Node
     private IEnumerable<Action> Sections() => new Action[]
     {
         Sight, Decking, Shots, Destruction, Repathing, Explosions, Fire, Stealth, Noise, Fighting, Grenades, Abilities, Magic, Bodies, EnemyGrenades, Conditions, NonLethal, Carrying, Lures, Fixtures, Ammo, Shields, Riggers, Bosses, Allies, Basements, PlaytestFixes, Hubs, Johnsons, Grudges, Spirits, Campaign, Storylets, Consequences, Crosses, TraumaLinkStreets, Turf, Atonement, Echoes, Happenings, Election, Crew, NewJobs, MoreJobs, Fifth, LateCampaigns, NewFaces, Towers, TopTier, Verbs, RunChoices, Backgrounds, Receipts, Roadblocks, Standing, EdgePoints, DialogsClose, Crowds, LegacyChoice, HighEnd, DangerCalls, SecurityLadder, Lamplighter, Balance, Performance, Block, Visitors, LongCareer, Favours, Injuries, Legacy, Phantoms, Tutorial, Bindings, Playtest2Fixes, Twists, ContactStories, Trust, StatsAndAchievements, Rigging, Playtest3Fixes, BusinessTroubles, LooseEnds, CityStreets, NewSites, RareSites, CareerScore,
-        Objectives, Extraction, LevelGenSeeds, LevelGenDebug, Bot, CityGen, Driving, Autopilot, Traffic, Police, Gangs, Couriers, Motorcycles, Shops, Karma, Board, Debriefs, Saving, SaveSlots, Audio, GeneratedAssets, Retiring, StreetEncounters, Lighting, RoomKinds, StyleRules, EntryPoints, RivalCrews, RivalArc, Romance, Presentation,
+        Objectives, Extraction, LevelGenSeeds, LevelGenDebug, Bot, CityGen, Driving, Autopilot, Traffic, Police, Gangs, Couriers, Motorcycles, Shops, Karma, Board, Debriefs, Saving, SaveSlots, Audio, GeneratedAssets, HelpPages, Retiring, StreetEncounters, Lighting, RoomKinds, StyleRules, EntryPoints, RivalCrews, RivalArc, Romance, Presentation,
     };
 
     private void Run(Action section)
@@ -2409,6 +2409,21 @@ public partial class SmokeTest : Node
     /// cover everything the game asks for by name, every file is there and
     /// decodes, and the spoken greetings are word for word what is on screen.
     /// </summary>
+    /// <summary>The Help pages: every one has words, names only real actions for its keys, and its screenshot is there.</summary>
+    private void HelpPages()
+    {
+        Check(Help.Topics.Length >= 10, $"there are help pages ({Help.Topics.Length})");
+        Check(Help.Topics.Select(t => t.Id).Distinct().Count() == Help.Topics.Length, "each has its own id");
+        foreach (HelpTopic t in Help.Topics)
+        {
+            Check(t.Text.Length > 0 && t.Text.All(p => p.Length > 20), $"'{t.Id}' says something");
+            string[] bad = Help.BadTokens(t);
+            Check(bad.Length == 0, $"'{t.Id}' names only real keys ({string.Join(", ", bad)})");
+            if (t.Picture != null) Check(Assets.HelpPicture(t.Id) != null, $"'{t.Id}' has its picture (assets/help/{t.Id}.webp: run the walkthrough, then its 'help' step)");
+        }
+        Check(Help.Keys("press {Act.Interact}") == $"press [{Controls.KeyName(Act.Interact)}]", "a key token becomes the bound key");
+    }
+
     private void GeneratedAssets()
     {
         var art = Assets.Manifest($"{Assets.ArtDir}/manifest.txt");
