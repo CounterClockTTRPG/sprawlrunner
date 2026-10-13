@@ -226,7 +226,7 @@ public sealed partial class Run
         bool lift = m.S.Use == MxUse.Lift;
         EndMatrix();
         _traceLeft = 0.5f;
-        if (SpendEdge(true, "you tear the trace out of your deck before it lands. Jack back in.")) return;
+        if (SpendEdge(true, "you tear the trace out of your deck before it lands. Jack back in.", "trace")) return;
         if (C.HasProgram("lamplight") && !_lampUsed)
         {
             _lampUsed = true;

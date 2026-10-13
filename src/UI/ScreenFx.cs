@@ -37,6 +37,10 @@ public partial class ScreenFx : CanvasLayer
     public void Slow(float amount) { _slowWant = MathF.Max(_slowWant, M.Clamp(amount, 0, 1)); _slowAt = Time.GetTicksMsec(); }
     private float _slowWant, _slow;
     private ulong _slowAt;
+
+    /// <summary>Edge spent: fate bends -- a golden ripple runs out across the world and fades in under a second.</summary>
+    public void Fate(float strength = 1) { _fate = MathF.Max(_fate, M.Clamp(strength, 0, 1)); _fateT = 0; }
+    private float _fate, _fateT;
     /// <summary>Random flicker on or off (off in the walkthrough).</summary>
     public static bool Flicker = true;
 
@@ -115,12 +119,19 @@ void fragment() {
 shader_type canvas_item;
 uniform sampler2D screen : hint_screen_texture, filter_linear;
 uniform float slow = 0.0;
+uniform float fate = 0.0;
+uniform float fate_t = 0.0;
 
 void fragment() {
     vec2 uv = SCREEN_UV;
     vec2 c = uv - 0.5;
     float d = dot(c, c);
     float t = TIME;
+    // Fate bending (Edge): a ring of ripple running outward from the middle, and gold where it passes.
+    float dist = length(c * vec2(1.6, 1.0));
+    float front = fate_t * 1.4;
+    float wave = fate * exp(-pow((dist - front) * 9.0, 2.0));
+    uv += normalize(c + 1e-5) * wave * 0.012 * sin(dist * 90.0 - fate_t * 30.0);
     vec3 col = texture(screen, uv).rgb;
     vec3 acc = col;
     for (int i = 1; i <= 6; i++) {
@@ -138,6 +149,11 @@ void fragment() {
     float rim = smoothstep(0.08, 0.5, d * 1.5);
     col = mix(col, col * vec3(0.35, 0.6, 0.75), rim * slow * (0.55 + 0.15 * beat));
     col += vec3(0.0, 0.08, 0.12) * slow * rim * beat;
+    // The gold: on the ripple's front, and a warm wash with a golden rim that fades with it.
+    float glum = dot(col, vec3(0.3, 0.59, 0.11));
+    col = mix(col, vec3(glum) * vec3(1.35, 1.05, 0.55), fate * 0.35);
+    col += vec3(1.0, 0.75, 0.3) * wave * 0.35;
+    col += vec3(0.5, 0.33, 0.08) * fate * smoothstep(0.1, 0.5, d * 1.5) * 0.5;
     COLOR = vec4(col, 1.0);
 }";
     private CanvasLayer _slowLayer;
@@ -166,7 +182,7 @@ void fragment() {
     }
 
     /// <summary>Read the setting.</summary>
-    private static readonly StringName PAmount = "amount", PJolt = "jolt", PInterference = "interference", PFlicker = "flicker", PSlow = "slow";
+    private static readonly StringName PAmount = "amount", PJolt = "jolt", PInterference = "interference", PFlicker = "flicker", PSlow = "slow", PFate = "fate", PFateT = "fate_t";
 
     public void Apply()
     {
@@ -188,8 +204,15 @@ void fragment() {
         // In quickly, out a little slower: time snapping back.
         _slow += (_slowWant - _slow) * MathF.Min(1, dt * (_slowWant > _slow ? 7 : 4));
         if (_slow < 0.002f) _slow = 0;
-        _slowLayer.Visible = _slow > 0;
-        if (_slow > 0) _slowMat.SetShaderParameter(PSlow, _slow);
+        _fateT += dt;
+        _fate = MathF.Max(0, _fate - dt * 1.3f);
+        _slowLayer.Visible = _slow > 0 || _fate > 0;
+        if (_slowLayer.Visible)
+        {
+            _slowMat.SetShaderParameter(PSlow, _slow);
+            _slowMat.SetShaderParameter(PFate, _fate);
+            _slowMat.SetShaderParameter(PFateT, _fateT);
+        }
         _rect.Visible = Profile.Current.Grime > 0.01f && Force != 0;
         if (!_rect.Visible) return;
         _jolt = MathF.Max(0, _jolt - dt * 3.5f);

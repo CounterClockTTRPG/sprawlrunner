@@ -12,13 +12,15 @@ public sealed partial class Run
     private float _graceT;
 
     /// <summary>Spend a point (<paramref name="keepLast"/>: only if one would still be left for death).</summary>
-    private bool SpendEdge(bool keepLast, string say)
+    /// <param name="kind">What it bent, for the view: "death", "unseen" or "trace".</param>
+    /// <param name="from">Who it was turned on (the watcher who looked through you), if anyone.</param>
+    private bool SpendEdge(bool keepLast, string say, string kind, V2 from = default)
     {
         if (Edge <= (keepLast ? 1 : 0)) return false;
         Edge--;
         EdgeUsed++;
         Say($"EDGE: {say}");
-        Events.Add(new RunEvent(Ev.Ability, Player.Pos, default, 0, -1, "edge"));
+        Events.Add(new RunEvent(Ev.Ability, Player.Pos, from, 0, -1, "edge:" + kind));
         Hint("edge", "Edge cheats fate: the last point always saves you from a killing blow; spare points also slip a detection or a Matrix trace. Charisma and karma (the Runner tab) buy more.");
         return true;
     }
@@ -26,7 +28,7 @@ public sealed partial class Run
     /// <summary>A blow that would kill you: get up instead, once a point.</summary>
     private bool CheatDeath(Actor a)
     {
-        if (!a.IsPlayer || a.Hp > 0 || !SpendEdge(false, "that should have killed you. It didn't.")) return false;
+        if (!a.IsPlayer || a.Hp > 0 || !SpendEdge(false, "that should have killed you. It didn't.", "death")) return false;
         a.Hp = a.MaxHp * Tables.EdgeHeal;
         _graceT = Tables.EdgeGrace;
         return true;
@@ -35,7 +37,7 @@ public sealed partial class Run
     /// <summary>The instant a guard or camera makes you: a spare point makes them look straight through you.</summary>
     private bool SlipDetection(Actor a)
     {
-        if (Alarm || !SpendEdge(true, $"the {a.Name.ToLower()} looks straight at you -- and through you.")) return false;
+        if (Alarm || !SpendEdge(true, $"the {a.Name.ToLower()} looks straight at you -- and through you.", "unseen", a.Pos)) return false;
         a.Detect = 0;
         a.BluffT = 3;
         return true;

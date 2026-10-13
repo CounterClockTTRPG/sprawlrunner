@@ -1114,6 +1114,26 @@ public partial class ShotRunner : Node
                 await Shot("48_vfx_overclock");
                 vr.Actors.Remove(og);
                 await Settle();
+                // Edge: a killing blow shrugged off -- the real thing, through Hurt.
+                vr.Edge = Math.Max(vr.Edge, 2);
+                (vr.Player.MaxHp, vr.Player.Hp) = (120, 5);
+                vr.Hurt(vr.Player, 60, null, false);
+                Root.RunView.Frame(1 / 60f);
+                vr.Events.Clear();
+                await Go(9, Idle(v0 + new V2(4, 0)));
+                await Shot("49_vfx_edge_death");
+                await Settle();
+                // And a guard who looks straight through you (the event as SlipDetection sends it).
+                V2 watcher = v0 + new V2(6, -2);
+                Actor wg = vr.AddEnemy(EnemyKind.Guard, watcher, MathF.PI);
+                vr.Events.Add(new RunEvent(Ev.Ability, vr.Player.Pos, watcher, 0, -1, "edge:unseen"));
+                Root.RunView.Frame(1 / 60f);
+                vr.Events.Clear();
+                await Go(10, Idle(watcher));
+                await Shot("49b_vfx_edge_unseen");
+                vr.Actors.Remove(wg);
+                vr.Player.MaxHp = vr.Player.Hp = 1e6f;
+                await Settle();
                 // An EMP grenade goes off as its own event (Detonate), not as a blast.
                 vr.Events.Add(new RunEvent(Ev.Emp, v0 + new V2(4, 0), default, 3));
                 Root.RunView.Frame(1 / 60f);
