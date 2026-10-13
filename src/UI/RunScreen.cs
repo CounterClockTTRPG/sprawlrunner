@@ -263,6 +263,12 @@ public partial class RunScreen : Control
     {
         public RunScreen S;
 
+        /// <summary>A point of Edge just spent: how long its diamond flares (s), and when the count last dropped.</summary>
+        private const float EdgeBurst = 0.8f;
+        private float _edgeBurst;
+        private int _lastEdge = -1;
+        private ulong _edgeAt;
+
         public override void _Ready() => MouseFilter = MouseFilterEnum.Ignore;
 
         /// <summary>The prompt's width in its font (remembered: the same prompt shows for many frames).</summary>
@@ -309,6 +315,9 @@ public partial class RunScreen : Control
             UITheme.Write(this, hb.Position + new Vector2(8, 17), hpText, 15, UITheme.Text, mono: true);
             UITheme.Write(this, new Vector2(354, size.Y - 57), $"ARM {r.C.ArmorValue}", 15, UITheme.Text);
             // Edge: one diamond a point, the hollow ones spent -- after the name.
+            if (_lastEdge >= 0 && r.Edge < _lastEdge) _edgeAt = Time.GetTicksMsec();
+            _lastEdge = r.Edge;
+            _edgeBurst = MathF.Max(0, EdgeBurst - (Time.GetTicksMsec() - _edgeAt) / 1000f);
             UITheme.Write(this, new Vector2(nameEnd, size.Y - 84), "EDGE", 12, UITheme.Dim, heading: true);
             float edgeX = nameEnd + TextW("EDGE", 12, true) + 10;
             for (int k = 0; k < r.Edge + r.EdgeUsed; k++)
@@ -317,6 +326,13 @@ public partial class RunScreen : Control
                 var dia = new[] { ec + new Vector2(0, -5), ec + new Vector2(5, 0), ec + new Vector2(0, 5), ec + new Vector2(-5, 0) };
                 if (k < r.Edge) DrawColoredPolygon(dia, UITheme.Amber);
                 else DrawPolyline(new[] { dia[0], dia[1], dia[2], dia[3], dia[0] }, UITheme.Faint, 1.2f);
+                // The point just spent flares and grows as it burns out.
+                if (k == r.Edge && _edgeBurst > 0)
+                {
+                    float u = _edgeBurst / EdgeBurst, grow = 1 + (1 - u) * 2.2f;
+                    Art.DrawGlow(this, ec, 26 * grow, UITheme.Amber with { A = 0.7f * u });
+                    DrawPolyline(new[] { ec + (dia[0] - ec) * grow, ec + (dia[1] - ec) * grow, ec + (dia[2] - ec) * grow, ec + (dia[3] - ec) * grow, ec + (dia[0] - ec) * grow }, UITheme.Amber with { A = u }, 2);
+                }
             }
             // How lit you stand: the dark hides you, a lamp gives you away.
             float lit = r.L.LightAt(p.Pos);

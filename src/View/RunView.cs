@@ -384,6 +384,65 @@ public partial class RunView : Node2D
         for (int k = 0; k < 4; k++) _decals.Add(p + Vector2.FromAngle(Fx.Rand(0, MathF.Tau)) * rad * Fx.Rand(0.4f, 0.8f), rad * Fx.Rand(0.15f, 0.25f), new Color(0.03f, 0.03f, 0.03f, 0.35f), soft: true);
     }
 
+    /// <summary>
+    /// Edge spent -- fate bending: a golden ripple across the world (ScreenFx.Fate), a ring of gold and shards of it
+    /// spinning off you, and what it bent: a column of light raising you from a killing blow, a golden glance bent
+    /// round you from the guard who should have seen you, or a burst of static torn out of your deck.
+    /// </summary>
+    private void Edge(Vector2 p, string kind, V2 from)
+    {
+        Color gold = new(1f, 0.78f, 0.3f, 1), pale = new(1f, 0.93f, 0.7f, 1);
+        Sfx.Instance?.Play(Sound.Objective, 1.4f, 0.8f);
+        Sfx.Instance?.Play(Sound.Ability, 0.7f, 0.7f);
+        ScreenFx.Instance?.Fate(1);
+        Glow.Add(FxKind.Flash, p, Vector2.Zero, 0.6f, 110, gold with { A = 0.6f });
+        Glow.Add(FxKind.Flash, p, Vector2.Zero, 0.15f, 40, pale);
+        var r1 = Glow.Add(FxKind.Ring, p, new Vector2(700, 0), 0.45f, 10, gold);
+        r1.Drag = 0;
+        r1.Width = 7;
+        var r2 = Glow.Add(FxKind.Ring, p, new Vector2(320, 0), 0.7f, 6, pale with { A = 0.6f });
+        r2.Drag = 0;
+        r2.Width = 3;
+        // Shards of luck: little gold diamonds tumbling away.
+        Fx.Burst(FxKind.Debris, p, 14, 260, 0.9f, 4, gold);
+        Glow.Burst(FxKind.Spark, p, 18, 380, 0.4f, 1.6f, pale);
+        var t = Fx.Add(FxKind.Text, p + new Vector2(0, -26), new Vector2(0, -34), 1.3f, 20, UITheme.Amber);
+        t.Text = "EDGE";
+        t.Drag = 1.2f;
+        switch (kind)
+        {
+            case "death":
+                // Back on your feet in a pillar of light, motes rising up it.
+                for (int k = 0; k < 8; k++) Glow.Add(FxKind.Flash, p + new Vector2(0, -k * 13), Vector2.Zero, 0.9f, 44 - k * 4, gold with { A = 0.85f - k * 0.08f });
+                Glow.Add(FxKind.Flash, p, Vector2.Zero, 0.9f, 70, pale with { A = 0.6f });
+                for (int k = 0; k < 26; k++)
+                    Glow.Add(FxKind.Ember, p + new Vector2(Fx.Rand(-14, 14), Fx.Rand(-6, 6)), new Vector2(Fx.Rand(-10, 10), Fx.Rand(-140, -60)), Fx.Rand(0.7f, 1.3f), 2, gold).Drag = 0.6f;
+                Shake = 7;
+                break;
+            case "unseen":
+            {
+                // The watcher's gaze, bent round you in gold, and a puzzled flicker where it came from.
+                Vector2 w = Art.G(from, T);
+                if (from != default && w.DistanceTo(p) > 4)
+                {
+                    Vector2 mid = (w + p) / 2 + (p - w).Orthogonal().Normalized() * 34;
+                    Glow.Streak(w, mid, 0.6f, 2.2f, gold);
+                    Glow.Streak(mid, p + (p - mid).Normalized() * 40, 0.6f, 2.2f, gold);
+                    var wr = Glow.Add(FxKind.Ring, w, new Vector2(160, 0), 0.4f, 6, gold);
+                    wr.Drag = 0;
+                    var q = Fx.Add(FxKind.Text, w + new Vector2(0, -22), new Vector2(0, -20), 1f, 18, UITheme.Amber);
+                    q.Text = "?";
+                }
+                break;
+            }
+            case "trace":
+                Glow.Burst(FxKind.Spark, p, 24, 300, 0.4f, 1.3f, UITheme.Violet);
+                for (int k = 0; k < 4; k++)
+                    Glow.Bolt(p, p + Vector2.FromAngle(Fx.Rand(0, MathF.Tau)) * Fx.Rand(40, 80), 0.25f, 1.6f, gold, 8, 1);
+                break;
+        }
+    }
+
     private void HandleEvents()
     {
         _barrels.RemoveAll(b => R.Time - b.t > 0.5f);
@@ -611,6 +670,9 @@ public partial class RunView : Node2D
                 case Ev.Hack:
                     Play(Sound.Hack, e.Pos, 1, 1, 40);
                     Glow.Burst(FxKind.Spark, p, 16, 160, 0.5f, 1.5f, UITheme.Violet);
+                    break;
+                case Ev.Ability when e.Text != null && e.Text.StartsWith("edge"):
+                    Edge(p, e.Text.Length > 5 ? e.Text[5..] : "", e.Dir);
                     break;
                 case Ev.Ability:
                     Sfx.Instance?.Play(Sound.Ability);
