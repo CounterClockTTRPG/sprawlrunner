@@ -67,6 +67,8 @@ public partial class Pda : Control
             b.ToggleMode = true;
             _tabs.AddChild(b);
         }
+        // Not a tab: the help pages open over the PDA.
+        _tabs.AddChild(UITheme.Button("Help", () => Help.Open(this), 90, 38));
         var panel = UITheme.Panel(_content = UITheme.VBox(8), 16);
         panel.SizeFlagsVertical = SizeFlags.ExpandFill;
         v.AddChild(panel);

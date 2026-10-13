@@ -63,13 +63,15 @@ public static class Controls
         // The HUD asks every frame: remember each action's name until its key changes (a rebinding).
         Key k = KeyOf(a);
         if (_keyNames.TryGetValue(a, out var known) && known.key == k) return known.name;
-        Key label = AgentRunner.Active ? Key.None : DisplayServer.KeyboardGetKeycodeFromPhysical(k);
+        Key label = AgentRunner.Active || !LayoutKeyNames ? Key.None : DisplayServer.KeyboardGetKeycodeFromPhysical(k);
         string name = OS.GetKeycodeString(label != Key.None ? label : k);
         _keyNames[a] = (k, name);
         return name;
     }
 
     private static readonly Dictionary<Act, (Key key, string name)> _keyNames = new();
+    /// <summary>Name keys as this keyboard prints them (off in the walkthrough, whose shots show the default QWERTY names).</summary>
+    public static bool LayoutKeyNames = true;
 
     /// <summary>Is the key held -- by position only, so a layout's letters never fire a second action (AZERTY's Q is Left, not Ability 1).</summary>
     public static bool Down(Key k) => AgentRunner.Active ? AgentKeys.Contains(k) : Input.IsPhysicalKeyPressed(k);
