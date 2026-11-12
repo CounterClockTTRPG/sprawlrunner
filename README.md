@@ -99,5 +99,18 @@ the network.
     src/Core    screen flow, audio synthesis, input, assets
     tests/      the self-check run by ./play.sh --check
 
-The interface fonts in `assets/fonts/` are under the SIL Open Font License; their
-licences sit beside them.
+## Licence
+
+Sprawlrunner is free to play, read, change and share, **but not to sell**.
+
+- **Code**, scripts, tests and docs: [PolyForm Noncommercial 1.0.0](LICENSE). Use it
+  for anything noncommercial, such as learning, modding, hobby projects or teaching.
+  Keep the copyright notice.
+- **Pictures, voices, video and screenshots** (`assets/art`, `assets/voice`,
+  `assets/video`, `assets/help`, `docs/screenshots`):
+  [CC BY-NC-SA 4.0](LICENSE-ASSETS). Credit the game, don't sell them, and share
+  anything you build from them under the same terms.
+- **Fonts** in `assets/fonts/`: SIL Open Font License 1.1, from their authors (their
+  licences are beside them).
+
+For commercial use, open an issue to ask.
